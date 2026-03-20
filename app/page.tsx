@@ -1,6 +1,15 @@
+"use client";
+
+import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 
 const LandingPage = () => {
+  const {status} = useSession();
+
+  const handleLogout = async () => {
+    await signOut({callbackUrl: "/"});
+  };
+
   return (
     <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex w-full max-w-3xl flex-col gap-8 bg-white px-6 py-14 dark:bg-black sm:px-10">
@@ -15,12 +24,28 @@ const LandingPage = () => {
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Link
-            href="/login"
-            className="flex h-11 items-center justify-center rounded-md bg-black px-5 text-sm font-medium text-white transition-colors hover:bg-black/90 dark:bg-zinc-200 dark:text-black"
-          >
-            Login
-          </Link>
+        {status === "loading" ? (
+            <button
+              disabled
+              className="flex h-11 items-center justify-center rounded-md bg-black px-5 text-sm font-medium text-white opacity-60 dark:bg-zinc-200 dark:text-black"
+            >
+              Checking...
+            </button>
+          ) : status === "authenticated" ? (
+            <button
+              onClick={handleLogout}
+              className="flex h-11 items-center justify-center rounded-md bg-black px-5 text-sm font-medium text-white transition-colors hover:bg-black/90 dark:bg-zinc-200 dark:text-black"
+            >
+              Logout
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="flex h-11 items-center justify-center rounded-md bg-black px-5 text-sm font-medium text-white transition-colors hover:bg-black/90 dark:bg-zinc-200 dark:text-black"
+            >
+              Login
+            </Link>
+          )}
 
           <Link
             href="/plan/new"

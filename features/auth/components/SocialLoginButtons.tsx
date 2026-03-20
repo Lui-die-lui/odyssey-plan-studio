@@ -1,5 +1,7 @@
 "use client";
 
+import { signIn } from "next-auth/react";
+
 type SocialLoginButtonsProps = {
   className?: string;
   onGoogleClick?: () => void;
@@ -12,15 +14,13 @@ const SocialLoginButtons = ({
   onKakaoClick,
 }: SocialLoginButtonsProps) => {
   const handleGoogleClick = () => {
-    // Placeholder: wire up social auth flows later.
-    console.log("Google login clicked");
     onGoogleClick?.();
+    signIn("google", {callbackUrl: "/"});
   };
 
   const handleKakaoClick = () => {
-    // Placeholder: wire up social auth flows later.
-    console.log("Kakao login clicked");
     onKakaoClick?.();
+    signIn("kakao", {callbackUrl: "/"});
   };
 
   return (

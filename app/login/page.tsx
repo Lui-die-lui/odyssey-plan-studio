@@ -1,4 +1,5 @@
-import { SocialLoginButtons } from "@/features/auth/components/SocialLoginButtons";
+import SocialLoginButtons from "@/features/auth/components/SocialLoginButtons";
+
 
 export default function LoginPage() {
   return (
@@ -7,7 +8,7 @@ export default function LoginPage() {
         <header className="flex flex-col gap-2">
           <h1 className="text-3xl font-semibold tracking-tight">Social Login</h1>
           <p className="text-zinc-600 dark:text-zinc-400">
-            Sign in using one of the social providers below.
+            Choose Google or Kakao to sign in.
           </p>
         </header>
 
