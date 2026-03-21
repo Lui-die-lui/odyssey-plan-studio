@@ -1,12 +1,6 @@
-import type {
-  SavedPlanResponse,
-  SavePlanRequestPayload,
-  UpdatePlanRequestPayload,
-} from "../types/plan.types";
+import type { SavedPlanResponse, SavePlanRequestPayload } from "../types/plan.types";
 
 const API_PATH = "/api/my-plan";
-
-type SaveMyPlanPayload = SavePlanRequestPayload | UpdatePlanRequestPayload;
 
 const safeReadJson = async (res: Response): Promise<unknown> => {
   const contentType = res.headers.get("content-type");
@@ -60,40 +54,29 @@ const requestJson = async <T>(
 
 export const getMyPlan = async (): Promise<SavedPlanResponse | null> => {
   try {
-    return await requestJson<SavedPlanResponse>(API_PATH, {
+    return await requestJson<SavedPlanResponse | null>(API_PATH, {
       method: "GET",
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    // If your API returns 404 for "no plan yet", treat it as "not found".
+    if (message.includes("(401")) return null;
     if (message.includes("(404")) return null;
     throw err;
   }
 };
 
+/**
+ * Upserts the current user's plan on the server. Do not mirror the full plan in
+ * localStorage or other global browser keys — rely on GET /api/my-plan after auth.
+ */
 export const saveMyPlan = async (
-  payload: SaveMyPlanPayload,
+  payload: SavePlanRequestPayload,
 ): Promise<SavedPlanResponse> => {
-  const isUpdate = "planId" in payload;
-
   return await requestJson<SavedPlanResponse>(API_PATH, {
-    method: isUpdate ? "PUT" : "POST",
+    method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
   });
 };
-
-export const updateMyPlan = async (
-  payload: UpdatePlanRequestPayload,
-): Promise<SavedPlanResponse> => {
-  return await requestJson<SavedPlanResponse>(API_PATH, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-};
-

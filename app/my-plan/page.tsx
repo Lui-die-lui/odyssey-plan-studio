@@ -3,15 +3,20 @@
 
 import Link from "next/link";
 
+import RequireAuthForPlan from "@/features/auth/components/RequireAuthForPlan";
+import { SubpageGlassVeil } from "@/components/layout/SubpageGlassVeil";
+import { LandingConfetti } from "@/features/landing/components/LandingConfetti";
 import { useMyPlan } from "@/features/plan/hooks/useMyPlan";
 import PlanSummary from "@/features/plan/components/PlanSummary";
 
-const MyPlanPage = () => {
+const MyPlanPageInner = () => {
   const { plan, loading, error, refetch } = useMyPlan({ autoLoad: true });
 
   return (
-    <div className="flex flex-col flex-1 bg-zinc-50 font-sans dark:bg-black">
-      <main className="mx-auto w-full max-w-3xl px-4 py-10">
+    <div className="relative flex flex-col flex-1 overflow-hidden bg-app-canvas font-sans dark:bg-black">
+      <LandingConfetti />
+      <SubpageGlassVeil />
+      <main className="relative z-10 mx-auto w-full max-w-6xl px-4 py-10">
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
@@ -38,7 +43,7 @@ const MyPlanPage = () => {
           </div>
 
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            View your saved yearly goals and summaries.
+            년차별 목표와 거리 점수 요약을 확인할 수 있습니다.
           </p>
         </div>
 
@@ -63,24 +68,22 @@ const MyPlanPage = () => {
               </button>
             </div>
           ) : (
-            <>
-              {plan ? (
-                <div className="mb-4 rounded-md border border-black/10 bg-white p-3 text-sm text-zinc-700 dark:border-white/10 dark:bg-black dark:text-zinc-200">
-                  Plan loaded successfully.
-                </div>
-              ) : null}
-
-              <PlanSummary
-                plan={plan}
-                emptyStateMessage="No saved plan yet. Create one to get started."
-              />
-            </>
+            <PlanSummary
+              plan={plan}
+              emptyStateMessage="저장된 플랜이 없습니다. 새 플랜을 만들어 보세요."
+            />
           )}
         </div>
       </main>
     </div>
   );
 };
+
+const MyPlanPage = () => (
+  <RequireAuthForPlan>
+    <MyPlanPageInner />
+  </RequireAuthForPlan>
+);
 
 export default MyPlanPage;
 

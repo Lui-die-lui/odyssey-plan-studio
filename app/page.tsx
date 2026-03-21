@@ -1,70 +1,109 @@
 "use client";
 
-import { signOut, useSession } from "next-auth/react";
+import { useState } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+import { usePlanAuthModal } from "@/features/auth/context/plan-auth-modal-context";
+import ExistingPlanConfirmModal from "@/features/plan/components/ExistingPlanConfirmModal";
+import { LandingConfetti } from "@/features/landing/components/LandingConfetti";
+import { getNewPlanPath } from "@/features/plan/constants/plan.constants";
+import { useMyPlan } from "@/features/plan/hooks/useMyPlan";
 
 const LandingPage = () => {
-  const {status} = useSession();
+  const router = useRouter();
+  const { openLoginRequiredModal } = usePlanAuthModal();
+  const { status } = useSession();
+  const { plan: existingPlan, loading: planLoading } = useMyPlan({
+    autoLoad: status === "authenticated",
+  });
+  const [replacePlanModalOpen, setReplacePlanModalOpen] = useState(false);
 
-  const handleLogout = async () => {
-    await signOut({callbackUrl: "/"});
+  const ctaDisabled =
+    status === "loading" ||
+    (status === "authenticated" && planLoading);
+
+  const primaryCtaClass =
+    "inline-flex min-h-12 shrink-0 items-center justify-center rounded-full bg-zinc-900 px-10 text-sm font-semibold tracking-[0.1em] text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-45 " +
+    "dark:bg-zinc-100 dark:text-zinc-900 dark:shadow-zinc-950/20 dark:hover:bg-white";
+
+  const secondaryCtaClass =
+    "inline-flex min-h-12 shrink-0 items-center justify-center rounded-full border border-zinc-300/90 bg-white/60 px-8 text-sm font-medium tracking-tight text-zinc-700 backdrop-blur-sm transition-colors hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900/40 dark:text-zinc-200 dark:hover:border-zinc-500 dark:hover:bg-zinc-800/60";
+
+  const renderPrimaryCta = () => {
+    if (ctaDisabled) {
+      return (
+        <button type="button" disabled className={primaryCtaClass}>
+          CREATE
+        </button>
+      );
+    }
+    if (status === "authenticated") {
+      if (existingPlan) {
+        return (
+          <button
+            type="button"
+            onClick={() => setReplacePlanModalOpen(true)}
+            className={primaryCtaClass}
+          >
+            CREATE
+          </button>
+        );
+      }
+      return (
+        <Link href={getNewPlanPath(false)} className={primaryCtaClass}>
+          CREATE
+        </Link>
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={() => openLoginRequiredModal("/plan/new")}
+        className={primaryCtaClass}
+      >
+        CREATE
+      </button>
+    );
   };
 
+  const showGuestSecondary = status === "unauthenticated" && !ctaDisabled;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex w-full max-w-3xl flex-col gap-8 bg-white px-6 py-14 dark:bg-black sm:px-10">
-        <div className="flex flex-col gap-4">
-          <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
-            Odyssey Plan
-          </h1>
-          <p className="max-w-2xl text-zinc-600 dark:text-zinc-400">
-            Plan your next steps in minutes. Create a new plan, keep track
-            of progress, and revisit it anytime.
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas dark:bg-app-canvas-dark">
+      <ExistingPlanConfirmModal
+        open={replacePlanModalOpen}
+        onCancel={() => setReplacePlanModalOpen(false)}
+        onConfirm={() => {
+          setReplacePlanModalOpen(false);
+          router.push(getNewPlanPath(true));
+        }}
+      />
+
+      <LandingConfetti />
+        
+      <main className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-4 pb-16 pt-10 sm:px-6 sm:pb-20 sm:pt-14 md:items-start lg:px-8 lg:pb-24 lg:pt-16">
+        <div className="flex w-full max-w-xl flex-col items-center text-center md:items-start md:text-left">
+          <p className="text-xs font-medium tracking-[0.18em] text-zinc-500 dark:text-zinc-500">
+            my 5-year plan
           </p>
+          <h1 className="font-landing-odyssey mt-3 text-4xl tracking-tight text-zinc-900 sm:text-7xl sm:tracking-tighter dark:text-zinc-50">
+            ODYSSEY<br />     
+            PLAN
+          </h1>
+          <p className="mx-auto mt-2 max-w-md text-base leading-relaxed text-zinc-600 md:mx-0 dark:text-zinc-400">
+            내 5년의 방향을 가볍고 선명하게 정리해보세요.
+          </p>
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-3 md:justify-start">
+            {renderPrimaryCta()}
+            {showGuestSecondary ? (
+              <Link href="/login" className={secondaryCtaClass}>
+                Login
+              </Link>
+            ) : null}
+          </div>
         </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row">
-        {status === "loading" ? (
-            <button
-              disabled
-              className="flex h-11 items-center justify-center rounded-md bg-black px-5 text-sm font-medium text-white opacity-60 dark:bg-zinc-200 dark:text-black"
-            >
-              Checking...
-            </button>
-          ) : status === "authenticated" ? (
-            <button
-              onClick={handleLogout}
-              className="flex h-11 items-center justify-center rounded-md bg-black px-5 text-sm font-medium text-white transition-colors hover:bg-black/90 dark:bg-zinc-200 dark:text-black"
-            >
-              Logout
-            </button>
-          ) : (
-            <Link
-              href="/login"
-              className="flex h-11 items-center justify-center rounded-md bg-black px-5 text-sm font-medium text-white transition-colors hover:bg-black/90 dark:bg-zinc-200 dark:text-black"
-            >
-              Login
-            </Link>
-          )}
-
-          <Link
-            href="/plan/new"
-            className="flex h-11 items-center justify-center rounded-md border border-black/10 bg-white px-5 text-sm font-medium text-black transition-colors hover:bg-black/[.03] dark:border-white/10 dark:bg-black dark:text-zinc-50"
-          >
-            Create New Plan
-          </Link>
-
-          <Link
-            href="/my-plan"
-            className="flex h-11 items-center justify-center rounded-md border border-black/10 bg-white px-5 text-sm font-medium text-black transition-colors hover:bg-black/[.03] dark:border-white/10 dark:bg-black dark:text-zinc-50"
-          >
-            My Plan
-          </Link>
-        </div>
-
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          This is a simple landing page. Add more sections as the product grows.
-        </p>
       </main>
     </div>
   );

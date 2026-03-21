@@ -1,155 +1,300 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
 
 import type {
+  PlanYearDto,
+  PlanYearScores,
   SavedPlanResponse,
   SavePlanRequestPayload,
-  UpdatePlanRequestPayload,
 } from "@/features/plan/types/plan.types";
 
+import { authOptions } from "@/features/auth/lib/auth";
+import {
+  PLAN_MAX_GOALS_PER_YEAR,
+  PLAN_MAX_KEYWORDS_PER_YEAR,
+  PLAN_MAX_LENGTH,
+  PLAN_ODYSSEY_YEAR_INDICES,
+  PLAN_SCORE_MAX,
+  PLAN_SCORE_MIN,
+} from "@/features/plan/constants/plan.constants";
 import { prisma } from "@/lib/prisma";
-
-// Temporary fixed user (until OAuth2 is added).
-const TEMP_USER_PROVIDER = "temp";
-const TEMP_USER_PROVIDER_USER_ID = "mock-user";
 
 const normalizeOptionalString = (value?: string): string | undefined => {
   const trimmed = value?.trim();
   return trimmed && trimmed.length ? trimmed : undefined;
 };
 
-const jsonToStringArray = (value: unknown): string[] | undefined => {
-  if (!value) return undefined;
-  if (!Array.isArray(value)) return undefined;
-  if (!value.every((v) => typeof v === "string")) return undefined;
-  return value as string[];
+const clampScore = (n: unknown): number => {
+  const v = Math.round(Number(n));
+  return Math.min(PLAN_SCORE_MAX, Math.max(PLAN_SCORE_MIN, v));
 };
 
-const normalizeStrengthsOrWeaknesses = (
-  values?: string[],
-): string[] | undefined => {
-  if (!values?.length) return undefined;
-
-  const normalized = values.map((value) => value.trim()).filter(Boolean);
-
-  return normalized.length ? normalized : undefined;
-};
-
-const dedupeYearlyItemsByYear = (
-  yearlyItems: SavePlanRequestPayload["yearlyItems"],
-) => {
-  const map = new Map<number, (typeof yearlyItems)[number]>();
-
-  for (const item of yearlyItems) {
-    map.set(item.year, item);
-  }
-
-  return [...map.values()].sort((a, b) => a.year - b.year);
-};
-
-const buildYearlyItemsCreateInput = (
-  yearlyItems: SavePlanRequestPayload["yearlyItems"],
-  planId: string,
-) => {
-  const deduped = dedupeYearlyItemsByYear(yearlyItems);
-
-  return deduped.map((item) => ({
-    planId,
-    year: item.year,
-    goal: item.goal,
-    summary: item.summary,
-    strengths: normalizeStrengthsOrWeaknesses(item.strengths),
-    weaknesses: normalizeStrengthsOrWeaknesses(item.weaknesses),
-  }));
-};
-
-const buildYearlyItemsNestedCreateInput = (
-  yearlyItems: SavePlanRequestPayload["yearlyItems"],
-) => {
-  const deduped = dedupeYearlyItemsByYear(yearlyItems);
-
-  return deduped.map((item) => ({
-    year: item.year,
-    goal: item.goal,
-    summary: item.summary,
-    strengths: normalizeStrengthsOrWeaknesses(item.strengths),
-    weaknesses: normalizeStrengthsOrWeaknesses(item.weaknesses),
-  }));
-};
-
-const mapYearPlanItemToResponse = (item: {
-  id: string;
-  year: number;
-  goal: string;
-  summary: string;
-  strengths: unknown;
-  weaknesses: unknown;
-}): SavedPlanResponse["yearlyItems"][number] => {
+const parseScores = (raw: unknown): PlanYearScores | null => {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
   return {
-    id: item.id,
-    year: item.year,
-    goal: item.goal,
-    summary: item.summary,
-    strengths: jsonToStringArray(item.strengths),
-    weaknesses: jsonToStringArray(item.weaknesses),
+    resources: clampScore(o.resources) as PlanYearScores["resources"],
+    interest: clampScore(o.interest) as PlanYearScores["interest"],
+    confidence: clampScore(o.confidence) as PlanYearScores["confidence"],
+    coherence: clampScore(o.coherence) as PlanYearScores["coherence"],
   };
 };
 
-const mapPlanToSavedPlanResponse = (plan: {
+const parseBoundedStringList = (
+  raw: unknown,
+  max: number,
+  maxLen: number,
+  label: string,
+):
+  | { ok: true; values: string[] }
+  | { ok: false; message: string } => {
+  if (!Array.isArray(raw)) {
+    return { ok: true, values: [] };
+  }
+  if (raw.length > max) {
+    return { ok: false, message: `At most ${max} ${label} allowed.` };
+  }
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== "string") {
+      return { ok: false, message: `Invalid ${label} entry.` };
+    }
+    const t = item.trim();
+    if (!t) continue;
+    if (t.length > maxLen) {
+      return { ok: false, message: `${label} text too long.` };
+    }
+    out.push(t);
+  }
+  return { ok: true, values: out };
+};
+
+const mapYearToDto = (y: {
+  id: string;
+  yearIndex: number;
+  note: string | null;
+  resourcesScore: number;
+  interestScore: number;
+  confidenceScore: number;
+  coherenceScore: number;
+  goals: { id: string; position: number; text: string }[];
+  keywords: { id: string; position: number; text: string }[];
+}): PlanYearDto => ({
+  id: y.id,
+  yearIndex: y.yearIndex as PlanYearDto["yearIndex"],
+  note: y.note ?? undefined,
+  scores: {
+    resources: y.resourcesScore as PlanYearScores["resources"],
+    interest: y.interestScore as PlanYearScores["interest"],
+    confidence: y.confidenceScore as PlanYearScores["confidence"],
+    coherence: y.coherenceScore as PlanYearScores["coherence"],
+  },
+  goals: [...y.goals]
+    .sort((a, b) => a.position - b.position)
+    .map((g) => ({ id: g.id, position: g.position, text: g.text })),
+  keywords: [...y.keywords]
+    .sort((a, b) => a.position - b.position)
+    .map((k) => ({ id: k.id, position: k.position, text: k.text })),
+});
+
+const mapPlanToResponse = (plan: {
   id: string;
   userId: string;
   title: string | null;
   createdAt: Date;
   updatedAt: Date;
-  yearItems: Array<{
-    id: string;
-    year: number;
-    goal: string;
-    summary: string;
-    strengths: unknown;
-    weaknesses: unknown;
-  }>;
-}): SavedPlanResponse => {
-  return {
-    planId: plan.id,
-    userId: plan.userId,
-    title: plan.title ?? undefined,
-    yearlyItems: plan.yearItems.map(mapYearPlanItemToResponse),
-    createdAt: plan.createdAt.toISOString(),
-    updatedAt: plan.updatedAt.toISOString(),
-  };
-};
+  years: Array<Parameters<typeof mapYearToDto>[0]>;
+}): SavedPlanResponse => ({
+  planId: plan.id,
+  userId: plan.userId,
+  title: plan.title ?? undefined,
+  years: [...plan.years]
+    .sort((a, b) => a.yearIndex - b.yearIndex)
+    .map(mapYearToDto),
+  createdAt: plan.createdAt.toISOString(),
+  updatedAt: plan.updatedAt.toISOString(),
+});
 
-const getOrCreateTempUser = async () => {
-  const existing = await prisma.user.findUnique({
-    where: {
-      provider_providerUserId: {
-        provider: TEMP_USER_PROVIDER,
-        providerUserId: TEMP_USER_PROVIDER_USER_ID,
-      },
+async function requireAuthenticatedUserId(): Promise<string | NextResponse> {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
+  if (typeof userId !== "string" || !userId.length) {
+    return NextResponse.json(
+      { success: false, message: "Unauthorized." },
+      { status: 401 },
+    );
+  }
+  return userId;
+}
+
+function validateSaveBody(body: unknown): SavePlanRequestPayload | NextResponse {
+  if (!body || typeof body !== "object") {
+    return NextResponse.json(
+      { success: false, message: "Invalid JSON body." },
+      { status: 400 },
+    );
+  }
+
+  const o = body as Record<string, unknown>;
+  const title =
+    o.title === undefined || o.title === null
+      ? undefined
+      : typeof o.title === "string"
+        ? normalizeOptionalString(o.title)
+        : null;
+  if (title === null) {
+    return NextResponse.json(
+      { success: false, message: "Invalid title." },
+      { status: 400 },
+    );
+  }
+  if (title && title.length > PLAN_MAX_LENGTH.title) {
+    return NextResponse.json(
+      { success: false, message: "Title too long." },
+      { status: 400 },
+    );
+  }
+
+  if (!Array.isArray(o.years)) {
+    return NextResponse.json(
+      { success: false, message: "years must be an array." },
+      { status: 400 },
+    );
+  }
+
+  const byIndex = new Map<number, (typeof o.years)[number]>();
+  for (const row of o.years) {
+    if (!row || typeof row !== "object") {
+      return NextResponse.json(
+        { success: false, message: "Invalid year entry." },
+        { status: 400 },
+      );
+    }
+    const yr = row as Record<string, unknown>;
+    const yearIndex = Number(yr.yearIndex);
+    if (
+      !Number.isInteger(yearIndex) ||
+      !(PLAN_ODYSSEY_YEAR_INDICES as readonly number[]).includes(yearIndex)
+    ) {
+      return NextResponse.json(
+        { success: false, message: "yearIndex must be 1–5." },
+        { status: 400 },
+      );
+    }
+    if (byIndex.has(yearIndex)) {
+      return NextResponse.json(
+        { success: false, message: "Duplicate yearIndex." },
+        { status: 400 },
+      );
+    }
+    byIndex.set(yearIndex, row);
+  }
+
+  const years: SavePlanRequestPayload["years"] = [];
+
+  for (const idx of PLAN_ODYSSEY_YEAR_INDICES) {
+    const row = byIndex.get(idx);
+    if (!row) {
+      return NextResponse.json(
+        { success: false, message: `Missing year ${idx}.` },
+        { status: 400 },
+      );
+    }
+    const yr = row as Record<string, unknown>;
+
+    const noteRaw = yr.note;
+    const note =
+      noteRaw === undefined || noteRaw === null
+        ? undefined
+        : typeof noteRaw === "string"
+          ? normalizeOptionalString(noteRaw)
+          : null;
+    if (note === null) {
+      return NextResponse.json(
+        { success: false, message: `Invalid note for year ${idx}.` },
+        { status: 400 },
+      );
+    }
+    if (note && note.length > PLAN_MAX_LENGTH.note) {
+      return NextResponse.json(
+        { success: false, message: `Note too long for year ${idx}.` },
+        { status: 400 },
+      );
+    }
+
+    const scores = parseScores(yr.scores);
+    if (!scores) {
+      return NextResponse.json(
+        { success: false, message: `Invalid scores for year ${idx}.` },
+        { status: 400 },
+      );
+    }
+
+    const goalsParsed = parseBoundedStringList(
+      yr.goals,
+      PLAN_MAX_GOALS_PER_YEAR,
+      PLAN_MAX_LENGTH.goal,
+      "goals",
+    );
+    if (!goalsParsed.ok) {
+      return NextResponse.json(
+        { success: false, message: `${goalsParsed.message} (year ${idx})` },
+        { status: 400 },
+      );
+    }
+
+    const keywordsParsed = parseBoundedStringList(
+      yr.keywords,
+      PLAN_MAX_KEYWORDS_PER_YEAR,
+      PLAN_MAX_LENGTH.keyword,
+      "keywords",
+    );
+    if (!keywordsParsed.ok) {
+      return NextResponse.json(
+        { success: false, message: `${keywordsParsed.message} (year ${idx})` },
+        { status: 400 },
+      );
+    }
+
+    years.push({
+      yearIndex: idx,
+      note,
+      scores,
+      goals: goalsParsed.values,
+      keywords: keywordsParsed.values,
+    });
+  }
+
+  const totalGoals = years.reduce((n, y) => n + y.goals.length, 0);
+  if (totalGoals === 0) {
+    return NextResponse.json(
+      { success: false, message: "At least one goal is required." },
+      { status: 400 },
+    );
+  }
+
+  return { title, years };
+}
+
+const planInclude = {
+  years: {
+    orderBy: { yearIndex: "asc" as const },
+    include: {
+      goals: { orderBy: { position: "asc" as const } },
+      keywords: { orderBy: { position: "asc" as const } },
     },
-  });
-
-  if (existing) return existing;
-
-  return prisma.user.create({
-    data: {
-      provider: TEMP_USER_PROVIDER,
-      providerUserId: TEMP_USER_PROVIDER_USER_ID,
-    },
-  });
-};
+  },
+} as const;
 
 export async function GET() {
   try {
-    const user = await getOrCreateTempUser();
+    const userIdOrError = await requireAuthenticatedUserId();
+    if (userIdOrError instanceof NextResponse) return userIdOrError;
+    const userId = userIdOrError;
 
     const plan = await prisma.plan.findUnique({
-      where: { userId: user.id },
-      include: {
-        yearItems: {
-          orderBy: { year: "asc" },
-        },
-      },
+      where: { userId },
+      include: planInclude,
     });
 
     if (!plan) {
@@ -157,7 +302,7 @@ export async function GET() {
     }
 
     return NextResponse.json(
-      { data: mapPlanToSavedPlanResponse(plan) },
+      { data: mapPlanToResponse(plan) },
       { status: 200 },
     );
   } catch (error) {
@@ -169,75 +314,96 @@ export async function GET() {
   }
 }
 
+/**
+ * Upsert: one plan per user; replaces all five year blocks and nested goals/keywords.
+ */
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as SavePlanRequestPayload;
+    const userIdOrError = await requireAuthenticatedUserId();
+    if (userIdOrError instanceof NextResponse) return userIdOrError;
+    const userId = userIdOrError;
 
-    const yearlyItems = Array.isArray(body?.yearlyItems) ? body.yearlyItems : [];
-    const user = await getOrCreateTempUser();
-    const normalizedTitle = normalizeOptionalString(body?.title);
+    const rawBody: unknown = await req.json().catch(() => null);
+    const parsed = validateSaveBody(rawBody);
+    if (parsed instanceof NextResponse) return parsed;
+    const { title, years } = parsed;
 
     const existingPlan = await prisma.plan.findUnique({
-      where: { userId: user.id },
-      include: {
-        yearItems: {
-          orderBy: { year: "asc" },
-        },
-      },
+      where: { userId },
+      select: { id: true },
     });
 
     if (!existingPlan) {
       const created = await prisma.plan.create({
         data: {
-          userId: user.id,
-          title: normalizedTitle,
-          yearItems: {
-            create: buildYearlyItemsNestedCreateInput(yearlyItems),
+          userId,
+          title: title ?? null,
+          years: {
+            create: years.map((y) => ({
+              yearIndex: y.yearIndex,
+              note: y.note ?? null,
+              resourcesScore: y.scores.resources,
+              interestScore: y.scores.interest,
+              confidenceScore: y.scores.confidence,
+              coherenceScore: y.scores.coherence,
+              goals: {
+                create: y.goals.map((text, position) => ({ position, text })),
+              },
+              keywords: {
+                create: y.keywords.map((text, position) => ({
+                  position,
+                  text,
+                })),
+              },
+            })),
           },
         },
-        include: {
-          yearItems: {
-            orderBy: { year: "asc" },
-          },
-        },
+        include: planInclude,
       });
 
       return NextResponse.json(
-        { success: true, data: mapPlanToSavedPlanResponse(created) },
+        { success: true, data: mapPlanToResponse(created) },
         { status: 201 },
       );
     }
 
     const planId = existingPlan.id;
-    const createInput = buildYearlyItemsCreateInput(yearlyItems, planId);
 
     await prisma.$transaction(async (tx) => {
-      await tx.yearPlanItem.deleteMany({
-        where: { planId },
-      });
+      await tx.planYear.deleteMany({ where: { planId } });
 
       await tx.plan.update({
         where: { id: planId },
-        data: { title: normalizedTitle },
+        data: { title: title ?? null },
       });
 
-      if (createInput.length) {
-        await tx.yearPlanItem.createMany({
-          data: createInput,
+      for (const y of years) {
+        await tx.planYear.create({
+          data: {
+            planId,
+            yearIndex: y.yearIndex,
+            note: y.note ?? null,
+            resourcesScore: y.scores.resources,
+            interestScore: y.scores.interest,
+            confidenceScore: y.scores.confidence,
+            coherenceScore: y.scores.coherence,
+            goals: {
+              create: y.goals.map((text, position) => ({ position, text })),
+            },
+            keywords: {
+              create: y.keywords.map((text, position) => ({ position, text })),
+            },
+          },
         });
       }
     });
 
-    const updatedPlan = await prisma.plan.findUnique({
-      where: { userId: user.id },
-      include: {
-        yearItems: {
-          orderBy: { year: "asc" },
-        },
-      },
+    const updated = await prisma.plan.findUnique({
+      where: { userId },
+      include: planInclude,
     });
 
-    if (!updatedPlan) {
+    if (!updated) {
       return NextResponse.json(
         { success: false, message: "Plan disappeared during update." },
         { status: 500 },
@@ -245,94 +411,13 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(
-      { success: true, data: mapPlanToSavedPlanResponse(updatedPlan) },
+      { success: true, data: mapPlanToResponse(updated) },
       { status: 200 },
     );
   } catch (error) {
     console.error("POST /api/my-plan error:", error);
     return NextResponse.json(
       { success: false, message: "Failed to save plan." },
-      { status: 500 },
-    );
-  }
-}
-
-export async function PUT(req: Request) {
-  try {
-    const body = (await req.json()) as UpdatePlanRequestPayload;
-
-    if (!body?.planId || typeof body.planId !== "string") {
-      return NextResponse.json(
-        { success: false, message: "Missing or invalid planId." },
-        { status: 400 },
-      );
-    }
-
-    const yearlyItems = Array.isArray(body?.yearlyItems) ? body.yearlyItems : [];
-    const user = await getOrCreateTempUser();
-    const planId = body.planId;
-    const normalizedTitle = normalizeOptionalString(body?.title);
-
-    const existingPlan = await prisma.plan.findFirst({
-      where: {
-        id: planId,
-        userId: user.id,
-      },
-    });
-
-    if (!existingPlan) {
-      return NextResponse.json(
-        { success: false, message: "Plan not found." },
-        { status: 404 },
-      );
-    }
-
-    const createInput = buildYearlyItemsCreateInput(yearlyItems, planId);
-
-    await prisma.$transaction(async (tx) => {
-      await tx.yearPlanItem.deleteMany({
-        where: { planId },
-      });
-
-      await tx.plan.update({
-        where: { id: planId },
-        data: { title: normalizedTitle },
-      });
-
-      if (createInput.length) {
-        await tx.yearPlanItem.createMany({
-          data: createInput,
-        });
-      }
-    });
-
-    const updatedPlan = await prisma.plan.findFirst({
-      where: {
-        id: planId,
-        userId: user.id,
-      },
-      include: {
-        yearItems: {
-          orderBy: { year: "asc" },
-        },
-      },
-    });
-
-    if (!updatedPlan) {
-      return NextResponse.json(
-        { success: false, message: "Plan disappeared during update." },
-        { status: 500 },
-      );
-    }
-
-    return NextResponse.json(
-      { success: true, data: mapPlanToSavedPlanResponse(updatedPlan) },
-      { status: 200 },
-    );
-  } catch (error) {
-    console.error("PUT /api/my-plan error:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to update plan." },
       { status: 500 },
     );
   }

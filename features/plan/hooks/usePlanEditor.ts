@@ -1,172 +1,184 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
 import type {
   PlanFormValues,
-  YearlyPlanItemForm,
+  PlanGoalLineForm,
+  PlanYearForm,
+  PlanYearScores,
 } from "../types/plan.types";
+import type { PlanOdysseyYearIndex } from "../constants/plan.constants";
 import { validatePlanForm } from "../lib/plan.validation";
+import { normalizePlanFormValues } from "../lib/plan.mapper";
+import { newPlanGoalId } from "../lib/plan-goal-id";
 import {
-  PLAN_DEFAULTS,
-  PLAN_YEAR_OPTIONS,
+  PLAN_MAX_GOALS_PER_YEAR,
+  PLAN_MAX_KEYWORDS_PER_YEAR,
+  PLAN_MAX_LENGTH,
 } from "../constants/plan.constants";
 
 type UsePlanEditorOptions = {
   initialValues?: PlanFormValues;
-  defaultYear?: number;
 };
 
-const createEmptyYearlyItem = (year: number): YearlyPlanItemForm => {
-  return {
-    year,
-    goal: PLAN_DEFAULTS.emptyGoal,
-    summary: PLAN_DEFAULTS.emptySummary,
-    strengths: [...PLAN_DEFAULTS.emptyStrengths],
-    weaknesses: [...PLAN_DEFAULTS.emptyWeaknesses],
-  };
-};
-
-const createDefaultPlanForm = (opts?: {
-  defaultYear?: number;
-}): PlanFormValues => {
-  const fallbackYear =
-    typeof opts?.defaultYear === "number"
-      ? opts.defaultYear
-      : PLAN_YEAR_OPTIONS[0] ?? new Date().getFullYear();
-
-  return {
-    title: PLAN_DEFAULTS.emptyTitle,
-    yearlyItems: [createEmptyYearlyItem(fallbackYear)],
-  };
-};
-
-const clonePlanFormValues = (values: PlanFormValues): PlanFormValues => {
-  return {
-    title: values.title,
-    yearlyItems: values.yearlyItems.map((item) => ({
-      ...item,
-      strengths: [...(item.strengths ?? [])],
-      weaknesses: [...(item.weaknesses ?? [])],
-    })),
-  };
-};
-
-const normalizePlanFormValues = (opts?: {
-  initialValues?: PlanFormValues;
-  defaultYear?: number;
-}): PlanFormValues => {
-  const fallback = createDefaultPlanForm({ defaultYear: opts?.defaultYear });
-
-  if (!opts?.initialValues) return fallback;
-
-  const rawItems = Array.isArray(opts.initialValues.yearlyItems)
-    ? opts.initialValues.yearlyItems
-    : [];
-
-  const yearlyItems =
-    rawItems.length > 0 ? rawItems : fallback.yearlyItems;
-
-  return {
-    title: opts.initialValues.title,
-    yearlyItems: yearlyItems.map((item, index) => {
-      const fallbackYear =
-        fallback.yearlyItems[index]?.year ?? fallback.yearlyItems[0]?.year;
-      return {
-        year: Number.isFinite(item.year) ? item.year : fallbackYear,
-        goal: item.goal ?? PLAN_DEFAULTS.emptyGoal,
-        summary: item.summary ?? PLAN_DEFAULTS.emptySummary,
-        strengths: item.strengths ?? [...PLAN_DEFAULTS.emptyStrengths],
-        weaknesses: item.weaknesses ?? [...PLAN_DEFAULTS.emptyWeaknesses],
-      };
-    }),
-  };
-};
+const cloneValues = (v: PlanFormValues): PlanFormValues => ({
+  title: v.title,
+  years: v.years.map((y) => ({
+    ...y,
+    scores: { ...y.scores },
+    goals: y.goals.map((g) => ({ ...g })),
+    keywords: [...y.keywords],
+  })),
+});
 
 export const usePlanEditor = (opts?: UsePlanEditorOptions) => {
   const resolvedInitialValues = useMemo(
-    () => normalizePlanFormValues({ initialValues: opts?.initialValues, defaultYear: opts?.defaultYear }),
-    [opts?.initialValues, opts?.defaultYear],
+    () => normalizePlanFormValues(opts?.initialValues),
+    [opts?.initialValues],
   );
 
   const [values, setValues] = useState<PlanFormValues>(resolvedInitialValues);
 
-  const hydratedRef = useRef<boolean>(opts?.initialValues != null);
-
   useEffect(() => {
     if (opts?.initialValues == null) return;
-    if (hydratedRef.current) return;
-
-    setValues(clonePlanFormValues(resolvedInitialValues));
-    hydratedRef.current = true;
-  }, [opts?.initialValues, resolvedInitialValues]);
+    setValues(cloneValues(normalizePlanFormValues(opts.initialValues)));
+  }, [opts?.initialValues]);
 
   const validation = useMemo(() => validatePlanForm(values), [values]);
 
-  const resetForm = useCallback((nextValues?: PlanFormValues) => {
-    setValues(
-      nextValues ? clonePlanFormValues(nextValues) : clonePlanFormValues(resolvedInitialValues),
-    );
-  }, [resolvedInitialValues]);
+  const resetForm = useCallback(
+    (nextValues?: PlanFormValues) => {
+      setValues(
+        cloneValues(
+          nextValues
+            ? normalizePlanFormValues(nextValues)
+            : resolvedInitialValues,
+        ),
+      );
+    },
+    [resolvedInitialValues],
+  );
 
   const setTitle = useCallback((title: string) => {
     setValues((prev) => ({ ...prev, title }));
   }, []);
 
-  const setYearlyItems = useCallback((yearlyItems: YearlyPlanItemForm[]) => {
-    setValues((prev) => ({ ...prev, yearlyItems }));
-  }, []);
-
-  const updateYearlyItem = useCallback(
-    (index: number, patch: Partial<YearlyPlanItemForm>) => {
-      setValues((prev) => {
-        const nextItems = prev.yearlyItems.map((item, i) => {
-          if (i !== index) return item;
-
-          return {
-            ...item,
-            ...patch,
-          };
-        });
-
-        return {
-          ...prev,
-          yearlyItems: nextItems,
-        };
-      });
+  const patchYear = useCallback(
+    (
+      yearIndex: PlanOdysseyYearIndex,
+      patch:
+        | Partial<PlanYearForm>
+        | ((prev: PlanYearForm) => PlanYearForm),
+    ) => {
+      setValues((prev) => ({
+        ...prev,
+        years: prev.years.map((y) => {
+          if (y.yearIndex !== yearIndex) return y;
+          const next =
+            typeof patch === "function" ? patch(y) : { ...y, ...patch };
+          return next;
+        }),
+      }));
     },
     [],
   );
 
-  const addYearlyItem = useCallback((year?: number) => {
-    setValues((prev) => {
-      const nextYear =
-        typeof year === "number"
-          ? year
-          : PLAN_YEAR_OPTIONS[0] ?? new Date().getFullYear();
+  const setScore = useCallback(
+    (yearIndex: PlanOdysseyYearIndex, key: keyof PlanYearScores, value: number) => {
+      patchYear(yearIndex, (y) => ({
+        ...y,
+        scores: { ...y.scores, [key]: value as PlanYearScores[typeof key] },
+      }));
+    },
+    [patchYear],
+  );
 
-      return {
-        ...prev,
-        yearlyItems: [...prev.yearlyItems, createEmptyYearlyItem(nextYear)],
-      };
-    });
-  }, []);
+  const setGoalLine = useCallback(
+    (yearIndex: PlanOdysseyYearIndex, index: number, text: string) => {
+      patchYear(yearIndex, (y) => ({
+        ...y,
+        goals: y.goals.map((g, i) => (i === index ? { ...g, text } : g)),
+      }));
+    },
+    [patchYear],
+  );
 
-  const removeYearlyItem = useCallback((index: number) => {
-    setValues((prev) => ({
-      ...prev,
-      yearlyItems: prev.yearlyItems.filter((_, i) => i !== index),
-    }));
-  }, []);
+  const commitGoal = useCallback(
+    (yearIndex: PlanOdysseyYearIndex, raw: string) => {
+      const t = raw.trim();
+      if (!t) return;
+      if (t.length > PLAN_MAX_LENGTH.goal) return;
+      patchYear(yearIndex, (y) => {
+        if (y.goals.length >= PLAN_MAX_GOALS_PER_YEAR) return y;
+        return {
+          ...y,
+          goals: [...y.goals, { id: newPlanGoalId(), text: t }],
+        };
+      });
+    },
+    [patchYear],
+  );
+
+  const removeGoalLine = useCallback(
+    (yearIndex: PlanOdysseyYearIndex, index: number) => {
+      patchYear(yearIndex, (y) => ({
+        ...y,
+        goals: y.goals.filter((_, i) => i !== index),
+      }));
+    },
+    [patchYear],
+  );
+
+  const reorderGoals = useCallback(
+    (yearIndex: PlanOdysseyYearIndex, nextGoals: PlanGoalLineForm[]) => {
+      patchYear(yearIndex, { goals: nextGoals });
+    },
+    [patchYear],
+  );
+
+  const commitKeyword = useCallback(
+    (yearIndex: PlanOdysseyYearIndex, raw: string) => {
+      const t = raw.trim();
+      if (!t) return;
+      if (t.length > PLAN_MAX_LENGTH.keyword) return;
+      patchYear(yearIndex, (y) => {
+        if (y.keywords.length >= PLAN_MAX_KEYWORDS_PER_YEAR) return y;
+        return { ...y, keywords: [...y.keywords, t] };
+      });
+    },
+    [patchYear],
+  );
+
+  const removeKeywordLine = useCallback(
+    (yearIndex: PlanOdysseyYearIndex, index: number) => {
+      patchYear(yearIndex, (y) => ({
+        ...y,
+        keywords: y.keywords.filter((_, i) => i !== index),
+      }));
+    },
+    [patchYear],
+  );
+
+  const setYearNote = useCallback(
+    (yearIndex: PlanOdysseyYearIndex, note: string) => {
+      patchYear(yearIndex, { note });
+    },
+    [patchYear],
+  );
 
   return {
     values,
     validation,
     resetForm,
     setTitle,
-    setYearlyItems,
-    addYearlyItem,
-    removeYearlyItem,
-    updateYearlyItem,
+    setScore,
+    setGoalLine,
+    commitGoal,
+    removeGoalLine,
+    reorderGoals,
+    commitKeyword,
+    removeKeywordLine,
+    setYearNote,
   };
 };
-

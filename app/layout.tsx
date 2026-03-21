@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { AppShell } from "@/components/layout/AppShell";
+import { PlanAuthModalProvider } from "@/features/auth/context/plan-auth-modal-context";
 import SessionProvider from "@/providers/SessionProvider";
 
 const geistSans = Geist({
@@ -28,8 +30,14 @@ const RootLayout = ({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <SessionProvider>{children}</SessionProvider>
+      <body className="min-h-full flex flex-col bg-app-canvas font-sans dark:bg-app-canvas-dark">
+        <SessionProvider>
+          <PlanAuthModalProvider>
+            <div className="flex min-h-full flex-1 flex-col">
+              <AppShell>{children}</AppShell>
+            </div>
+          </PlanAuthModalProvider>
+        </SessionProvider>
       </body>
     </html>
   );

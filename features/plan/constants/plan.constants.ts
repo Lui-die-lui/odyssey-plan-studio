@@ -1,63 +1,34 @@
-export const PLAN_YEAR_RANGE = {
-  /**
-   * Start year for generated options (inclusive).
-   */
-  startOffsetYears: -1,
+/** Query flag: user acknowledged replacing an existing plan (`/plan/new` gate). */
+export const NEW_PLAN_REPLACE_QUERY = "replace" as const;
+export const NEW_PLAN_REPLACE_VALUE = "1" as const;
 
-  /**
-   * End year for generated options (inclusive).
-   */
-  endOffsetYears: 5,
-} as const;
+export const getNewPlanPath = (acknowledgedReplace: boolean) =>
+  acknowledgedReplace
+    ? `/plan/new?${NEW_PLAN_REPLACE_QUERY}=${NEW_PLAN_REPLACE_VALUE}`
+    : "/plan/new";
+
+/** Odyssey plan tabs: year 1 through year 5 (not calendar years). */
+export const PLAN_ODYSSEY_YEAR_INDICES = [1, 2, 3, 4, 5] as const;
+
+export type PlanOdysseyYearIndex = (typeof PLAN_ODYSSEY_YEAR_INDICES)[number];
+
+export const PLAN_MAX_GOALS_PER_YEAR = 5;
+export const PLAN_MAX_KEYWORDS_PER_YEAR = 5;
+
+export const PLAN_SCORE_MIN = 1;
+export const PLAN_SCORE_MAX = 5;
 
 export const PLAN_MAX_LENGTH = {
   title: 80,
   goal: 200,
-  summary: 400,
-  bulletItem: 120,
+  /** 키워드 한 줄 최대 글자 수 (UI: "N자 이내") */
+  keyword: 7,
+  note: 2000,
 } as const;
 
 export const PLAN_DEFAULTS = {
   emptyTitle: "",
-  emptyGoal: "",
-  emptySummary: "",
-  emptyStrengths: [] as string[],
-  emptyWeaknesses: [] as string[],
-  missingYearMessage: "Please choose a year.",
-  missingGoalMessage: "Please enter your yearly goal.",
+  emptyGoalLine: "",
+  emptyKeyword: "",
+  emptyNote: "",
 } as const;
-
-export const getPlanYearOptions = (opts?: {
-  currentYear?: number;
-  startOffsetYears?: number;
-  endOffsetYears?: number;
-}) => {
-  const currentYear =
-    typeof opts?.currentYear === "number"
-      ? opts.currentYear
-      : new Date().getFullYear();
-
-  const startOffsetYears =
-    typeof opts?.startOffsetYears === "number"
-      ? opts.startOffsetYears
-      : PLAN_YEAR_RANGE.startOffsetYears;
-
-  const endOffsetYears =
-    typeof opts?.endOffsetYears === "number"
-      ? opts.endOffsetYears
-      : PLAN_YEAR_RANGE.endOffsetYears;
-
-  const years: number[] = [];
-  for (
-    let y = currentYear + startOffsetYears;
-    y <= currentYear + endOffsetYears;
-    y += 1
-  ) {
-    years.push(y);
-  }
-
-  return years;
-};
-
-export const PLAN_YEAR_OPTIONS = getPlanYearOptions();
-

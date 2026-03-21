@@ -1,26 +1,56 @@
+@import url("https://fonts.googleapis.com/css?family=Black+Han+Sans:400");
+
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Main landing hero title only */
+.font-landing-odyssey {
+  font-family: "Black Han Sans", sans-serif;
+  font-weight: 600;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Page canvas */
+  --color-app-canvas: #fafafa;
+  /* Dark mode page canvas — matches Tailwind zinc-950 (plan editor, cards) */
+  --color-app-canvas-dark: #09090b;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Drift only on inner — rotation stays on wrapper so pauses/remounts never snap upright */
+@keyframes landing-confetti-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, var(--landing-drift, -12px), 0);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.landing-confetti-float {
+  animation-name: landing-confetti-float;
+  animation-timing-function: cubic-bezier(0.42, 0, 0.58, 1);
+  animation-iteration-count: infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-confetti-float {
+    animation: none !important;
+  }
+}
+
+/* Slightly longer, eased color transitions on interactive controls */
+button[class~="transition-colors"],
+a[class~="inline-flex"][class~="transition-colors"] {
+  transition-duration: 260ms;
+  transition-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button[class~="transition-colors"],
+  a[class~="inline-flex"][class~="transition-colors"] {
+    transition-duration: 0.01ms !important;
+    transition-timing-function: linear !important;
+  }
 }

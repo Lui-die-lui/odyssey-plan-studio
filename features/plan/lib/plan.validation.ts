@@ -1,28 +1,30 @@
-import type {
-  PlanFormValues,
-  YearlyPlanItemForm,
-} from "../types/plan.types";
+import type { PlanFormValues, PlanYearForm } from "../types/plan.types";
 import {
-  PLAN_DEFAULTS,
+  PLAN_MAX_GOALS_PER_YEAR,
+  PLAN_MAX_KEYWORDS_PER_YEAR,
   PLAN_MAX_LENGTH,
+  PLAN_ODYSSEY_YEAR_INDICES,
+  PLAN_SCORE_MAX,
+  PLAN_SCORE_MIN,
 } from "../constants/plan.constants";
 
-export type BulletValidationError = {
+export type StringListItemError = {
   index: number;
   message: string;
 };
 
-export type YearlyPlanItemValidationErrors = {
-  year?: string;
-  goal?: string;
-  summary?: string;
-  strengths?: BulletValidationError[];
-  weaknesses?: BulletValidationError[];
+export type PlanYearFormValidationErrors = {
+  note?: string;
+  scores?: Partial<Record<keyof PlanYearForm["scores"], string>>;
+  goals?: string;
+  goalLines?: StringListItemError[];
+  keywords?: string;
+  keywordLines?: StringListItemError[];
 };
 
 export type PlanFormValidationErrors = {
   title?: string;
-  yearlyItems: YearlyPlanItemValidationErrors[];
+  years: PlanYearFormValidationErrors[];
   form?: string;
 };
 
@@ -31,138 +33,143 @@ export type PlanFormValidationResult = {
   errors: PlanFormValidationErrors;
 };
 
-const getTextLengthError = (opts: {
-  label: string;
-  value: string;
-  maxLength: number;
-}) => {
-  const trimmed = opts.value.trim();
-  if (!trimmed) return undefined;
+const clampScore = (n: number): number =>
+  Math.min(PLAN_SCORE_MAX, Math.max(PLAN_SCORE_MIN, Math.round(n)));
 
-  if (trimmed.length > opts.maxLength) {
-    return `${opts.label} must be at most ${opts.maxLength} characters.`;
+const validateScoreField = (
+  value: number,
+  label: string,
+): string | undefined => {
+  const v = clampScore(Number(value));
+  if (v < PLAN_SCORE_MIN || v > PLAN_SCORE_MAX) {
+    return `${label} must be between ${PLAN_SCORE_MIN} and ${PLAN_SCORE_MAX}.`;
   }
-
   return undefined;
 };
 
-const validateBulletList = (opts: {
+const validateTextList = (opts: {
+  items: string[];
+  maxItems: number;
+  maxLen: number;
   label: string;
-  bullets?: string[];
-}): BulletValidationError[] | undefined => {
-  if (!opts.bullets || !Array.isArray(opts.bullets)) return undefined;
-
-  const errors: BulletValidationError[] = [];
-  opts.bullets.forEach((raw, index) => {
-    const value = typeof raw === "string" ? raw.trim() : "";
-
-    // Treat empty bullets as "not provided". (The UI can still allow adding
-    // bullets progressively without immediately failing validation.)
-    if (!value) return;
-
-    if (value.length > PLAN_MAX_LENGTH.bulletItem) {
-      errors.push({
+}): { listError?: string; lineErrors?: StringListItemError[] } => {
+  const nonEmpty = opts.items.map((s) => (typeof s === "string" ? s.trim() : ""));
+  const used = nonEmpty.filter(Boolean);
+  if (used.length > opts.maxItems) {
+    return {
+      listError: `At most ${opts.maxItems} ${opts.label} allowed.`,
+    };
+  }
+  const lineErrors: StringListItemError[] = [];
+  nonEmpty.forEach((line, index) => {
+    if (!line) return;
+    if (line.length > opts.maxLen) {
+      lineErrors.push({
         index,
-        message: `${opts.label} item must be at most ${PLAN_MAX_LENGTH.bulletItem} characters.`,
+        message: `Must be at most ${opts.maxLen} characters.`,
       });
     }
   });
-
-  return errors.length > 0 ? errors : undefined;
+  return lineErrors.length ? { lineErrors } : {};
 };
 
-const validateYearlyPlanItemForm = (
-  item: YearlyPlanItemForm,
-): YearlyPlanItemValidationErrors => {
-  const errors: YearlyPlanItemValidationErrors = {};
+const validateYear = (y: PlanYearForm): PlanYearFormValidationErrors => {
+  const errors: PlanYearFormValidationErrors = {};
 
-  if (!Number.isFinite(item.year)) {
-    errors.year = PLAN_DEFAULTS.missingYearMessage;
+  const note = y.note?.trim() ?? "";
+  if (note.length > PLAN_MAX_LENGTH.note) {
+    errors.note = `Note must be at most ${PLAN_MAX_LENGTH.note} characters.`;
   }
 
-  const goal = item.goal ?? "";
-  if (!goal.trim()) {
-    errors.goal = PLAN_DEFAULTS.missingGoalMessage;
-  } else {
-    const goalLengthError = getTextLengthError({
-      label: "Goal",
-      value: goal,
-      maxLength: PLAN_MAX_LENGTH.goal,
-    });
-    if (goalLengthError) errors.goal = goalLengthError;
-  }
-
-  const summary = item.summary ?? "";
-  if (!summary.trim()) {
-    errors.summary = "Please enter a yearly summary.";
-  } else {
-    const summaryLengthError = getTextLengthError({
-      label: "Summary",
-      value: summary,
-      maxLength: PLAN_MAX_LENGTH.summary,
-    });
-    if (summaryLengthError) errors.summary = summaryLengthError;
-  }
-
-  const strengthsErrors = validateBulletList({
-    label: "Strength",
-    bullets: item.strengths,
+  const scoreErrors: PlanYearFormValidationErrors["scores"] = {};
+  const s = y.scores;
+  (
+    [
+      ["resources", s.resources, "Resources"],
+      ["interest", s.interest, "Interest"],
+      ["confidence", s.confidence, "Confidence"],
+      ["coherence", s.coherence, "Coherence"],
+    ] as const
+  ).forEach(([key, val, label]) => {
+    const err = validateScoreField(val, label);
+    if (err) scoreErrors[key] = err;
   });
-  if (strengthsErrors) errors.strengths = strengthsErrors;
+  if (Object.keys(scoreErrors).length) errors.scores = scoreErrors;
 
-  const weaknessesErrors = validateBulletList({
-    label: "Weakness",
-    bullets: item.weaknesses,
+  const goalCheck = validateTextList({
+    items: y.goals.map((g) => g.text),
+    maxItems: PLAN_MAX_GOALS_PER_YEAR,
+    maxLen: PLAN_MAX_LENGTH.goal,
+    label: "goals",
   });
-  if (weaknessesErrors) errors.weaknesses = weaknessesErrors;
+  if (goalCheck.listError) errors.goals = goalCheck.listError;
+  if (goalCheck.lineErrors) errors.goalLines = goalCheck.lineErrors;
+
+  const kwCheck = validateTextList({
+    items: y.keywords,
+    maxItems: PLAN_MAX_KEYWORDS_PER_YEAR,
+    maxLen: PLAN_MAX_LENGTH.keyword,
+    label: "keywords",
+  });
+  if (kwCheck.listError) errors.keywords = kwCheck.listError;
+  if (kwCheck.lineErrors) errors.keywordLines = kwCheck.lineErrors;
 
   return errors;
 };
 
+const yearHasErrors = (e: PlanYearFormValidationErrors) =>
+  Boolean(
+    e.note ||
+      e.goals ||
+      e.keywords ||
+      e.goalLines?.length ||
+      e.keywordLines?.length ||
+      (e.scores &&
+        Object.values(e.scores).some(Boolean)),
+  );
+
 export const validatePlanForm = (
   values: PlanFormValues,
 ): PlanFormValidationResult => {
-  const yearlyItems = values.yearlyItems ?? [];
   const errors: PlanFormValidationErrors = {
     title: undefined,
-    yearlyItems: [],
+    years: [],
     form: undefined,
   };
 
-  const title = values.title ?? "";
-  const titleTrimmed = title.trim();
-  if (titleTrimmed) {
-    const titleLengthError = getTextLengthError({
-      label: "Title",
-      value: titleTrimmed,
-      maxLength: PLAN_MAX_LENGTH.title,
-    });
-    if (titleLengthError) errors.title = titleLengthError;
+  const title = values.title?.trim() ?? "";
+  if (title.length > PLAN_MAX_LENGTH.title) {
+    errors.title = `Title must be at most ${PLAN_MAX_LENGTH.title} characters.`;
   }
 
-  if (!yearlyItems.length) {
-    errors.form = "Please add at least one yearly item.";
+  const years = values.years ?? [];
+  if (years.length !== PLAN_ODYSSEY_YEAR_INDICES.length) {
+    errors.form = "Plan must include all five odyssey years (1–5).";
   }
 
-  errors.yearlyItems = yearlyItems.map((item) =>
-    validateYearlyPlanItemForm(item),
+  errors.years = PLAN_ODYSSEY_YEAR_INDICES.map((idx) => {
+    const block = years.find((y) => y.yearIndex === idx);
+    if (!block) {
+      return { goals: "Missing year data." };
+    }
+    return validateYear(block);
+  });
+
+  const goalCount = years.reduce(
+    (n, y) =>
+      n + y.goals.filter((g) => (g.text ?? "").trim().length > 0).length,
+    0,
   );
+  if (goalCount === 0) {
+    errors.form = "Add at least one goal somewhere in your plan.";
+  }
 
-  const hasAnyError = [
-    errors.title,
-    errors.form,
-    ...errors.yearlyItems.flatMap((y) => [
-      y.year,
-      y.goal,
-      y.summary,
-      y.strengths?.length ? "strengths" : undefined,
-      y.weaknesses?.length ? "weaknesses" : undefined,
-    ]),
-  ].some(Boolean);
+  const hasAnyError =
+    Boolean(errors.title || errors.form) ||
+    errors.years.some(yearHasErrors);
 
   return {
     isValid: !hasAnyError,
     errors,
   };
 };
-

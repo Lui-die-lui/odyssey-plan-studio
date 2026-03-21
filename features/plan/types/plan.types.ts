@@ -1,81 +1,76 @@
-export type YearlyPlanItemForm = {
-  /**
-   * The year this entry belongs to (e.g., 2026).
-   */
-  year: number;
+import type { PlanOdysseyYearIndex } from "../constants/plan.constants";
 
-  /**
-   * The main goal for the year.
-   */
-  goal: string;
+/** 1–5 scale for “distance” indicators (RESOURCES, INTEREST, …). */
+export type PlanDistanceScore = 1 | 2 | 3 | 4 | 5;
 
-  /**
-   * A short summary for the year.
-   */
-  summary: string;
-
-  /**
-   * Optional list of strengths to focus on.
-   */
-  strengths?: string[];
-
-  /**
-   * Optional list of weaknesses to improve.
-   */
-  weaknesses?: string[];
+export type PlanYearScores = {
+  resources: PlanDistanceScore;
+  interest: PlanDistanceScore;
+  confidence: PlanDistanceScore;
+  coherence: PlanDistanceScore;
 };
 
-export type YearlyPlanItem = YearlyPlanItemForm & {
-  /**
-   * Optional database id (if the backend stores per-year entries).
-   */
-  id?: string;
+/** API + persisted shape for one odyssey year. */
+export type PlanYearGoalDto = {
+  id: string;
+  position: number;
+  text: string;
 };
 
-export type PlanFormValues = {
-  /**
-   * Optional display title for the whole plan.
-   */
-  title?: string;
+export type PlanYearKeywordDto = {
+  id: string;
+  position: number;
+  text: string;
+};
 
-  /**
-   * Year-by-year items that the user edits/creates.
-   */
-  yearlyItems: YearlyPlanItemForm[];
+export type PlanYearDto = {
+  id: string;
+  yearIndex: PlanOdysseyYearIndex;
+  note?: string;
+  scores: PlanYearScores;
+  goals: PlanYearGoalDto[];
+  keywords: PlanYearKeywordDto[];
 };
 
 export type SavedPlanResponse = {
-  /**
-   * Unique id for the plan.
-   */
   planId: string;
-
-  /**
-   * Optional title if stored by the backend.
-   */
   title?: string;
-
-  /**
-   * Year-by-year saved entries.
-   */
-  yearlyItems: YearlyPlanItem[];
-
-  /**
-   * Helpful metadata if provided by the backend.
-   */
+  years: PlanYearDto[];
   userId?: string;
   createdAt?: string;
   updatedAt?: string;
 };
 
+/** Single goal row in the form (id for drag-and-drop + server round-trip). */
+export type PlanGoalLineForm = {
+  id: string;
+  text: string;
+};
+
+export type PlanYearForm = {
+  yearIndex: PlanOdysseyYearIndex;
+  note: string;
+  scores: PlanYearScores;
+  goals: PlanGoalLineForm[];
+  keywords: string[];
+};
+
+export type PlanFormValues = {
+  title?: string;
+  years: PlanYearForm[];
+};
+
+/** Upsert body for POST /api/my-plan */
 export type SavePlanRequestPayload = {
   title?: string;
-  yearlyItems: YearlyPlanItemForm[];
+  years: PlanYearSavePayload[];
 };
 
-export type UpdatePlanRequestPayload = {
-  planId: string;
-  title?: string;
-  yearlyItems: YearlyPlanItemForm[];
+export type PlanYearSavePayload = {
+  yearIndex: PlanOdysseyYearIndex;
+  note?: string;
+  scores: PlanYearScores;
+  /** Ordered; empty strings stripped server-side; max 5 kept. */
+  goals: string[];
+  keywords: string[];
 };
-

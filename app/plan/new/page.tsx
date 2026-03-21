@@ -1,19 +1,48 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { Suspense, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
+import RequireAuthForPlan from "@/features/auth/components/RequireAuthForPlan";
+import { SubpageGlassVeil } from "@/components/layout/SubpageGlassVeil";
+import { LandingConfetti } from "@/features/landing/components/LandingConfetti";
+import ExistingPlanConfirmModal from "@/features/plan/components/ExistingPlanConfirmModal";
 import PlanForm from "@/features/plan/components/PlanForm";
+import {
+  PlanEditorLayout,
+  PlanEditorPageHeader,
+} from "@/features/plan/components/editor";
+import {
+  NEW_PLAN_REPLACE_QUERY,
+  NEW_PLAN_REPLACE_VALUE,
+} from "@/features/plan/constants/plan.constants";
 import { usePlanEditor } from "@/features/plan/hooks/usePlanEditor";
+import { useMyPlan } from "@/features/plan/hooks/useMyPlan";
 import { saveMyPlan } from "@/features/plan/lib/plan.service";
 import { mapPlanFormValuesToSavePayload } from "@/features/plan/lib/plan.mapper";
 
-const NewPlanPage = () => {
+const NewPlanPageContent = () => {
   const router = useRouter();
-  const { values, validation, setTitle, updateYearlyItem, addYearlyItem, removeYearlyItem } =
-    usePlanEditor({
-      defaultYear: new Date().getFullYear(),
-    });
+  const searchParams = useSearchParams();
+  const replaceAcknowledged =
+    searchParams.get(NEW_PLAN_REPLACE_QUERY) === NEW_PLAN_REPLACE_VALUE;
+
+  const { plan, loading: planLoading } = useMyPlan({ autoLoad: true });
+
+  const {
+    values,
+    validation,
+    resetForm,
+    setTitle,
+    setScore,
+    setYearNote,
+    setGoalLine,
+    commitGoal,
+    removeGoalLine,
+    reorderGoals,
+    commitKeyword,
+    removeKeywordLine,
+  } = usePlanEditor();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<
@@ -22,7 +51,10 @@ const NewPlanPage = () => {
     | null
   >(null);
 
-  const handleSubmit = async (_event: FormEvent<HTMLFormElement>) => {
+  const showReplaceGate = !planLoading && plan !== null && !replaceAcknowledged;
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    void event;
     setStatus(null);
     setIsSubmitting(true);
 
@@ -32,62 +64,109 @@ const NewPlanPage = () => {
 
       setStatus({
         type: "success",
-        message: "Your plan was saved successfully.",
+        message: "플랜이 저장되었습니다.",
       });
 
       router.push("/my-plan");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to save plan.";
+      const message =
+        err instanceof Error ? err.message : "플랜을 저장하지 못했습니다.";
       setStatus({ type: "error", message });
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const acknowledgeReplace = () => {
+    router.replace(
+      `/plan/new?${NEW_PLAN_REPLACE_QUERY}=${NEW_PLAN_REPLACE_VALUE}`,
+    );
+  };
+
   return (
-    <div className="flex flex-col flex-1 bg-zinc-50 font-sans dark:bg-black">
-      <main className="mx-auto w-full max-w-3xl px-4 py-10">
-        <div className="flex flex-col gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
-            Create a new plan
-          </h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Add your yearly goals and summary. You can adjust them anytime later.
-          </p>
-        </div>
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas font-sans dark:bg-zinc-950">
+      <LandingConfetti />
+      <SubpageGlassVeil />
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+        <ExistingPlanConfirmModal
+          open={showReplaceGate}
+          onCancel={() => router.push("/my-plan")}
+          onConfirm={acknowledgeReplace}
+        />
 
-        {status ? (
-          <div
-            role="alert"
-            className={
-              status.type === "success"
-                ? "mt-4 rounded-md border border-black/10 bg-white p-3 text-sm text-black dark:border-white/10 dark:bg-black dark:text-zinc-50"
-                : "mt-4 rounded-md border border-red-400/30 bg-red-50 p-3 text-sm text-red-700 dark:bg-black/20 dark:text-red-300"
-            }
-          >
-            {status.message}
+        <PlanEditorLayout>
+        {planLoading ? (
+          <div className="rounded-2xl border border-zinc-200/80 bg-white p-6 text-sm text-zinc-600 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-300">
+            불러오는 중…
           </div>
-        ) : null}
+        ) : showReplaceGate ? null : (
+          <>
+            <PlanEditorPageHeader
+              title="My Odyssey Plan"
+              description="연차별 목표와 현재 상태를 정리해보세요."
+            />
 
-        <div className="mt-6">
-          <PlanForm
-            values={values}
-            errors={validation.errors}
-            isValid={validation.isValid}
-            isSubmitting={isSubmitting}
-            submitLabel="Save Plan"
-            onTitleChange={setTitle}
-            onYearlyItemChange={(index, patch) => updateYearlyItem(index, patch)}
-            onAddYearlyItem={(year) => addYearlyItem(year)}
-            onRemoveYearlyItem={removeYearlyItem}
-            onSubmit={handleSubmit}
-          />
-        </div>
+            {status ? (
+              <div
+                role="alert"
+                className={
+                  status.type === "success"
+                    ? "mb-5 rounded-xl border border-zinc-200/80 bg-white px-4 py-3 text-sm text-zinc-800 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-200"
+                    : "mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-400/25 dark:bg-red-950/40 dark:text-red-300"
+                }
+              >
+                {status.message}
+              </div>
+            ) : null}
 
-      </main>
+            <PlanForm
+              mode="create"
+              values={values}
+              errors={validation.errors}
+              isValid={validation.isValid}
+              isSubmitting={isSubmitting}
+              submitLabel="완성하기"
+              submittingLabel="저장 중…"
+              onReset={() => resetForm()}
+              resetLabel="초기화"
+              actionFootnote="로그인한 상태에서 완성하기를 누르면 플랜이 저장됩니다."
+              onTitleChange={setTitle}
+              onScoreChange={setScore}
+              onYearNoteChange={setYearNote}
+              onGoalChange={setGoalLine}
+              onCommitGoal={commitGoal}
+              onRemoveGoal={removeGoalLine}
+              onReorderGoals={reorderGoals}
+              onCommitKeyword={commitKeyword}
+              onRemoveKeyword={removeKeywordLine}
+              onSubmit={handleSubmit}
+            />
+          </>
+        )}
+        </PlanEditorLayout>
+      </div>
     </div>
   );
 };
 
-export default NewPlanPage;
+const NewPlanPageInner = () => (
+  <Suspense
+    fallback={
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-app-canvas px-4 py-16 text-sm text-zinc-600 dark:bg-zinc-950 dark:text-zinc-400">
+        <LandingConfetti />
+        <SubpageGlassVeil />
+        <span className="relative z-10">불러오는 중…</span>
+      </div>
+    }
+  >
+    <NewPlanPageContent />
+  </Suspense>
+);
 
+const NewPlanPage = () => (
+  <RequireAuthForPlan>
+    <NewPlanPageInner />
+  </RequireAuthForPlan>
+);
+
+export default NewPlanPage;

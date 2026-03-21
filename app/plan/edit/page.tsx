@@ -2,32 +2,49 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
+import RequireAuthForPlan from "@/features/auth/components/RequireAuthForPlan";
+import { SubpageGlassVeil } from "@/components/layout/SubpageGlassVeil";
+import { LandingConfetti } from "@/features/landing/components/LandingConfetti";
 import PlanForm from "@/features/plan/components/PlanForm";
+import {
+  PlanEditorLayout,
+  PlanEditorPageHeader,
+} from "@/features/plan/components/editor";
 import { usePlanEditor } from "@/features/plan/hooks/usePlanEditor";
 import { useMyPlan } from "@/features/plan/hooks/useMyPlan";
 import {
-  mapPlanFormValuesToUpdatePayload,
+  mapPlanFormValuesToSavePayload,
   mapSavedPlanResponseToEditFormValues,
 } from "@/features/plan/lib/plan.mapper";
-import { updateMyPlan } from "@/features/plan/lib/plan.service";
+import { saveMyPlan } from "@/features/plan/lib/plan.service";
 
-const EditPlanPage = () => {
+const backLinkClass =
+  "inline-flex h-10 items-center justify-center rounded-full border border-zinc-200 bg-white px-5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800";
+
+const EditPlanPageInner = () => {
   const router = useRouter();
   const { plan, loading, error, refetch } = useMyPlan({ autoLoad: true });
 
-  const initialFormValues = plan
-    ? mapSavedPlanResponseToEditFormValues(plan)
-    : undefined;
+  const initialFormValues = useMemo(
+    () => (plan ? mapSavedPlanResponseToEditFormValues(plan) : undefined),
+    [plan],
+  );
 
   const {
     values,
     validation,
+    resetForm,
     setTitle,
-    updateYearlyItem,
-    addYearlyItem,
-    removeYearlyItem,
+    setScore,
+    setYearNote,
+    setGoalLine,
+    commitGoal,
+    removeGoalLine,
+    reorderGoals,
+    commitKeyword,
+    removeKeywordLine,
   } = usePlanEditor({
     initialValues: initialFormValues,
   });
@@ -46,20 +63,20 @@ const EditPlanPage = () => {
 
     try {
       if (!plan?.planId) {
-        throw new Error("Missing planId. Please try again.");
+        throw new Error("저장된 플랜이 없습니다. 먼저 플랜을 만드세요.");
       }
 
-      const payload = mapPlanFormValuesToUpdatePayload(plan.planId, values);
-      await updateMyPlan(payload);
+      const payload = mapPlanFormValuesToSavePayload(values);
+      await saveMyPlan(payload);
 
       setStatus({
         type: "success",
-        message: "Your plan was updated successfully.",
+        message: "플랜이 업데이트되었습니다.",
       });
       router.push("/my-plan");
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Failed to update plan.";
+        err instanceof Error ? err.message : "플랜을 업데이트하지 못했습니다.";
       setStatus({ type: "error", message });
     } finally {
       setIsSubmitting(false);
@@ -67,68 +84,59 @@ const EditPlanPage = () => {
   };
 
   return (
-    <div className="flex flex-col flex-1 bg-zinc-50 font-sans dark:bg-black">
-      <main className="mx-auto w-full max-w-3xl px-4 py-10">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-4">
-            <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
-              Edit Plan
-            </h1>
-
-            <div className="flex gap-3">
-              <Link
-                href="/my-plan"
-                className="inline-flex h-10 items-center justify-center rounded-md border border-black/10 bg-white px-4 text-sm font-medium text-black transition-colors hover:bg-black/[.03] dark:border-white/10 dark:bg-black dark:text-zinc-50 dark:hover:bg-white/[.05]"
-              >
-                Back
-              </Link>
-            </div>
-          </div>
-
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Update your yearly goals and summaries.
-          </p>
-        </div>
-
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas font-sans dark:bg-zinc-950">
+      <LandingConfetti />
+      <SubpageGlassVeil />
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+        <PlanEditorLayout>
         {loading ? (
-          <div className="mt-6 rounded-md border border-black/10 bg-white p-4 text-sm text-zinc-600 dark:border-white/10 dark:bg-black dark:text-zinc-300">
-            Loading your plan...
+          <div className="rounded-2xl border border-zinc-200/80 bg-white p-6 text-sm text-zinc-600 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-300">
+            플랜을 불러오는 중…
           </div>
         ) : error ? (
           <div
             role="alert"
-            className="mt-6 rounded-md border border-red-400/30 bg-red-50 p-4 text-sm text-red-700 dark:bg-black/20 dark:text-red-300"
+            className="rounded-2xl border border-red-200 bg-red-50/90 p-5 text-sm text-red-700 dark:border-red-400/25 dark:bg-red-950/40 dark:text-red-300"
           >
-            <p className="font-medium">Could not load your plan.</p>
+            <p className="font-medium">플랜을 불러오지 못했습니다.</p>
             <p className="mt-1">{error}</p>
             <button
               type="button"
               onClick={refetch}
-              className="mt-3 inline-flex h-9 items-center justify-center rounded-md border border-red-400/30 bg-white px-3 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 dark:border-red-400/20 dark:bg-black dark:text-red-200"
+              className="mt-4 inline-flex h-9 items-center justify-center rounded-full border border-red-300/60 bg-white px-4 text-sm font-medium text-red-800 transition-colors hover:bg-red-50 dark:border-red-400/30 dark:bg-zinc-900 dark:text-red-200"
             >
-              Retry
+              다시 시도
             </button>
           </div>
         ) : plan == null ? (
-          <div className="mt-6 rounded-md border border-black/10 bg-white p-4 text-sm text-zinc-600 dark:border-white/10 dark:bg-black dark:text-zinc-300">
-            No saved plan yet.{" "}
+          <div className="rounded-2xl border border-zinc-200/80 bg-white p-6 text-sm text-zinc-600 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-300">
+            저장된 플랜이 없습니다.{" "}
             <Link
               href="/plan/new"
-              className="font-medium text-black underline underline-offset-4 dark:text-zinc-50"
+              className="font-medium text-zinc-900 underline underline-offset-4 dark:text-zinc-100"
             >
-              Create one now
+              새로 만들기
             </Link>
-            .
           </div>
         ) : (
-          <div className="mt-6">
+          <>
+            <PlanEditorPageHeader
+              title="Edit My Odyssey Plan"
+              description="연차별 목표와 거리 점수를 업데이트하세요."
+              actions={
+                <Link href="/my-plan" className={backLinkClass}>
+                  나가기
+                </Link>
+              }
+            />
+
             {status ? (
               <div
                 role={status.type === "error" ? "alert" : undefined}
                 className={
                   status.type === "success"
-                    ? "rounded-md border border-black/10 bg-white p-3 text-sm text-black dark:border-white/10 dark:bg-black dark:text-zinc-50"
-                    : "rounded-md border border-red-400/30 bg-red-50 p-3 text-sm text-red-700 dark:bg-black/20 dark:text-red-300"
+                    ? "mb-5 rounded-xl border border-zinc-200/80 bg-white px-4 py-3 text-sm text-zinc-800 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-200"
+                    : "mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-400/25 dark:bg-red-950/40 dark:text-red-300"
                 }
               >
                 {status.message}
@@ -136,25 +144,38 @@ const EditPlanPage = () => {
             ) : null}
 
             <PlanForm
+              mode="edit"
               values={values}
               errors={validation.errors}
               isValid={validation.isValid}
               isSubmitting={isSubmitting}
-              submitLabel="Update Plan"
+              submitLabel="수정 완료"
+              submittingLabel="업데이트 중…"
+              onReset={() => resetForm()}
+              resetLabel="초기화"
               onTitleChange={setTitle}
-              onYearlyItemChange={(index, patch) =>
-                updateYearlyItem(index, patch)
-              }
-              onAddYearlyItem={(year) => addYearlyItem(year)}
-              onRemoveYearlyItem={removeYearlyItem}
+              onScoreChange={setScore}
+              onYearNoteChange={setYearNote}
+              onGoalChange={setGoalLine}
+              onCommitGoal={commitGoal}
+              onRemoveGoal={removeGoalLine}
+              onReorderGoals={reorderGoals}
+              onCommitKeyword={commitKeyword}
+              onRemoveKeyword={removeKeywordLine}
               onSubmit={handleSubmit}
             />
-          </div>
+          </>
         )}
-      </main>
+        </PlanEditorLayout>
+      </div>
     </div>
   );
 };
 
-export default EditPlanPage;
+const EditPlanPage = () => (
+  <RequireAuthForPlan>
+    <EditPlanPageInner />
+  </RequireAuthForPlan>
+);
 
+export default EditPlanPage;

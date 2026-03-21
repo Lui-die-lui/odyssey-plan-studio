@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+
 import type { SavedPlanResponse } from "../types/plan.types";
 import { getMyPlan } from "../lib/plan.service";
 
@@ -8,12 +10,21 @@ type UseMyPlanOptions = {
 
 export const useMyPlan = (opts?: UseMyPlanOptions) => {
   const autoLoad = opts?.autoLoad ?? true;
+  const { data: session, status } = useSession();
+  const userId = session?.user?.id;
 
   const [plan, setPlan] = useState<SavedPlanResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchPlan = useCallback(async () => {
+    if (!userId) {
+      setPlan(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -26,12 +37,20 @@ export const useMyPlan = (opts?: UseMyPlanOptions) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     if (!autoLoad) return;
-    fetchPlan();
-  }, [autoLoad, fetchPlan]);
+
+    if (status !== "authenticated" || !userId) {
+      setPlan(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
+    void fetchPlan();
+  }, [autoLoad, fetchPlan, status, userId]);
 
   return {
     plan,
@@ -40,4 +59,3 @@ export const useMyPlan = (opts?: UseMyPlanOptions) => {
     refetch: fetchPlan,
   };
 };
-

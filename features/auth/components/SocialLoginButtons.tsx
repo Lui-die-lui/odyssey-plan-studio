@@ -4,23 +4,25 @@ import { signIn } from "next-auth/react";
 
 type SocialLoginButtonsProps = {
   className?: string;
+  callbackUrl?: string;
   onGoogleClick?: () => void;
   onKakaoClick?: () => void;
 };
 
 const SocialLoginButtons = ({
   className,
+  callbackUrl = "/",
   onGoogleClick,
   onKakaoClick,
 }: SocialLoginButtonsProps) => {
   const handleGoogleClick = () => {
     onGoogleClick?.();
-    signIn("google", {callbackUrl: "/"});
+    signIn("google", { callbackUrl });
   };
 
   const handleKakaoClick = () => {
     onKakaoClick?.();
-    signIn("kakao", {callbackUrl: "/"});
+    signIn("kakao", { callbackUrl });
   };
 
   return (

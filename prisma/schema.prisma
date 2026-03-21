@@ -7,41 +7,85 @@ datasource db {
 }
 
 model User {
-  id String @id @default(cuid())
-  provider String?
+  id             String  @id @default(cuid())
+  provider       String?
   providerUserId String?
-  email String?
-  name String?
-  image String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  plan Plan?
+  email          String?
+  name           String?
+  image          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  plan           Plan?
 
   @@unique([provider, providerUserId])
 }
 
+/// One plan per user (1:1). Contains up to five `PlanYear` rows (odyssey years 1–5).
 model Plan {
-  id String @id @default(cuid())
-  userId String @unique
-  title String?
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  title     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  yearItems YearPlanItem[]
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  years PlanYear[]
 }
 
-model YearPlanItem {
-  id String @id @default(cuid())
-  planId String
-  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
-  year Int
-  goal String
-  summary String
-  strengths Json?
-  weaknesses Json?
+/// Single tab/year slot: odyssey year index 1–5 (not calendar year).
+model PlanYear {
+  id        String @id @default(cuid())
+  planId    String
+  plan      Plan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  yearIndex Int
+
+  /// Optional memo / summary for the year.
+  note String?
+
+  resourcesScore  Int @default(1)
+  interestScore   Int @default(1)
+  confidenceScore Int @default(1)
+  coherenceScore  Int @default(1)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([planId, year])
+  goals    PlanYearGoal[]
+  keywords PlanYearKeyword[]
+
+  @@unique([planId, yearIndex])
+  @@index([planId])
+}
+
+/// Ordered goal line items for a plan year (max length enforced in app layer).
+model PlanYearGoal {
+  id         String   @id @default(cuid())
+  planYearId String
+  planYear   PlanYear @relation(fields: [planYearId], references: [id], onDelete: Cascade)
+
+  position Int
+  text     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([planYearId, position])
+  @@index([planYearId])
+}
+
+/// Ordered keywords for a plan year.
+model PlanYearKeyword {
+  id         String   @id @default(cuid())
+  planYearId String
+  planYear   PlanYear @relation(fields: [planYearId], references: [id], onDelete: Cascade)
+
+  position Int
+  text     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([planYearId, position])
+  @@index([planYearId])
 }
