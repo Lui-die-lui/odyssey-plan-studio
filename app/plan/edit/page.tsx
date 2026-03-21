@@ -49,6 +49,9 @@ const EditPlanPageInner = () => {
     initialValues: initialFormValues,
   });
 
+  const confettiColorVariant =
+    !loading && plan != null ? "colored" : "neutral";
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<
     | { type: "success"; message: string }
@@ -85,7 +88,7 @@ const EditPlanPageInner = () => {
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas font-sans dark:bg-zinc-950">
-      <LandingConfetti />
+      <LandingConfetti colorVariant={confettiColorVariant} />
       <SubpageGlassVeil />
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         <PlanEditorLayout>

@@ -69,6 +69,9 @@ const LandingPage = () => {
 
   const showGuestSecondary = status === "unauthenticated" && !ctaDisabled;
 
+  const hasSavedPlan =
+    status === "authenticated" && !planLoading && existingPlan != null;
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas dark:bg-app-canvas-dark">
       <ExistingPlanConfirmModal
@@ -80,7 +83,7 @@ const LandingPage = () => {
         }}
       />
 
-      <LandingConfetti />
+      <LandingConfetti colorVariant={hasSavedPlan ? "colored" : "neutral"} />
         
       <main className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-4 pb-16 pt-10 sm:px-6 sm:pb-20 sm:pt-14 md:items-start lg:px-8 lg:pb-24 lg:pt-16">
         <div className="flex w-full max-w-xl flex-col items-center text-center md:items-start md:text-left">

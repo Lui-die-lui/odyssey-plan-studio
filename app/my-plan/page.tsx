@@ -13,6 +13,9 @@ const MyPlanPageInner = () => {
   const [pdfExporting, setPdfExporting] = useState(false);
   const { plan, loading, error, refetch } = useMyPlan({ autoLoad: true });
 
+  const confettiColorVariant =
+    !loading && plan != null ? "colored" : "neutral";
+
   const handleDownloadPdf = async () => {
     if (!plan) return;
     setPdfExporting(true);
@@ -43,7 +46,7 @@ const MyPlanPageInner = () => {
 
   return (
     <div className="relative flex flex-col flex-1 overflow-hidden bg-app-canvas font-sans dark:bg-black">
-      <LandingConfetti />
+      <LandingConfetti colorVariant={confettiColorVariant} />
       <SubpageGlassVeil />
       <main className="relative z-10 mx-auto w-full max-w-6xl px-4 py-10">
         <div className="flex flex-col gap-3">

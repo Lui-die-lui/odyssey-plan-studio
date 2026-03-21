@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import type {
   PlanFormValues,
@@ -40,10 +40,14 @@ export const usePlanEditor = (opts?: UsePlanEditorOptions) => {
 
   const [values, setValues] = useState<PlanFormValues>(resolvedInitialValues);
 
-  useEffect(() => {
-    if (opts?.initialValues == null) return;
-    setValues(cloneValues(normalizePlanFormValues(opts.initialValues)));
-  }, [opts?.initialValues]);
+  /** When `initialValues` prop identity changes, reset form (avoids setState inside useEffect). */
+  const initialPropRef = useRef(opts?.initialValues);
+  if (opts?.initialValues !== initialPropRef.current) {
+    initialPropRef.current = opts?.initialValues;
+    if (opts?.initialValues != null) {
+      setValues(cloneValues(normalizePlanFormValues(opts.initialValues)));
+    }
+  }
 
   const validation = useMemo(() => validatePlanForm(values), [values]);
 

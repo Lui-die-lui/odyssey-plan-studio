@@ -31,6 +31,9 @@ export type LandingConfettiVisual = {
   opacity: number;
 };
 
+/** Palette family for landing confetti (geometry unchanged; only fill/opacity). */
+export type LandingConfettiColorVariant = "neutral" | "colored";
+
 export const LANDING_CONFETTI_LAYOUT: LandingConfettiLayoutDef[] = [
   {
     id: "c-lt",
@@ -186,7 +189,7 @@ export const LANDING_CONFETTI_LAYOUT: LandingConfettiLayoutDef[] = [
     id: "c-mc1",
     type: "circle",
     size: 16,
-    left: "48%",
+    left: "55%",
     top: "20%",
     delay: 0.5,
     duration: 7,
@@ -196,7 +199,7 @@ export const LANDING_CONFETTI_LAYOUT: LandingConfettiLayoutDef[] = [
     id: "ln-m1",
     type: "line",
     size: 26,
-    left: "40%",
+    left: "47%",
     top: "40%",
     delay: 1.1,
     duration: 6.4,
@@ -207,7 +210,7 @@ export const LANDING_CONFETTI_LAYOUT: LandingConfettiLayoutDef[] = [
     id: "sq-m1",
     type: "square",
     size: 14,
-    left: "58%",
+    left: "65%",
     top: "52%",
     delay: 0.3,
     duration: 7.2,
@@ -218,7 +221,7 @@ export const LANDING_CONFETTI_LAYOUT: LandingConfettiLayoutDef[] = [
     id: "tri-m1",
     type: "triangle",
     size: 20,
-    left: "52%",
+    left: "58%",
     top: "78%",
     delay: 1.6,
     duration: 6.8,
@@ -229,7 +232,7 @@ export const LANDING_CONFETTI_LAYOUT: LandingConfettiLayoutDef[] = [
     id: "c-mc2",
     type: "circle",
     size: 12,
-    left: "44%",
+    left: "52%",
     top: "64%",
     delay: 2,
     duration: 5.9,
@@ -239,7 +242,7 @@ export const LANDING_CONFETTI_LAYOUT: LandingConfettiLayoutDef[] = [
     id: "ln-m2",
     type: "line",
     size: 22,
-    left: "54%",
+    left: "61%",
     top: "28%",
     delay: 0.9,
     duration: 8,
@@ -298,6 +301,63 @@ export const LANDING_CONFETTI_THEME_DARK: Record<string, LandingConfettiVisual> 
   "ln-m2": { color: "#505058", opacity: 0.22 },
 };
 
+/**
+ * Light “colored”: muted mustard, navy, dusty blue, soft coral, olive, lavender —
+ * a touch more saturation than neutral, still calm on the canvas.
+ */
+export const LANDING_CONFETTI_THEME_LIGHT_COLORED: Record<
+  string,
+  LandingConfettiVisual
+> = {
+  "c-lt": { color: "#c2a02e", opacity: 0.68 },
+  "sq-lm": { color: "#6d8faf", opacity: 0.58 },
+  "ln-lb": { color: "#d06a62", opacity: 0.62 },
+  "tri-lu": { color: "#738e48", opacity: 0.6 },
+  "c-rt": { color: "#334a78", opacity: 0.64 },
+  "sq-rm": { color: "#9180c4", opacity: 0.58 },
+  "ln-rb": { color: "#5f88a8", opacity: 0.56 },
+  "tri-ru": { color: "#b58a32", opacity: 0.52 },
+  "c-tl": { color: "#5f7fa0", opacity: 0.5 },
+  "ln-tr": { color: "#678242", opacity: 0.54 },
+  "sq-bl": { color: "#9686c6", opacity: 0.52 },
+  "c-br": { color: "#cca85c", opacity: 0.48 },
+  "sq-accent-l": { color: "#4a7a9e", opacity: 0.46 },
+  "c-accent-r": { color: "#3d5588", opacity: 0.44 },
+  "c-mc1": { color: "#bea238", opacity: 0.42 },
+  "ln-m1": { color: "#c26a68", opacity: 0.4 },
+  "sq-m1": { color: "#8878c2", opacity: 0.4 },
+  "tri-m1": { color: "#678548", opacity: 0.4 },
+  "c-mc2": { color: "#6789aa", opacity: 0.38 },
+  "ln-m2": { color: "#425c8a", opacity: 0.36 },
+};
+
+/** Dark “colored”: same hues, modestly richer chroma for dark UI canvas. */
+export const LANDING_CONFETTI_THEME_DARK_COLORED: Record<
+  string,
+  LandingConfettiVisual
+> = {
+  "c-lt": { color: "#9a8238", opacity: 0.38 },
+  "sq-lm": { color: "#4f6f8a", opacity: 0.34 },
+  "ln-lb": { color: "#9a5248", opacity: 0.36 },
+  "tri-lu": { color: "#567240", opacity: 0.35 },
+  "c-rt": { color: "#3d5680", opacity: 0.36 },
+  "sq-rm": { color: "#6a58a0", opacity: 0.34 },
+  "ln-rb": { color: "#456890", opacity: 0.33 },
+  "tri-ru": { color: "#8a7230", opacity: 0.32 },
+  "c-tl": { color: "#4a6888", opacity: 0.3 },
+  "ln-tr": { color: "#4f7038", opacity: 0.32 },
+  "sq-bl": { color: "#5f5490", opacity: 0.31 },
+  "c-br": { color: "#967838", opacity: 0.3 },
+  "sq-accent-l": { color: "#3d6880", opacity: 0.32 },
+  "c-accent-r": { color: "#355078", opacity: 0.3 },
+  "c-mc1": { color: "#8a7234", opacity: 0.28 },
+  "ln-m1": { color: "#864848", opacity: 0.26 },
+  "sq-m1": { color: "#524880", opacity: 0.26 },
+  "tri-m1": { color: "#4a6238", opacity: 0.26 },
+  "c-mc2": { color: "#4a6888", opacity: 0.24 },
+  "ln-m2": { color: "#345088", opacity: 0.24 },
+};
+
 function mergeLandingConfetti(
   layout: LandingConfettiLayoutDef[],
   palette: Record<string, LandingConfettiVisual>,
@@ -309,6 +369,37 @@ function mergeLandingConfetti(
     }
     return { ...item, ...visual };
   });
+}
+
+const LANDING_CONFETTI_PALETTES_LIGHT: Record<
+  LandingConfettiColorVariant,
+  Record<string, LandingConfettiVisual>
+> = {
+  neutral: LANDING_CONFETTI_THEME_LIGHT,
+  colored: LANDING_CONFETTI_THEME_LIGHT_COLORED,
+};
+
+const LANDING_CONFETTI_PALETTES_DARK: Record<
+  LandingConfettiColorVariant,
+  Record<string, LandingConfettiVisual>
+> = {
+  neutral: LANDING_CONFETTI_THEME_DARK,
+  colored: LANDING_CONFETTI_THEME_DARK_COLORED,
+};
+
+export function getLandingConfettiShapes(
+  variant: LandingConfettiColorVariant,
+): { light: LandingConfettiDef[]; dark: LandingConfettiDef[] } {
+  return {
+    light: mergeLandingConfetti(
+      LANDING_CONFETTI_LAYOUT,
+      LANDING_CONFETTI_PALETTES_LIGHT[variant],
+    ),
+    dark: mergeLandingConfetti(
+      LANDING_CONFETTI_LAYOUT,
+      LANDING_CONFETTI_PALETTES_DARK[variant],
+    ),
+  };
 }
 
 export const LANDING_CONFETTI_SHAPES_LIGHT = mergeLandingConfetti(

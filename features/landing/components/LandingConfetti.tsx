@@ -1,12 +1,12 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useMemo, type CSSProperties } from "react";
 
-import type { LandingConfettiDef } from "../lib/confetti-shapes";
-import {
-  LANDING_CONFETTI_SHAPES_DARK,
-  LANDING_CONFETTI_SHAPES_LIGHT,
+import type {
+  LandingConfettiColorVariant,
+  LandingConfettiDef,
 } from "../lib/confetti-shapes";
+import { getLandingConfettiShapes } from "../lib/confetti-shapes";
 
 const LINE_HEIGHT_PX = 4;
 
@@ -151,6 +151,11 @@ type LandingConfettiProps = {
   className?: string;
   defsLight?: LandingConfettiDef[];
   defsDark?: LandingConfettiDef[];
+  /**
+   * When `defsLight` / `defsDark` are omitted, selects the built-in palette.
+   * Custom defs override per-layer; omitted layer falls back to variant base.
+   */
+  colorVariant?: LandingConfettiColorVariant;
 };
 
 /**
@@ -161,9 +166,14 @@ export function LandingConfetti({
   className = "",
   defsLight,
   defsDark,
+  colorVariant = "neutral",
 }: LandingConfettiProps) {
-  const light = defsLight ?? LANDING_CONFETTI_SHAPES_LIGHT;
-  const dark = defsDark ?? LANDING_CONFETTI_SHAPES_DARK;
+  const base = useMemo(
+    () => getLandingConfettiShapes(colorVariant),
+    [colorVariant],
+  );
+  const light = defsLight ?? base.light;
+  const dark = defsDark ?? base.dark;
   return (
     <div
       className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
