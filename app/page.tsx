@@ -5,15 +5,14 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { usePlanAuthModal } from "@/features/auth/context/plan-auth-modal-context";
 import ExistingPlanConfirmModal from "@/features/plan/components/ExistingPlanConfirmModal";
+import { loginHref } from "@/features/auth/lib/login-href";
 import { LandingConfetti } from "@/features/landing/components/LandingConfetti";
 import { getNewPlanPath } from "@/features/plan/constants/plan.constants";
 import { useMyPlan } from "@/features/plan/hooks/useMyPlan";
 
 const LandingPage = () => {
   const router = useRouter();
-  const { openLoginRequiredModal } = usePlanAuthModal();
   const { status } = useSession();
   const { plan: existingPlan, loading: planLoading } = useMyPlan({
     autoLoad: status === "authenticated",
@@ -25,7 +24,7 @@ const LandingPage = () => {
     (status === "authenticated" && planLoading);
 
   const primaryCtaClass =
-    "inline-flex min-h-12 shrink-0 items-center justify-center rounded-full bg-zinc-900 px-10 text-sm font-semibold tracking-[0.1em] text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-45 " +
+    "inline-flex min-h-12 shrink-0 cursor-pointer items-center justify-center rounded-full bg-zinc-900 px-10 text-sm font-semibold tracking-[0.1em] text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-45 " +
     "dark:bg-zinc-100 dark:text-zinc-900 dark:shadow-zinc-950/20 dark:hover:bg-white";
 
   const secondaryCtaClass =
@@ -60,7 +59,7 @@ const LandingPage = () => {
     return (
       <button
         type="button"
-        onClick={() => openLoginRequiredModal("/plan/new")}
+        onClick={() => router.push(loginHref("/plan/new"))}
         className={primaryCtaClass}
       >
         CREATE
@@ -88,11 +87,11 @@ const LandingPage = () => {
           <p className="text-xs font-medium tracking-[0.18em] text-zinc-500 dark:text-zinc-500">
             my 5-year plan
           </p>
-          <h1 className="font-landing-odyssey mt-3 text-4xl tracking-tight text-zinc-900 sm:text-7xl sm:tracking-tighter dark:text-zinc-50">
+          <h1 className="font-landing-odyssey mt-3 text-5xl tracking-tight text-zinc-900 sm:text-7xl sm:tracking-tighter dark:text-zinc-50">
             ODYSSEY<br />     
             PLAN
           </h1>
-          <p className="mx-auto mt-2 max-w-md text-base leading-relaxed text-zinc-600 md:mx-0 dark:text-zinc-400">
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-zinc-600 sm:text-base md:mx-0 dark:text-zinc-400">
             내 5년의 방향을 가볍고 선명하게 정리해보세요.
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3 md:justify-start">

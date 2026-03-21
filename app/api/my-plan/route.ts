@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 
-import type {
-  PlanYearDto,
-  PlanYearScores,
-  SavedPlanResponse,
-  SavePlanRequestPayload,
-} from "@/features/plan/types/plan.types";
+import type { PlanYearScores, SavePlanRequestPayload } from "@/features/plan/types/plan.types";
 
 import { authOptions } from "@/features/auth/lib/auth";
 import {
@@ -17,6 +12,11 @@ import {
   PLAN_SCORE_MAX,
   PLAN_SCORE_MIN,
 } from "@/features/plan/constants/plan.constants";
+import {
+  getPlanByUserId,
+  mapPlanToResponse,
+  planInclude,
+} from "@/features/plan/lib/plan-db.server";
 import { prisma } from "@/lib/prisma";
 
 const normalizeOptionalString = (value?: string): string | undefined => {
@@ -68,52 +68,6 @@ const parseBoundedStringList = (
   }
   return { ok: true, values: out };
 };
-
-const mapYearToDto = (y: {
-  id: string;
-  yearIndex: number;
-  note: string | null;
-  resourcesScore: number;
-  interestScore: number;
-  confidenceScore: number;
-  coherenceScore: number;
-  goals: { id: string; position: number; text: string }[];
-  keywords: { id: string; position: number; text: string }[];
-}): PlanYearDto => ({
-  id: y.id,
-  yearIndex: y.yearIndex as PlanYearDto["yearIndex"],
-  note: y.note ?? undefined,
-  scores: {
-    resources: y.resourcesScore as PlanYearScores["resources"],
-    interest: y.interestScore as PlanYearScores["interest"],
-    confidence: y.confidenceScore as PlanYearScores["confidence"],
-    coherence: y.coherenceScore as PlanYearScores["coherence"],
-  },
-  goals: [...y.goals]
-    .sort((a, b) => a.position - b.position)
-    .map((g) => ({ id: g.id, position: g.position, text: g.text })),
-  keywords: [...y.keywords]
-    .sort((a, b) => a.position - b.position)
-    .map((k) => ({ id: k.id, position: k.position, text: k.text })),
-});
-
-const mapPlanToResponse = (plan: {
-  id: string;
-  userId: string;
-  title: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  years: Array<Parameters<typeof mapYearToDto>[0]>;
-}): SavedPlanResponse => ({
-  planId: plan.id,
-  userId: plan.userId,
-  title: plan.title ?? undefined,
-  years: [...plan.years]
-    .sort((a, b) => a.yearIndex - b.yearIndex)
-    .map(mapYearToDto),
-  createdAt: plan.createdAt.toISOString(),
-  updatedAt: plan.updatedAt.toISOString(),
-});
 
 async function requireAuthenticatedUserId(): Promise<string | NextResponse> {
   const session = await getServerSession(authOptions);
@@ -276,26 +230,13 @@ function validateSaveBody(body: unknown): SavePlanRequestPayload | NextResponse 
   return { title, years };
 }
 
-const planInclude = {
-  years: {
-    orderBy: { yearIndex: "asc" as const },
-    include: {
-      goals: { orderBy: { position: "asc" as const } },
-      keywords: { orderBy: { position: "asc" as const } },
-    },
-  },
-} as const;
-
 export async function GET() {
   try {
     const userIdOrError = await requireAuthenticatedUserId();
     if (userIdOrError instanceof NextResponse) return userIdOrError;
     const userId = userIdOrError;
 
-    const plan = await prisma.plan.findUnique({
-      where: { userId },
-      include: planInclude,
-    });
+    const plan = await getPlanByUserId(userId);
 
     if (!plan) {
       return NextResponse.json({ data: null }, { status: 200 });

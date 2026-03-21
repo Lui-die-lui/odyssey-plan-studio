@@ -78,49 +78,56 @@ function YearDetailCard({
   return (
     <article
       className={
-        "flex min-h-[200px] flex-col bg-white p-4 dark:bg-zinc-950 " + className
+        "flex h-full min-h-[220px] flex-col bg-white p-4 dark:bg-zinc-950 " +
+        className
       }
     >
-      <h3 className="text-xl font-bold tracking-tight text-black dark:text-zinc-50 lg:text-sm">
-        {idx}Y
-      </h3>
+      <div className="min-h-0 shrink-0">
+        <h3 className="text-xl font-bold tracking-tight text-black dark:text-zinc-50 lg:text-sm">
+          {idx}Y
+        </h3>
 
-      {y.goals.length > 0 ? (
-        <ul className="mt-3 flex-1 list-disc space-y-1.5 pl-5 text-sm leading-snug text-zinc-700 dark:text-zinc-300 lg:mt-2 lg:pl-4 lg:text-xs">
-          {y.goals.map((g) => (
-            <li key={g.id}>{g.text}</li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-3 flex-1 text-sm text-zinc-500 lg:mt-2 lg:text-xs">
-          목표 없음
-        </p>
-      )}
+        {y.goals.length > 0 ? (
+          <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-snug text-zinc-700 dark:text-zinc-300 lg:mt-2 lg:pl-4 lg:text-xs">
+            {y.goals.map((g) => (
+              <li key={g.id}>{g.text}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-zinc-500 lg:mt-2 lg:text-xs">
+            목표 없음
+          </p>
+        )}
+      </div>
 
-      {y.keywords.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-2 lg:mt-2 lg:gap-1.5">
-          {y.keywords.map((k) => (
-            <span
-              key={k.id}
-              className="rounded-full bg-zinc-800 px-3 py-1 text-xs text-white dark:bg-zinc-700 lg:px-2.5 lg:py-0.5 lg:text-[11px]"
-            >
-              {k.text}
-            </span>
-          ))}
+      <div className="mt-auto flex min-h-0 flex-col">
+        {y.keywords.length > 0 || y.note ? (
+          <div className="mb-3 mt-3 flex flex-col gap-2 lg:mb-2 lg:mt-2 lg:gap-1.5">
+            {y.keywords.length > 0 ? (
+              <div className="flex flex-wrap gap-2 lg:gap-1.5">
+                {y.keywords.map((k) => (
+                  <span
+                    key={k.id}
+                    className="rounded-full bg-zinc-800 px-3 py-1 text-xs text-white dark:bg-zinc-700 lg:px-2.5 lg:py-0.5 lg:text-[11px]"
+                  >
+                    {k.text}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {y.note ? (
+              <p className="line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400 lg:text-[11px]">
+                {y.note}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        <div className="flex items-center justify-between border-t border-black/5 pt-4 text-sm text-zinc-600 dark:border-white/10 dark:text-zinc-400 lg:pt-3 lg:text-xs">
+          <span>평균 거리</span>
+          <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+            {formatDistanceOneDecimal(avg)} / 5
+          </span>
         </div>
-      ) : null}
-
-      {y.note ? (
-        <p className="mt-3 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400 lg:mt-2 lg:text-[11px]">
-          {y.note}
-        </p>
-      ) : null}
-
-      <div className="mt-auto flex items-center justify-between border-t border-black/5 pt-4 text-sm text-zinc-600 dark:border-white/10 dark:text-zinc-400 lg:pt-3 lg:text-xs">
-        <span>평균 거리</span>
-        <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
-          {formatDistanceOneDecimal(avg)} / 5
-        </span>
       </div>
     </article>
   );
@@ -194,14 +201,6 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
         <h2 className="text-xl font-semibold tracking-tight text-black dark:text-zinc-50 lg:text-lg">
           {plan.title ?? "My Odyssey Plan"}
         </h2>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          <span className="lg:hidden">
-            1년차부터 5년차까지 오디세이 형태를 정리했어요.
-          </span>
-          <span className="hidden lg:inline">
-            년차별 목표 · 키워드 · 거리 점수를 한눈에 확인하세요.
-          </span>
-        </p>
       </header>
 
       <section aria-label="년차별 요약">
@@ -218,9 +217,9 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
               >
                 ‹
               </button>
-              <div className="min-w-0 flex-1 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-md dark:border-white/10 dark:bg-zinc-950">
+              <div className="flex min-h-[220px] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-black/10 bg-white shadow-md dark:border-white/10 dark:bg-zinc-950">
                 <div
-                  className="flex transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
+                  className="flex min-h-0 flex-1 transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
                   style={{
                     width: `${slides.length * 100}%`,
                     transform: `translateX(-${(100 / slides.length) * effectiveCarouselIndex}%)`,
@@ -229,14 +228,14 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
                   {slides.map((s) => (
                     <div
                       key={s.y.id}
-                      className="shrink-0"
+                      className="flex h-full shrink-0 self-stretch"
                       style={{ width: `${100 / slides.length}%` }}
                     >
                       <YearDetailCard
                         idx={s.idx}
                         y={s.y}
                         avg={yearAverageDistance(s.y.scores)}
-                        className="rounded-2xl"
+                        className="h-full w-full rounded-2xl"
                       />
                     </div>
                   ))}
@@ -269,9 +268,9 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
             return (
               <div
                 key={y.id}
-                className="overflow-hidden rounded-lg border border-black/10 shadow-sm dark:border-white/10"
+                className="flex h-full min-h-[220px] flex-col overflow-hidden rounded-lg border border-black/10 shadow-sm dark:border-white/10"
               >
-                <YearDetailCard idx={idx} y={y} avg={avg} className="p-3" />
+                <YearDetailCard idx={idx} y={y} avg={avg} className="h-full p-3" />
               </div>
             );
           })}

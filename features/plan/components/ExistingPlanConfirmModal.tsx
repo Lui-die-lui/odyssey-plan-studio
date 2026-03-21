@@ -23,7 +23,7 @@ const ExistingPlanConfirmModal = ({
   title = "기존 플랜이 있습니다",
   description = "현재 저장된 플랜이 있습니다. 새로 만들면 기존 플랜이 덮어쓰기됩니다. 계속하시겠습니까?",
   cancelLabel = "취소",
-  confirmLabel = "네, 새로 만들기",
+  confirmLabel = "새로 만들기",
   confirmBusy = false,
 }: ExistingPlanConfirmModalProps) => {
   return (
@@ -48,7 +48,7 @@ const ExistingPlanConfirmModal = ({
           type="button"
           onClick={onCancel}
           disabled={confirmBusy}
-          className="inline-flex h-11 items-center justify-center rounded-md border border-black/10 bg-white px-4 text-sm font-medium text-black transition-colors hover:bg-black/[.03] disabled:opacity-50 dark:border-white/10 dark:bg-black dark:text-zinc-50 dark:hover:bg-white/[.05]"
+          className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-medium text-black transition-colors hover:bg-black/[.03] disabled:opacity-50 dark:border-white/10 dark:bg-black dark:text-zinc-50 dark:hover:bg-white/[.05]"
         >
           {cancelLabel}
         </button>
@@ -56,7 +56,7 @@ const ExistingPlanConfirmModal = ({
           type="button"
           onClick={onConfirm}
           disabled={confirmBusy}
-          className="inline-flex h-11 items-center justify-center rounded-md bg-black px-4 text-sm font-medium text-white transition-colors hover:bg-black/90 disabled:opacity-50 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200"
+          className="inline-flex h-11 items-center justify-center rounded-full bg-black px-4 text-sm font-medium text-white transition-colors hover:bg-black/90 disabled:opacity-50 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200"
         >
           {confirmBusy ? "처리 중…" : confirmLabel}
         </button>

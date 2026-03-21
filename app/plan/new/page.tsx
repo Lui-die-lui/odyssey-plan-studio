@@ -125,11 +125,11 @@ const NewPlanPageContent = () => {
               errors={validation.errors}
               isValid={validation.isValid}
               isSubmitting={isSubmitting}
-              submitLabel="완성하기"
+              submitLabel="저장하기"
               submittingLabel="저장 중…"
               onReset={() => resetForm()}
               resetLabel="초기화"
-              actionFootnote="로그인한 상태에서 완성하기를 누르면 플랜이 저장됩니다."
+              // actionFootnote="로그인한 상태에서 완성하기를 누르면 플랜이 저장됩니다."
               onTitleChange={setTitle}
               onScoreChange={setScore}
               onYearNoteChange={setYearNote}
