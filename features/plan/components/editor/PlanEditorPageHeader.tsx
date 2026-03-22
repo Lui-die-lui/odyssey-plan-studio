@@ -20,20 +20,20 @@ export function PlanEditorPageHeader({
           : "mb-8 border-b border-zinc-200/80 pb-6 dark:border-white/10"
       }
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-row items-start justify-between gap-3 sm:gap-4">
+          <h1 className="min-w-0 flex-1 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             {title}
           </h1>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-            {description}
-          </p>
+          {actions ? (
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 pt-0.5">
+              {actions}
+            </div>
+          ) : null}
         </div>
-        {actions ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
-            {actions}
-          </div>
-        ) : null}
+        <p className="max-w-xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+          {description}
+        </p>
       </div>
     </header>
   );

@@ -9,7 +9,7 @@ import { InterviewChatBubble } from "./InterviewChatBubble";
 function InterviewAwaitingFollowUpBubble() {
   return (
     <div className="mt-1.5 flex justify-start" aria-live="polite" aria-busy="true">
-      <div className="interview-chat-bubble-ai max-w-[min(100%,28rem)] rounded-2xl rounded-bl-md border border-zinc-200/45 bg-zinc-50/65 px-3.5 py-2.5 dark:border-white/[0.08] dark:bg-zinc-900/55">
+      <div className="max-w-[min(100%,28rem)] rounded-2xl rounded-bl-md border border-zinc-200/45 bg-zinc-50/65 px-3.5 py-2.5 dark:border-white/[0.08] dark:bg-zinc-900/55">
         <p className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
           다음 질문을 정리하고 있어요
         </p>

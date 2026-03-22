@@ -36,7 +36,13 @@ export function AppNavbar() {
           : `shrink-0 ${SUBPAGE_VEIL_SURFACE_CLASS}`
       }
     >
-      <div className="mx-auto flex h-12 max-w-5xl items-center justify-between px-4 sm:px-6">
+      <div
+        className={
+          "mx-auto flex h-12 max-w-5xl items-center justify-between " +
+          "pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] " +
+          "sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))]"
+        }
+      >
         <Link href="/" className={brandText}>
           MY ODYSSEY
         </Link>
@@ -56,7 +62,7 @@ export function AppNavbar() {
           ) : (
             <>
               <Link href="/my-plan" className={navText}>
-                My Plan
+                My
               </Link>
               <button
                 type="button"

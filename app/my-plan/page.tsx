@@ -9,6 +9,13 @@ import { LandingConfetti } from "@/features/landing/components/LandingConfetti";
 import { useMyPlan } from "@/features/plan/hooks/useMyPlan";
 import PlanSummary from "@/features/plan/components/PlanSummary";
 
+/** 본문 CTA와 구분되는 작은 텍스트 링크 (GitHub·이메일 등 확장용) */
+const myPlanFooterLinkClass =
+  "text-[11px] font-normal leading-normal text-zinc-500 decoration-zinc-400/0 underline-offset-2 transition-[color,text-decoration-color] duration-200 " +
+  "hover:text-zinc-700 hover:decoration-zinc-500/50 hover:underline " +
+  "focus-visible:rounded-sm focus-visible:text-zinc-700 focus-visible:underline focus-visible:decoration-zinc-500/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-400/40 " +
+  "dark:text-zinc-500 dark:hover:text-zinc-400 dark:hover:decoration-zinc-500/35 dark:focus-visible:text-zinc-300 dark:focus-visible:ring-zinc-500/35";
+
 const MyPlanPageInner = () => {
   const [pdfExporting, setPdfExporting] = useState(false);
   const { plan, loading, error, refetch } = useMyPlan({ autoLoad: true });
@@ -48,7 +55,7 @@ const MyPlanPageInner = () => {
     <div className="relative flex flex-col flex-1 overflow-hidden bg-app-canvas font-sans dark:bg-app-canvas-dark">
       <LandingConfetti colorVariant={confettiColorVariant} />
       <SubpageGlassVeil />
-      <main className="relative z-10 mx-auto w-full max-w-6xl px-4 py-10">
+      <main className="relative z-10 mx-auto w-full max-w-6xl px-4 pt-10 pb-0 sm:px-6">
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <h1 className="font-semibold text-2xl font-normal tracking-tight text-black dark:text-zinc-50">
@@ -116,6 +123,30 @@ const MyPlanPageInner = () => {
             />
           )}
         </div>
+
+        <nav
+          aria-label="페이지 정보"
+          className="mt-16 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-10 text-center sm:mt-20 sm:pb-[max(3rem,env(safe-area-inset-bottom))] sm:pt-12"
+        >
+          <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5">
+            {/* 추후: GitHub, 이메일 등 동일 스타일 <li>로 나란히 추가 */}
+            <li className="flex flex-col items-center gap-1">
+              <Link
+                href="/account/withdraw"
+                className={myPlanFooterLinkClass}
+                aria-describedby="my-plan-withdraw-hint"
+              >
+                회원 탈퇴
+              </Link>
+              <span
+                id="my-plan-withdraw-hint"
+                className="text-[10px] font-normal leading-snug text-zinc-400 dark:text-zinc-500"
+              >
+                (삭제 후 복구 불가)
+              </span>
+            </li>
+          </ul>
+        </nav>
       </main>
     </div>
   );

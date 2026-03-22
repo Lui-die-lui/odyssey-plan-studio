@@ -87,71 +87,93 @@ function YearDetailCard({
   y,
   avg,
   className = "",
+  /** 모바일 캐러셀: 행 높이 = 가장 긴 슬라이드, 본문만 스크롤·하단 고정 */
+  layout = "stack",
 }: {
   idx: PlanOdysseyYearIndex;
   y: PlanYearDto;
   avg: number;
   className?: string;
+  layout?: "stack" | "carousel";
 }) {
+  const isCarousel = layout === "carousel";
+
+  const topBlock = (
+    <>
+      <h3 className="text-xl font-bold tracking-tight text-black dark:text-zinc-50 lg:text-sm">
+        {idx}Y
+      </h3>
+
+      {y.goals.length > 0 ? (
+        <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-snug text-zinc-700 dark:text-zinc-300 lg:mt-2 lg:pl-4 lg:text-xs">
+          {y.goals.map((g) => (
+            <li key={g.id}>{g.text}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-sm text-zinc-500 lg:mt-2 lg:text-xs">목표 없음</p>
+      )}
+    </>
+  );
+
+  const footerBlock = (
+    <>
+      {y.keywords.length > 0 || y.note ? (
+        <div className="mb-3 mt-3 flex flex-col gap-2 lg:mb-2 lg:mt-2 lg:gap-1.5">
+          {y.keywords.length > 0 ? (
+            <div className="flex flex-wrap gap-2 lg:gap-1.5">
+              {y.keywords.map((k) => (
+                <span
+                  key={k.id}
+                  className="rounded-full bg-zinc-800 px-3 py-1 text-xs text-white dark:bg-zinc-700 lg:px-2.5 lg:py-0.5 lg:text-[11px]"
+                >
+                  {k.text}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {y.note ? (
+            <p className="line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400 lg:text-[11px]">
+              {y.note}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="flex items-center justify-between border-t border-black/5 pt-4 text-sm text-zinc-600 dark:border-white/10 dark:text-zinc-400 lg:pt-3 lg:text-xs">
+        <span>평균 거리</span>
+        <span className="tabular-nums text-zinc-900 dark:text-zinc-100">
+          <span className="text-base font-bold tracking-tight lg:text-sm">
+            {formatDistanceOneDecimal(avg)}
+          </span>
+          <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+            {" "}
+            / 5
+          </span>
+        </span>
+      </div>
+    </>
+  );
+
   return (
     <article
       className={
-        "flex h-full min-h-[220px] flex-col bg-white p-4 dark:bg-zinc-950 " +
-        className
+        (isCarousel
+          ? "flex h-full min-h-0 w-full flex-col bg-white p-4 dark:bg-zinc-950 "
+          : "flex h-full min-h-[220px] flex-col bg-white p-4 dark:bg-zinc-950 ") + className
       }
     >
-      <div className="min-h-0 shrink-0">
-        <h3 className="text-xl font-bold tracking-tight text-black dark:text-zinc-50 lg:text-sm">
-          {idx}Y
-        </h3>
+      {isCarousel ? (
+        <div className="min-h-0 flex-1 overflow-y-auto">{topBlock}</div>
+      ) : (
+        <div className="min-h-0 shrink-0">{topBlock}</div>
+      )}
 
-        {y.goals.length > 0 ? (
-          <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-snug text-zinc-700 dark:text-zinc-300 lg:mt-2 lg:pl-4 lg:text-xs">
-            {y.goals.map((g) => (
-              <li key={g.id}>{g.text}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-3 text-sm text-zinc-500 lg:mt-2 lg:text-xs">
-            목표 없음
-          </p>
-        )}
-      </div>
-
-      <div className="mt-auto flex min-h-0 flex-col">
-        {y.keywords.length > 0 || y.note ? (
-          <div className="mb-3 mt-3 flex flex-col gap-2 lg:mb-2 lg:mt-2 lg:gap-1.5">
-            {y.keywords.length > 0 ? (
-              <div className="flex flex-wrap gap-2 lg:gap-1.5">
-                {y.keywords.map((k) => (
-                  <span
-                    key={k.id}
-                    className="rounded-full bg-zinc-800 px-3 py-1 text-xs text-white dark:bg-zinc-700 lg:px-2.5 lg:py-0.5 lg:text-[11px]"
-                  >
-                    {k.text}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-            {y.note ? (
-              <p className="line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400 lg:text-[11px]">
-                {y.note}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-        <div className="flex items-center justify-between border-t border-black/5 pt-4 text-sm text-zinc-600 dark:border-white/10 dark:text-zinc-400 lg:pt-3 lg:text-xs">
-          <span>평균 거리</span>
-          <span className="tabular-nums text-zinc-900 dark:text-zinc-100">
-            <span className="text-base font-bold tracking-tight lg:text-sm">
-              {formatDistanceOneDecimal(avg)}
-            </span>
-            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-              {" "}
-              / 5
-            </span>
-          </span>
-        </div>
+      <div
+        className={
+          isCarousel ? "flex shrink-0 flex-col" : "mt-auto flex min-h-0 flex-col"
+        }
+      >
+        {footerBlock}
       </div>
     </article>
   );
@@ -159,7 +181,7 @@ function YearDetailCard({
 
 const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
   const [carouselIndex, setCarouselIndex] = useState(0);
-  const [mobileChartsOpen, setMobileChartsOpen] = useState(false);
+  const [mobileChartsOpen, setMobileChartsOpen] = useState(true);
 
   const slides = useMemo(() => {
     if (!plan?.years?.length) return [];
@@ -243,23 +265,25 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
               </button>
               <div className="flex min-h-[220px] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-black/10 bg-white shadow-md dark:border-white/10 dark:bg-zinc-950">
                 <div
-                  className="flex min-h-0 flex-1 transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
+                  className="grid w-full min-h-[220px] items-stretch transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
                   style={{
                     width: `${slides.length * 100}%`,
+                    gridAutoFlow: "column",
+                    gridAutoColumns: `${100 / slides.length}%`,
                     transform: `translateX(-${(100 / slides.length) * effectiveCarouselIndex}%)`,
                   }}
                 >
                   {slides.map((s) => (
                     <div
                       key={s.y.id}
-                      className="flex h-full shrink-0 self-stretch"
-                      style={{ width: `${100 / slides.length}%` }}
+                      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
                     >
                       <YearDetailCard
+                        layout="carousel"
                         idx={s.idx}
                         y={s.y}
                         avg={yearAverageDistance(s.y.scores)}
-                        className="h-full w-full rounded-2xl"
+                        className="min-h-0 flex-1 rounded-2xl"
                       />
                     </div>
                   ))}

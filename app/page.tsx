@@ -99,11 +99,11 @@ const LandingPage = () => {
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3 md:justify-start">
             {renderPrimaryCta()}
-            {showGuestSecondary ? (
+            {/* {showGuestSecondary ? (
               <Link href="/login" className={secondaryCtaClass}>
-                Login
+                LOGIN
               </Link>
-            ) : null}
+            ) : null} */}
           </div>
         </div>
       </main>

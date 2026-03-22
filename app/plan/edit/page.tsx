@@ -21,7 +21,7 @@ import {
 import { saveMyPlan } from "@/features/plan/lib/plan.service";
 
 const backLinkClass =
-  "inline-flex h-10 items-center justify-center rounded-full border border-zinc-200 bg-white px-5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800";
+  "inline-flex h-8 shrink-0 items-center justify-center rounded-full border border-zinc-200/90 bg-white px-3 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800";
 
 const EditPlanPageInner = () => {
   const router = useRouter();

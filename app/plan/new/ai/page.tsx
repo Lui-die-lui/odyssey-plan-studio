@@ -38,16 +38,16 @@ const NewPlanAiPageContent = () => {
               <PlanEditorPageHeader
                 compactBelowDivider
                 title="AI와 함께 방향 찾기"
-                description="짧은 대화로 생각을 정리해요. 답은 나중에 플랜 초안으로 이어질 수 있어요."
-                actions={
-                  <button
-                    type="button"
-                    onClick={() => router.push("/plan/new")}
-                    className={backLinkClass}
-                  >
-                    이전
-                  </button>
-                }
+                description="짧은 대화로 생각을 정리해요. 답변은 나중에 플랜 초안으로 이어질 수 있어요."
+                // actions={
+                //   <button
+                //     type="button"
+                //     onClick={() => router.push("/plan/new")}
+                //     className={backLinkClass}
+                //   >
+                //     이전
+                //   </button>
+                // }
               />
 
               <div className="flex min-h-0 max-h-[min(620px,78dvh)] min-h-[min(380px,calc(100dvh-17rem))] flex-1 flex-col sm:max-h-[min(680px,72dvh)] sm:min-h-[min(420px,calc(100dvh-15rem))]">
