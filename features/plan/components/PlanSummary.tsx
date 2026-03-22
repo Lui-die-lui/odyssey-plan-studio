@@ -44,8 +44,8 @@ function YearDistanceBar({
   const pct = Math.min(100, Math.max(0, (value / 5) * 100));
   const fill =
     highlight
-      ? "bg-blue-600 dark:bg-blue-500"
-      : "bg-zinc-800 dark:bg-zinc-200";
+      ? "bg-[#2E3F66] dark:bg-[#8FA8C9]"
+      : "bg-[#CEDAE9] dark:bg-zinc-200";
   return (
     <div className="flex items-center gap-2">
       <span className="w-9 shrink-0 text-xs font-medium text-zinc-600 dark:text-zinc-400">
@@ -124,8 +124,14 @@ function YearDetailCard({
         ) : null}
         <div className="flex items-center justify-between border-t border-black/5 pt-4 text-sm text-zinc-600 dark:border-white/10 dark:text-zinc-400 lg:pt-3 lg:text-xs">
           <span>평균 거리</span>
-          <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
-            {formatDistanceOneDecimal(avg)} / 5
+          <span className="tabular-nums text-zinc-900 dark:text-zinc-100">
+            <span className="text-base font-bold tracking-tight lg:text-sm">
+              {formatDistanceOneDecimal(avg)}
+            </span>
+            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+              {" "}
+              / 5
+            </span>
           </span>
         </div>
       </div>
@@ -441,9 +447,12 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
                       {ko}
                     </p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold tabular-nums text-black dark:text-zinc-50">
-                    {formatDistanceOneDecimal(categoryAvgs[key])}{" "}
-                    <span className="text-xs font-normal text-zinc-500">
+                  <p className="shrink-0 tabular-nums text-black dark:text-zinc-50">
+                    <span className="text-base font-bold tracking-tight lg:text-sm lg:font-bold">
+                      {formatDistanceOneDecimal(categoryAvgs[key])}
+                    </span>
+                    <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                      {" "}
                       / 5
                     </span>
                   </p>

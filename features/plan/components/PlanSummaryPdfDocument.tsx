@@ -131,15 +131,46 @@ const sheet: Record<string, CSSProperties> = {
     color: "#09090b",
     flexShrink: 0,
   },
+  /**
+   * 네이티브 `list-style: disc` + outside 는 PDF에서 마커–본문 간격이 과하게 벌어짐.
+   * `•` + flex 로 간격을 고정한다.
+   */
   goalList: {
     margin: "12px 0 0",
-    padding: "0 0 0 14px",
+    padding: 0,
+    marginLeft: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: 0,
     fontSize: 11,
     lineHeight: 1.45,
     color: "#3f3f46",
     minWidth: 0,
     width: "100%",
     boxSizing: "border-box",
+    listStyleType: "none",
+  },
+  goalListItem: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 5,
+    listStyleType: "none",
+  },
+  goalListBullet: {
+    flexShrink: 0,
+    width: "0.55em",
+    fontSize: 11,
+    lineHeight: 1.45,
+    color: "#52525b",
+    textAlign: "center" as const,
+    /** 한글 폰트에서 첫 줄과 점을 시각적으로 맞춤 */
+    paddingTop: "0.12em",
+  },
+  goalListText: {
+    flex: 1,
+    minWidth: 0,
+    letterSpacing: "normal",
     ...textWrap,
   },
   emptyText: {
@@ -211,12 +242,22 @@ const sheet: Record<string, CSSProperties> = {
     flexShrink: 0,
     minWidth: 0,
   },
-  footerScore: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: "#09090b",
-    fontVariantNumeric: "tabular-nums",
+  footerScoreWrap: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: 3,
     flexShrink: 0,
+    fontVariantNumeric: "tabular-nums",
+  },
+  footerScoreValue: {
+    fontSize: 13,
+    fontWeight: 800,
+    color: "#09090b",
+  },
+  footerScoreUnit: {
+    fontSize: 9,
+    fontWeight: 600,
+    color: "#a1a1aa",
   },
 
   bottomRow: {
@@ -380,15 +421,25 @@ const sheet: Record<string, CSSProperties> = {
     color: "#78716c",
     ...textWrap,
   },
-  catScore: {
+  catScoreWrap: {
     margin: 0,
-    fontSize: 12,
-    fontWeight: 800,
-    color: "#09090b",
-    whiteSpace: "nowrap" as const,
-    fontVariantNumeric: "tabular-nums",
+    display: "flex",
+    alignItems: "baseline",
+    gap: 4,
     flexShrink: 0,
     paddingTop: 4,
+    whiteSpace: "nowrap" as const,
+    fontVariantNumeric: "tabular-nums",
+  },
+  catScoreValue: {
+    fontSize: 14,
+    fontWeight: 800,
+    color: "#09090b",
+  },
+  catScoreUnit: {
+    fontSize: 9,
+    fontWeight: 600,
+    color: "#a1a1aa",
   },
 };
 
@@ -490,11 +541,14 @@ export function PlanSummaryPdfDocument({
                       <li
                         key={goal.id}
                         style={{
+                          ...sheet.goalListItem,
                           marginBottom: gi === goals.length - 1 ? 0 : 6,
-                          ...textWrap,
                         }}
                       >
-                        {goal.text}
+                        <span style={sheet.goalListBullet} aria-hidden>
+                          •
+                        </span>
+                        <span style={sheet.goalListText}>{goal.text}</span>
                       </li>
                     ))}
                   </ul>
@@ -523,9 +577,16 @@ export function PlanSummaryPdfDocument({
 
                 <div style={sheet.footerRow}>
                   <span>평균 거리</span>
-                  <span style={sheet.footerScore}>
-                    {avg != null ? `${formatDistanceOneDecimal(avg)} / 5` : "—"}
-                  </span>
+                  {avg != null ? (
+                    <span style={sheet.footerScoreWrap}>
+                      <span style={sheet.footerScoreValue}>
+                        {formatDistanceOneDecimal(avg)}
+                      </span>
+                      <span style={sheet.footerScoreUnit}>/ 5</span>
+                    </span>
+                  ) : (
+                    <span style={sheet.footerScoreValue}>—</span>
+                  )}
                 </div>
               </div>
             </article>
@@ -609,8 +670,11 @@ export function PlanSummaryPdfDocument({
                   <p style={sheet.catKo}>{CATEGORY_LABELS[key].ko}</p>
                 </div>
 
-                <p style={sheet.catScore}>
-                  {formatDistanceOneDecimal(categoryAvgs[key])} / 5
+                <p style={sheet.catScoreWrap}>
+                  <span style={sheet.catScoreValue}>
+                    {formatDistanceOneDecimal(categoryAvgs[key])}
+                  </span>
+                  <span style={sheet.catScoreUnit}>/ 5</span>
                 </p>
               </div>
             ))}

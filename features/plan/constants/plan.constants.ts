@@ -1,4 +1,4 @@
-/** Query flag: user acknowledged replacing an existing plan (`/plan/new` gate). */
+/** Query flag: user acknowledged replacing an existing plan (new-plan flow under `/plan/new/*`). */
 export const NEW_PLAN_REPLACE_QUERY = "replace" as const;
 export const NEW_PLAN_REPLACE_VALUE = "1" as const;
 
