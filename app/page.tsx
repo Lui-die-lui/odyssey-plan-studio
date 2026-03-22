@@ -90,9 +90,9 @@ const LandingPage = () => {
           <p className="text-xs font-medium tracking-[0.18em] text-zinc-500 dark:text-zinc-500">
             my 5-year plan
           </p>
-          <h1 className="font-landing-odyssey mt-3 text-5xl tracking-tight text-zinc-900 sm:text-7xl sm:tracking-tighter dark:text-zinc-50">
-            ODYSSEY<br />     
-            PLAN
+          <h1 className="mt-3 text-5xl leading-none tracking-tight text-[#151515] antialiased dark:text-[#FEFEFE] md:text-7xl">
+            <span className="font-landing-logo-serif-strong">MY</span>{" "}
+            <span className="font-landing-logo-serif">ODYSSEY</span>
           </h1>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-zinc-600 sm:text-base md:mx-0 dark:text-zinc-400">
             내 5년의 방향을 가볍고 선명하게 정리해보세요.

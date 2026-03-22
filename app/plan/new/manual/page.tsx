@@ -97,7 +97,7 @@ const ManualPlanFormEditor = ({
   };
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas font-sans dark:bg-zinc-950">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas font-sans dark:bg-app-canvas-dark">
       <LandingConfetti colorVariant={confettiColorVariant} />
       <SubpageGlassVeil />
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
@@ -181,7 +181,7 @@ const NewPlanManualPageContent = () => {
 
   if (boot === "pending") {
     return (
-      <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden bg-app-canvas px-4 py-16 text-sm text-zinc-600 dark:bg-zinc-950 dark:text-zinc-400">
+      <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden bg-app-canvas px-4 py-16 text-sm text-zinc-600 dark:bg-app-canvas-dark dark:text-zinc-400">
         <LandingConfetti />
         <SubpageGlassVeil />
         <span className="relative z-10">불러오는 중…</span>
@@ -202,7 +202,7 @@ const NewPlanManualPageContent = () => {
 const NewPlanManualPageInner = () => (
   <Suspense
     fallback={
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-app-canvas px-4 py-16 text-sm text-zinc-600 dark:bg-zinc-950 dark:text-zinc-400">
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-app-canvas px-4 py-16 text-sm text-zinc-600 dark:bg-app-canvas-dark dark:text-zinc-400">
         <LandingConfetti />
         <SubpageGlassVeil />
         <span className="relative z-10">불러오는 중…</span>

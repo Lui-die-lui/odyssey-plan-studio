@@ -7,7 +7,7 @@ import { ODYSSEY_OTHER_CHOICE_ID } from "./odyssey-interview.types";
 
 const otherOption: OdysseyChoiceOption = {
   id: ODYSSEY_OTHER_CHOICE_ID,
-  label: "직접 입력",
+  label: "직접 입력하기",
 };
 
 const Q2_CONTINUE = "q2_continue";
@@ -58,7 +58,7 @@ export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
     id: "q3",
     type: "single_with_other",
     prompt: "그 이유를 가장 가깝게 설명하는 것은 무엇인가요?",
-    reaction: "이유가 보이면 다음 질문이 더 정확해져요.",
+    reaction: "",
     resolveChoices: (answers) => {
       const q2 = answers.q2?.choiceIds[0];
       if (q2 === Q2_CONTINUE) {
@@ -93,7 +93,7 @@ export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
     id: "q4",
     type: "single_with_other",
     prompt: "지금 당장 가장 하고 싶은 일은 무엇에 가까운가요?",
-    reaction: "당장 끌리는 쪽이 플랜에 큰 힌트가 돼요.",
+    reaction: "",
     choices: [
       { id: "q4_learn", label: "새로 배우고 익히기" },
       { id: "q4_create", label: "무언가 만들기" },
@@ -124,7 +124,7 @@ export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
     type: "single",
     prompt:
       "앞으로 자격증, 진학, 이직, 혹은 새로운 공부를 생각하고 있나요?",
-    reaction: "미래 확장에 대한 의지가 조금씩 드러났어요.",
+    reaction: "",
     choices: [
       { id: Q6_YES, label: "네, 생각 중이에요" },
       { id: Q6_NO, label: "당장은 없어요" },
@@ -140,7 +140,7 @@ export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
     id: "q7",
     type: "text",
     prompt: "있다면 어떤 방향인지 간단히 적어주세요.",
-    reaction: "구체 방향이 있으면 초안으로 옮기기 쉬워요.",
+    reaction: "",
     nextId: "q8",
   },
   {
@@ -160,7 +160,7 @@ export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
     id: "q9",
     type: "single_with_other",
     prompt: "가보고 싶은 곳이 있다면 어디인가요?",
-    reaction: "상상이 구체일수록 동기에 가까워져요.",
+    reaction: "상상이 구체적일수록 동기에 가까워져요.",
     choices: [
       { id: "q9_local", label: "국내 어딘가" },
       { id: "q9_abroad", label: "해외" },
@@ -174,7 +174,7 @@ export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
     id: "q10",
     type: "single_with_other",
     prompt: "그곳에 가고 싶은 이유는 무엇인가요?",
-    reaction: "이유가 보이면 다음 행동이 조금 보이기 시작해요.",
+    reaction: "",
     choices: [
       { id: "q10_grow", label: "성장하고 싶어서" },
       { id: "q10_rest", label: "쉬고 싶어서" },
@@ -188,7 +188,7 @@ export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
     id: "q11",
     type: "single_with_other",
     prompt: "당신이 바라는 삶의 모습은 어떤 쪽에 가까운가요?",
-    reaction: "바라는 삶의 형태가 있으면 플랜의 중심이 생겨요.",
+    reaction: "",
     choices: [
       { id: "q11_calm", label: "여유 있고 안정적인 삶" },
       { id: "q11_challenge", label: "도전이 있는 삶" },

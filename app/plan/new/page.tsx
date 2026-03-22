@@ -22,7 +22,7 @@ const NewPlanStartPageContent = () => {
     !planLoading && plan != null ? "colored" : "neutral";
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas font-sans dark:bg-zinc-950">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas font-sans dark:bg-app-canvas-dark">
       <LandingConfetti colorVariant={confettiColorVariant} />
       <SubpageGlassVeil />
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
@@ -30,8 +30,8 @@ const NewPlanStartPageContent = () => {
           <NewPlanReplaceGate>
             <>
               <PlanEditorPageHeader
-                title="새 플랜 만들기"
-                description="시작 방식을 선택해 주세요."
+                title="어떤 방식으로 시작할까요?"
+                description="My Odyssey 여정을, 지금 편한 방식으로 열어 보세요."
               />
               <PlanCreateStartScreen
                 searchQueryString={searchParams.toString()}
@@ -47,7 +47,7 @@ const NewPlanStartPageContent = () => {
 const NewPlanStartPageInner = () => (
   <Suspense
     fallback={
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-app-canvas px-4 py-16 text-sm text-zinc-600 dark:bg-zinc-950 dark:text-zinc-400">
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-app-canvas px-4 py-16 text-sm text-zinc-600 dark:bg-app-canvas-dark dark:text-zinc-400">
         <LandingConfetti />
         <SubpageGlassVeil />
         <span className="relative z-10">불러오는 중…</span>

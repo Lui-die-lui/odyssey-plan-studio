@@ -32,6 +32,24 @@ const CATEGORY_LABELS: Record<
 
 const CATEGORY_KEYS = Object.keys(CATEGORY_LABELS) as PlanSummaryCategoryKey[];
 
+/** Points down when collapsed; rotates to point up when expanded. */
+function CollapseChevron({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      className={`mt-0.5 h-5 w-5 shrink-0 text-zinc-400 transition-transform duration-300 ease-out motion-reduce:transition-none dark:text-zinc-500 ${expanded ? "rotate-180" : "rotate-0"}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
 function YearDistanceBar({
   yearLabel,
   value,
@@ -298,6 +316,7 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
               onClick={() => setMobileChartsOpen((o) => !o)}
               className="flex w-full items-start gap-3 p-4 text-left"
               aria-expanded={mobileChartsOpen}
+              aria-controls="plan-summary-year-bars"
             >
               <div className="min-w-0 flex-1">
                 <p className="text-base font-bold text-black dark:text-zinc-50">
@@ -328,37 +347,39 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
                   </li>
                 </ul>
               </div>
-              <span
-                className="mt-1 shrink-0 text-lg text-zinc-400 transition-transform duration-200"
-                style={{
-                  transform: mobileChartsOpen ? "rotate(90deg)" : "none",
-                }}
-                aria-hidden
-              >
-                ›
-              </span>
+              <CollapseChevron expanded={mobileChartsOpen} />
             </button>
-            {mobileChartsOpen ? (
-              <div className="border-t border-black/5 px-4 pb-4 pt-3 dark:border-white/10">
-                <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  년도별 평균
-                </p>
-                <div className="mt-3 flex flex-col gap-2.5">
-                  {PLAN_ODYSSEY_YEAR_INDICES.map((idx) => {
-                    const y = byYear.get(idx);
-                    const v = y ? yearAverageDistance(y.scores) : 0;
-                    return (
-                      <YearDistanceBar
-                        key={idx}
-                        yearLabel={`${idx}Y`}
-                        value={v}
-                        highlight={idx === highlightedYearForBars}
-                      />
-                    );
-                  })}
+            <div
+              id="plan-summary-year-bars"
+              className={`grid transition-[grid-template-rows] duration-300 ease-in-out motion-reduce:transition-none ${
+                mobileChartsOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+              }`}
+            >
+              <div
+                className="min-h-0 overflow-hidden"
+                aria-hidden={!mobileChartsOpen}
+              >
+                <div className="border-t border-black/5 px-4 pb-4 pt-3 dark:border-white/10">
+                  <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                    년도별 평균
+                  </p>
+                  <div className="mt-3 flex flex-col gap-2.5">
+                    {PLAN_ODYSSEY_YEAR_INDICES.map((idx) => {
+                      const y = byYear.get(idx);
+                      const v = y ? yearAverageDistance(y.scores) : 0;
+                      return (
+                        <YearDistanceBar
+                          key={idx}
+                          yearLabel={`${idx}Y`}
+                          value={v}
+                          highlight={idx === highlightedYearForBars}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-            ) : null}
+            </div>
           </div>
 
           {/* Desktop */}

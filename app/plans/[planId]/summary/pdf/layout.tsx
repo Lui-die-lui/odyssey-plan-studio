@@ -1,13 +1,5 @@
 import type { Metadata } from "next";
-import { Black_Han_Sans, Noto_Sans_KR } from "next/font/google";
-
-/** Matches landing hero `.font-landing-odyssey` (Black Han Sans). */
-const brandOdyssey = Black_Han_Sans({
-  weight: "400",
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-brand-odyssey",
-});
+import { Noto_Sans_KR } from "next/font/google";
 
 const noto = Noto_Sans_KR({
   weight: ["400", "600", "700", "800"],
@@ -26,7 +18,7 @@ export default function PlanSummaryPdfLayout({
 }>) {
   return (
     <div
-      className={`${noto.className} ${brandOdyssey.variable} flex min-h-screen w-full flex-col items-center justify-center bg-white text-zinc-900`}
+      className={`${noto.className} flex min-h-screen w-full flex-col items-center justify-center bg-white text-zinc-900`}
     >
       {children}
     </div>

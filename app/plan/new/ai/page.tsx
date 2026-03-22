@@ -16,7 +16,7 @@ import { planCreateStepPath } from "@/features/plan/constants/plan-create-start"
 import { useMyPlan } from "@/features/plan/hooks/useMyPlan";
 
 const backLinkClass =
-  "inline-flex h-10 items-center justify-center rounded-full border border-zinc-200 bg-white px-5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800";
+  "inline-flex h-8 items-center justify-center rounded-full border border-transparent px-3 text-xs font-normal text-zinc-400 transition-colors hover:border-zinc-200/60 hover:bg-zinc-100/50 hover:text-zinc-600 dark:text-zinc-500 dark:hover:border-white/10 dark:hover:bg-white/[0.04] dark:hover:text-zinc-300";
 
 const NewPlanAiPageContent = () => {
   const router = useRouter();
@@ -28,14 +28,15 @@ const NewPlanAiPageContent = () => {
     !planLoading && plan != null ? "colored" : "neutral";
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas font-sans dark:bg-zinc-950">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas font-sans dark:bg-app-canvas-dark">
       <LandingConfetti colorVariant={confettiColorVariant} />
       <SubpageGlassVeil />
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         <PlanEditorLayout>
           <NewPlanReplaceGate>
-            <div className="flex min-h-0 flex-1 flex-col gap-6">
+            <div className="flex min-h-0 flex-1 flex-col gap-3">
               <PlanEditorPageHeader
+                compactBelowDivider
                 title="AI와 함께 방향 찾기"
                 description="짧은 대화로 생각을 정리해요. 답은 나중에 플랜 초안으로 이어질 수 있어요."
                 actions={
@@ -49,7 +50,7 @@ const NewPlanAiPageContent = () => {
                 }
               />
 
-              <div className="flex min-h-[min(520px,calc(100dvh-15rem))] flex-1 flex-col sm:min-h-[min(580px,calc(100dvh-13rem))]">
+              <div className="flex min-h-0 max-h-[min(620px,78dvh)] min-h-[min(380px,calc(100dvh-17rem))] flex-1 flex-col sm:max-h-[min(680px,72dvh)] sm:min-h-[min(420px,calc(100dvh-15rem))]">
                 <OdysseyInterviewChat manualHref={manualHref} />
               </div>
             </div>
@@ -63,7 +64,7 @@ const NewPlanAiPageContent = () => {
 const NewPlanAiPageInner = () => (
   <Suspense
     fallback={
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-app-canvas px-4 py-16 text-sm text-zinc-600 dark:bg-zinc-950 dark:text-zinc-400">
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-app-canvas px-4 py-16 text-sm text-zinc-600 dark:bg-app-canvas-dark dark:text-zinc-400">
         <LandingConfetti />
         <SubpageGlassVeil />
         <span className="relative z-10">불러오는 중…</span>

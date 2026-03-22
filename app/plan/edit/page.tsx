@@ -87,7 +87,7 @@ const EditPlanPageInner = () => {
   };
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas font-sans dark:bg-zinc-950">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas font-sans dark:bg-app-canvas-dark">
       <LandingConfetti colorVariant={confettiColorVariant} />
       <SubpageGlassVeil />
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
@@ -124,7 +124,7 @@ const EditPlanPageInner = () => {
         ) : (
           <>
             <PlanEditorPageHeader
-              title="Edit My Odyssey Plan"
+              title="Edit Plan"
               description="연차별 목표와 거리 점수를 업데이트하세요."
               actions={
                 <Link href="/my-plan" className={backLinkClass}>

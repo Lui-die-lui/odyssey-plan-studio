@@ -2,18 +2,40 @@
 
 import type { OdysseyChatMessage } from "@/features/plan/interview/odyssey-interview.types";
 
-export function InterviewChatBubble({ message }: { message: OdysseyChatMessage }) {
+export function InterviewChatBubble({
+  message,
+  isActiveQuestion = false,
+}: {
+  message: OdysseyChatMessage;
+  isActiveQuestion?: boolean;
+}) {
   const isUser = message.role === "user";
   const isReaction = message.variant === "reaction";
 
   if (isUser) {
     return (
       <div className="flex justify-end">
-        <div
-          className={
-            "interview-chat-bubble-user max-w-[min(100%,28rem)] rounded-2xl rounded-br-md bg-zinc-900 px-4 py-2.5 text-sm leading-relaxed text-white dark:bg-zinc-100 dark:text-zinc-900"
-          }
-        >
+        <div className="interview-chat-bubble-user max-w-[min(100%,26rem)] rounded-2xl rounded-br-md bg-zinc-900 px-3.5 py-2 text-[13px] leading-relaxed text-white dark:bg-zinc-100 dark:text-zinc-900">
+          {message.content}
+        </div>
+      </div>
+    );
+  }
+
+  if (isReaction) {
+    return (
+      <div className="flex justify-start">
+        <div className="interview-chat-bubble-ai max-w-[min(100%,24rem)] rounded-lg rounded-bl-md border-0 bg-transparent px-1 py-0.5 text-[11px] leading-relaxed text-zinc-400/90 dark:text-zinc-500">
+          {message.content}
+        </div>
+      </div>
+    );
+  }
+
+  if (isActiveQuestion) {
+    return (
+      <div className="flex justify-start">
+        <div className="interview-chat-bubble-ai max-w-[min(100%,28rem)] rounded-2xl rounded-bl-md border border-zinc-300/75 bg-white px-3.5 py-2.5 text-sm leading-relaxed text-zinc-800 dark:border-white/16 dark:bg-zinc-900/80 dark:text-zinc-100">
           {message.content}
         </div>
       </div>
@@ -22,14 +44,7 @@ export function InterviewChatBubble({ message }: { message: OdysseyChatMessage }
 
   return (
     <div className="flex justify-start">
-      <div
-        className={
-          "interview-chat-bubble-ai max-w-[min(100%,28rem)] rounded-2xl rounded-bl-md border text-sm leading-relaxed " +
-          (isReaction
-            ? "border-zinc-200/70 bg-zinc-50/90 px-4 py-2 text-zinc-600 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-400"
-            : "border-zinc-200/80 bg-white px-4 py-3 text-zinc-800 shadow-sm dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-100")
-        }
-      >
+      <div className="interview-chat-bubble-ai max-w-[min(100%,28rem)] rounded-2xl rounded-bl-md border border-zinc-200/50 bg-zinc-50/70 px-3.5 py-2.5 text-sm leading-relaxed text-zinc-600 dark:border-white/[0.07] dark:bg-zinc-950/50 dark:text-zinc-400">
         {message.content}
       </div>
     </div>

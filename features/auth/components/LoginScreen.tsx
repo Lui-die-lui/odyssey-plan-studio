@@ -28,7 +28,7 @@ export function LoginScreen() {
   );
 
   return (
-    <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-app-canvas font-sans dark:bg-black">
+    <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-app-canvas font-sans dark:bg-app-canvas-dark">
       <LandingConfetti />
       <SubpageGlassVeil />
       <main className="relative z-10 flex w-full max-w-md flex-col gap-6 bg-white px-6 py-12 text-black dark:bg-black dark:text-zinc-50">

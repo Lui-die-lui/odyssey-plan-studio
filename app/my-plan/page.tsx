@@ -45,7 +45,7 @@ const MyPlanPageInner = () => {
   };
 
   return (
-    <div className="relative flex flex-col flex-1 overflow-hidden bg-app-canvas font-sans dark:bg-black">
+    <div className="relative flex flex-col flex-1 overflow-hidden bg-app-canvas font-sans dark:bg-app-canvas-dark">
       <LandingConfetti colorVariant={confettiColorVariant} />
       <SubpageGlassVeil />
       <main className="relative z-10 mx-auto w-full max-w-6xl px-4 py-10">

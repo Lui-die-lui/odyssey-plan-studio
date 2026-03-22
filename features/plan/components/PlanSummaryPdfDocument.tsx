@@ -52,13 +52,20 @@ const sheet: Record<string, CSSProperties> = {
   header: {
     marginBottom: 16,
   },
-  brand: {
+  brandRow: {
     margin: 0,
-    fontSize: 28,
-    fontFamily: 'var(--font-brand-odyssey), "Black Han Sans", sans-serif',
-    fontWeight: 600,
+    fontSize: 22,
+    lineHeight: 1,
+    display: "flex",
+    alignItems: "baseline",
+    gap: "0.35em",
     letterSpacing: "-0.02em",
     color: "#09090b",
+  },
+  brandLogo: {
+    fontFamily: "var(--font-landing-logo-brand)",
+    fontWeight: "normal",
+    fontStyle: "normal",
   },
   subTitle: {
     margin: "4px 0 0",
@@ -71,8 +78,9 @@ const sheet: Record<string, CSSProperties> = {
     justifyContent: "space-between",
     alignItems: "flex-end",
     gap: 16,
-    marginTop: 10,
-    paddingTop: 10,
+    /** Same gap above and below the divider; keep logo-to-line tight. */
+    marginTop: 6,
+    paddingTop: 6,
     borderTop: "1px solid #e7e5e4",
     minWidth: 0,
   },
@@ -507,7 +515,10 @@ export function PlanSummaryPdfDocument({
   return (
     <div data-pdf-root style={sheet.root}>
       <header style={sheet.header}>
-        <h1 style={sheet.brand}>ODYSSEY PLAN</h1>
+        <h1 style={sheet.brandRow}>
+          <span style={sheet.brandLogo}>MY</span>
+          <span style={sheet.brandLogo}>ODYSSEY</span>
+        </h1>
         {/* <p style={sheet.subTitle}>5-Year Summary</p> */}
 
         <div style={sheet.metaRow}>

@@ -31,7 +31,7 @@ const RequireAuthForPlan = ({ children }: RequireAuthForPlanProps) => {
 
   if (status === "loading") {
     return (
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-app-canvas px-4 py-16 text-sm text-zinc-600 dark:bg-black dark:text-zinc-400">
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-app-canvas px-4 py-16 text-sm text-zinc-600 dark:bg-app-canvas-dark dark:text-zinc-400">
         <LandingConfetti />
         <span className="relative z-10">Checking your session…</span>
       </div>
@@ -40,7 +40,7 @@ const RequireAuthForPlan = ({ children }: RequireAuthForPlanProps) => {
 
   if (status === "unauthenticated") {
     return (
-      <div className="relative flex min-h-[50vh] flex-1 flex-col items-center justify-center overflow-hidden bg-app-canvas dark:bg-black">
+      <div className="relative flex min-h-[50vh] flex-1 flex-col items-center justify-center overflow-hidden bg-app-canvas dark:bg-app-canvas-dark">
         <LandingConfetti />
         <SubpageGlassVeil />
         <p className="relative z-10 text-sm text-zinc-600 dark:text-zinc-400">

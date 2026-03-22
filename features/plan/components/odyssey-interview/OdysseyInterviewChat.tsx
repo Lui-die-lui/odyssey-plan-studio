@@ -9,6 +9,7 @@ import type {
 import type { OdysseyAiPlanFormDraft } from "@/features/plan/interview/odyssey-ai-plan-draft.types";
 import { useOdysseyInterview } from "@/features/plan/interview/useOdysseyInterview";
 
+import { interviewResponseSectionMinClass } from "./interview-response-panel";
 import { InterviewChatThread } from "./InterviewChatThread";
 import { InterviewComposer } from "./InterviewComposer";
 import { OdysseyDraftSummaryView } from "./OdysseyDraftSummaryView";
@@ -105,23 +106,45 @@ export function OdysseyInterviewChat({ manualHref }: OdysseyInterviewChatProps) 
     );
   }
 
+  const responseMinClass = interviewResponseSectionMinClass(
+    currentQuestion,
+    awaitingAiFollowUp,
+  );
+
+  const responseShellClass =
+    "flex shrink-0 flex-col bg-zinc-50/35 pt-2 pb-1 dark:bg-zinc-950/35 " +
+    responseMinClass;
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-zinc-200/80 bg-white/50 dark:border-white/10 dark:bg-zinc-950/40">
-      <InterviewChatThread messages={messages} />
-      <div className="shrink-0 border-t border-zinc-200/80 bg-white/90 px-3 py-4 dark:border-white/10 dark:bg-zinc-950/90 sm:px-4">
-        <InterviewComposer
-          question={currentQuestion}
-          answers={answers}
-          awaitingAiFollowUp={awaitingAiFollowUp}
-          onSubmit={submitAnswer}
-          validationError={validationError}
-          onDismissError={clearValidationError}
-          manualHref={manualHref}
-          onRestart={reset}
-          onGenerateDraft={handleGenerateDraft}
-          generateDraftError={generateDraftError}
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/50 dark:border-white/10 dark:bg-zinc-950/40">
+      <section
+        aria-label="인터뷰 대화"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
+        <InterviewChatThread
+          messages={messages}
+          showAwaitingFollowUp={awaitingAiFollowUp}
         />
-      </div>
+      </section>
+      <section
+        aria-label="답변 선택"
+        className={`${responseShellClass} flex flex-col items-stretch px-3 sm:px-4`}
+      >
+        <div className="odyssey-interview-response-scroll w-full max-w-xl min-w-0 self-center overflow-x-hidden overflow-y-auto overscroll-y-contain pb-2 pt-0.5 sm:pb-2 sm:pt-1">
+          <InterviewComposer
+            question={currentQuestion}
+            answers={answers}
+            awaitingAiFollowUp={awaitingAiFollowUp}
+            onSubmit={submitAnswer}
+            validationError={validationError}
+            onDismissError={clearValidationError}
+            manualHref={manualHref}
+            onRestart={reset}
+            onGenerateDraft={handleGenerateDraft}
+            generateDraftError={generateDraftError}
+          />
+        </div>
+      </section>
     </div>
   );
 }
