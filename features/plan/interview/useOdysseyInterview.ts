@@ -28,14 +28,9 @@ import type {
 const firstQuestion = ODYSSEY_INTERVIEW_QUESTIONS[0]!;
 
 function initialMessages(): OdysseyChatMessage[] {
-  return [
-    {
-      id: nextOdysseyChatMessageId(),
-      role: "ai",
-      content: firstQuestion.prompt,
-      variant: "question",
-    },
-  ];
+  // Start with an empty transcript and bootstrap the first question after
+  // a short delay so the UI can show the "..." waiting state.
+  return [];
 }
 
 /** 채팅 transcript + 정규화된 answers (OpenAI 연동용 payload 분리) */
@@ -44,7 +39,7 @@ export function useOdysseyInterview() {
   const [currentQuestionId, setCurrentQuestionId] = useState(firstQuestion.id);
   const [answers, setAnswers] = useState<OdysseyInterviewAnswers>({});
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [awaitingAiFollowUp, setAwaitingAiFollowUp] = useState(false);
+  const [awaitingAiFollowUp, setAwaitingAiFollowUp] = useState(true);
 
   const answersRef = useRef(answers);
   answersRef.current = answers;
@@ -64,6 +59,25 @@ export function useOdysseyInterview() {
     },
     [clearFollowUpTimeouts],
   );
+
+  // Bootstrap the very first AI question with the same "..." waiting tone.
+  useEffect(() => {
+    const BOOTSTRAP_MS = 650;
+    const id = setTimeout(() => {
+      setMessages([
+        {
+          id: nextOdysseyChatMessageId(),
+          role: "ai",
+          content: firstQuestion.prompt,
+          variant: "question",
+        },
+      ]);
+      setAwaitingAiFollowUp(false);
+    }, BOOTSTRAP_MS);
+
+    followUpTimeoutsRef.current.push(id);
+    return () => clearTimeout(id);
+  }, []);
 
   const currentQuestion = getOdysseyQuestionById(currentQuestionId);
   const isCompleteScreen = currentQuestion?.type === "complete";

@@ -28,7 +28,7 @@ const NewPlanAiPageContent = () => {
     !planLoading && plan != null ? "colored" : "neutral";
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas font-sans dark:bg-app-canvas-dark">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto bg-app-canvas font-sans dark:bg-app-canvas-dark">
       <LandingConfetti colorVariant={confettiColorVariant} />
       <SubpageGlassVeil />
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
@@ -50,7 +50,7 @@ const NewPlanAiPageContent = () => {
                 // }
               />
 
-              <div className="flex min-h-0 max-h-[min(620px,78dvh)] min-h-[min(380px,calc(100dvh-17rem))] flex-1 flex-col sm:max-h-[min(680px,72dvh)] sm:min-h-[min(420px,calc(100dvh-15rem))]">
+              <div className="flex w-full flex-col">
                 <OdysseyInterviewChat manualHref={manualHref} />
               </div>
             </div>

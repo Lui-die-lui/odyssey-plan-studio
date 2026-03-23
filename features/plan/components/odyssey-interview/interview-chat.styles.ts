@@ -31,13 +31,13 @@ export const interviewOtherTriggerTextClass =
   "mt-0.5 block text-sm font-normal text-zinc-600 dark:text-zinc-300";
 
 export const interviewDirectInputRowClass =
-  "flex items-end gap-2 rounded-xl rounded-bl-md border border-zinc-200/75 bg-zinc-50/50 px-2.5 py-1.5 dark:border-white/14 dark:bg-zinc-950/40";
+  "flex items-center gap-2 rounded-xl border border-zinc-200/75 bg-zinc-50/50 px-2.5 py-1 dark:border-white/14 dark:bg-zinc-950/40";
 
 export const interviewDirectInputTextareaClass =
-  "min-h-[2.5rem] max-h-24 min-w-0 flex-1 resize-none rounded-lg border-0 bg-transparent px-1 py-1 text-[13px] leading-snug text-zinc-900 outline-none placeholder:text-zinc-400 dark:text-zinc-100 dark:placeholder:text-zinc-500";
+  "min-h-[2.25rem] max-h-24 min-w-0 flex-1 resize-none rounded-lg border-0 bg-transparent px-1.5 py-1 text-[13px] leading-snug text-zinc-900 outline-none placeholder:text-zinc-400 dark:text-zinc-100 dark:placeholder:text-zinc-500";
 
 export const interviewDirectSendBtnClass =
-  "mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-white transition-[opacity,background-color] hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-35 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-white";
+  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-white transition-[opacity,background-color] hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-35 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-white";
 
 /** 서술형 펼치기 전 트리거 */
 export const interviewTextExpandTriggerClass =

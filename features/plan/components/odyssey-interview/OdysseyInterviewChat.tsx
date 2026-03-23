@@ -9,7 +9,6 @@ import type {
 import type { OdysseyAiPlanFormDraft } from "@/features/plan/interview/odyssey-ai-plan-draft.types";
 import { useOdysseyInterview } from "@/features/plan/interview/useOdysseyInterview";
 
-import { interviewResponseSectionMinClass } from "./interview-response-panel";
 import { InterviewChatThread } from "./InterviewChatThread";
 import { InterviewComposer } from "./InterviewComposer";
 import { OdysseyDraftSummaryView } from "./OdysseyDraftSummaryView";
@@ -106,20 +105,19 @@ export function OdysseyInterviewChat({ manualHref }: OdysseyInterviewChatProps) 
     );
   }
 
-  const responseMinClass = interviewResponseSectionMinClass(
-    currentQuestion,
-    awaitingAiFollowUp,
-  );
-
-  const responseShellClass =
-    "flex shrink-0 flex-col bg-zinc-50/35 pt-2 pb-1 dark:bg-zinc-950/35 " +
-    responseMinClass;
+  const isCompleteMode = currentQuestion?.type === "complete";
+  const chatViewportHeightClass = isCompleteMode
+    ? "h-[clamp(14.5rem,38dvh,22rem)] sm:h-[clamp(16rem,40dvh,24rem)]"
+    : "h-[clamp(15rem,40dvh,23rem)] sm:h-[clamp(16.5rem,42dvh,25rem)]";
+  const responseShellClass = isCompleteMode
+    ? "flex shrink-0 flex-col overflow-visible border-t border-zinc-200/45 bg-zinc-50/35 px-3 pt-2 pb-[max(0.35rem,env(safe-area-inset-bottom))] transition-[padding] duration-300 ease-out dark:border-white/[0.07] dark:bg-zinc-950/35 sm:px-4"
+    : "flex shrink-0 flex-col overflow-visible border-t border-zinc-200/45 bg-zinc-50/35 px-3 pt-2 pb-[max(0.35rem,env(safe-area-inset-bottom))] transition-[padding] duration-300 ease-out dark:border-white/[0.07] dark:bg-zinc-950/35 sm:px-4";
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/50 dark:border-white/10 dark:bg-zinc-950/40">
+    <div className="flex w-full flex-col overflow-visible rounded-2xl border border-zinc-200/80 bg-white/50 dark:border-white/10 dark:bg-zinc-950/40">
       <section
         aria-label="인터뷰 대화"
-        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        className={`flex min-h-0 shrink-0 flex-col overflow-hidden pb-1 ${chatViewportHeightClass}`}
       >
         <InterviewChatThread
           messages={messages}
@@ -128,9 +126,9 @@ export function OdysseyInterviewChat({ manualHref }: OdysseyInterviewChatProps) 
       </section>
       <section
         aria-label="답변 선택"
-        className={`${responseShellClass} flex flex-col items-stretch px-3 sm:px-4`}
+        className={`${responseShellClass} flex flex-col items-stretch`}
       >
-        <div className="odyssey-interview-response-scroll w-full max-w-xl min-w-0 self-center overflow-x-hidden overflow-y-auto overscroll-y-contain pb-2 pt-0.5 sm:pb-2 sm:pt-1">
+        <div className="mx-auto w-full max-w-xl min-w-0 overflow-visible pb-1 pt-0.5 sm:pb-1.5 sm:pt-1">
           <InterviewComposer
             question={currentQuestion}
             answers={answers}

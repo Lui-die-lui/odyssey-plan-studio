@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { getOdysseyChoices } from "@/features/plan/interview/odyssey-interview.flow";
 import type {
@@ -25,6 +26,13 @@ import {
   interviewTurnCardClass,
   interviewTurnSubmitClass,
 } from "./interview-chat.styles";
+import {
+  interviewQuestionPanelExpandAnimate,
+  interviewQuestionPanelExpandInitial,
+  interviewQuestionPanelExit,
+  interviewQuestionPanelExitTransition,
+  interviewQuestionTransition,
+} from "./interview-question-motion";
 
 export type InterviewComposerProps = {
   question: OdysseyInterviewQuestionDef | undefined;
@@ -98,6 +106,7 @@ export function InterviewComposer({
   onGenerateDraft,
   generateDraftError,
 }: InterviewComposerProps) {
+  const reduceMotion = useReducedMotion();
   const [selectedSingle, setSelectedSingle] = useState<string | null>(null);
   const [selectedMulti, setSelectedMulti] = useState<Set<string>>(() => new Set());
   const [otherDraft, setOtherDraft] = useState("");
@@ -145,46 +154,49 @@ export function InterviewComposer({
     return () => cancelAnimationFrame(id);
   }, [question?.type, textEntryOpen, question?.id]);
 
-  if (!question) {
-    return null;
-  }
+  if (!question) return null;
 
-  if (awaitingAiFollowUp && question.type !== "complete") {
-    return null;
-  }
+  const panelTransition = reduceMotion
+    ? { duration: 0.01 }
+    : { ...interviewQuestionTransition, delay: 0.025 };
 
-  if (question.type === "complete") {
-    return (
-      <div className="space-y-3 rounded-2xl bg-zinc-100/50 p-4 ring-1 ring-inset ring-zinc-200/55 dark:bg-white/[0.04] dark:ring-white/[0.08]">
-        <p className="text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
-          인터뷰를 마쳤어요. 초안을 만들면 답변을 바탕으로 정리 화면이 열립니다.
+  const panelExit = reduceMotion
+    ? { opacity: 0, transition: { duration: 0.01 } }
+    : {
+        ...interviewQuestionPanelExit,
+        transition: interviewQuestionPanelExitTransition,
+      };
+
+  const completePanel = (
+    <div className="space-y-3 rounded-2xl bg-zinc-100/50 p-4 text-center ring-1 ring-inset ring-zinc-200/55 dark:bg-white/[0.04] dark:ring-white/[0.08]">
+      <p className="text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+        인터뷰를 마쳤어요. 초안을 만들면 답변을 바탕으로 정리 화면이 열립니다.
+      </p>
+      {generateDraftError ? (
+        <p
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-400/25 dark:bg-red-950/40 dark:text-red-300"
+        >
+          {generateDraftError}
         </p>
-        {generateDraftError ? (
-          <p
-            role="alert"
-            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-400/25 dark:bg-red-950/40 dark:text-red-300"
-          >
-            {generateDraftError}
-          </p>
-        ) : null}
-        <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap">
-          <button
-            type="button"
-            onClick={() => void onGenerateDraft()}
-            className={interviewPrimaryBtnClass}
-          >
-            초안 만들기
-          </button>
-          <Link href={manualHref} className={interviewSecondaryBtnClass}>
-            플랜 직접 작성하기
-          </Link>
-          <button type="button" onClick={onRestart} className={interviewSecondaryBtnClass}>
-            처음부터 다시
-          </button>
-        </div>
+      ) : null}
+      <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:flex-wrap sm:justify-center">
+        <button
+          type="button"
+          onClick={() => void onGenerateDraft()}
+          className={interviewPrimaryBtnClass}
+        >
+          초안 만들기
+        </button>
+        <Link href={manualHref} className={interviewSecondaryBtnClass}>
+          플랜 직접 작성하기
+        </Link>
+        <button type="button" onClick={onRestart} className={interviewSecondaryBtnClass}>
+          처음부터 다시
+        </button>
       </div>
-    );
-  }
+    </div>
+  );
 
   const pickSingle = (id: string) => {
     onDismissError();
@@ -235,12 +247,12 @@ export function InterviewComposer({
 
   const composerShellMinClass =
     question.type === "text" && textEntryOpen
-      ? "min-h-[9rem]"
+      ? "min-h-[3.5rem]"
       : expandedShortText
-        ? "min-h-[7.25rem]"
+        ? "min-h-[4.25rem]"
         : "";
 
-  return (
+  const interactivePanel = (
     <div
       className={[interviewTurnCardClass, composerShellMinClass].filter(Boolean).join(" ")}
     >
@@ -333,7 +345,7 @@ export function InterviewComposer({
                 className={
                   "mt-0.5 w-full overflow-hidden rounded-xl transition-colors " +
                   (otherSelectedSingle
-                    ? "bg-zinc-50/55 p-1.5 dark:bg-white/[0.04]"
+                    ? "bg-zinc-50/55 px-1 py-0.5 dark:bg-white/[0.04]"
                     : "")
                 }
               >
@@ -466,5 +478,33 @@ export function InterviewComposer({
         ) : null}
       </div>
     </div>
+  );
+
+  return (
+    <AnimatePresence initial={false} mode="wait">
+      {awaitingAiFollowUp ? (
+        <motion.div
+          key="awaiting-next-question"
+          className="w-full min-w-0"
+          initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+          transition={panelTransition}
+        >
+          <div className="h-2" aria-hidden />
+        </motion.div>
+      ) : (
+        <motion.div
+          key={question.id}
+          className="w-full min-w-0"
+          initial={reduceMotion ? false : interviewQuestionPanelExpandInitial}
+          animate={interviewQuestionPanelExpandAnimate}
+          exit={panelExit}
+          transition={panelTransition}
+        >
+          {question.type === "complete" ? completePanel : interactivePanel}
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
