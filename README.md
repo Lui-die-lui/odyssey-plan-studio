@@ -1,4 +1,4 @@
-# Odyssey Plan Studio
+# My Odyssey
 
 5년 플랜(Year 1~5)을 “인터뷰 기반 초안 생성”으로 만들고, 사용자가 이후 직접 다듬고 편집할 수 있는 서비스입니다.
 
