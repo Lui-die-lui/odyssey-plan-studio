@@ -62,12 +62,14 @@ const SocialLoginButtons = ({
   className,
   callbackUrl = "/",
 }: SocialLoginButtonsProps) => {
+  const authCompleteUrl = `/auth/complete?returnTo=${encodeURIComponent(callbackUrl)}`;
+
   const handleGoogleClick = () => {
-    signIn("google", { callbackUrl });
+    signIn("google", { callbackUrl: authCompleteUrl });
   };
 
   const handleKakaoClick = () => {
-    signIn("kakao", { callbackUrl });
+    signIn("kakao", { callbackUrl: authCompleteUrl });
   };
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,11 +13,18 @@ import { useMyPlan } from "@/features/plan/hooks/useMyPlan";
 
 const LandingPage = () => {
   const router = useRouter();
-  const { status } = useSession();
+  const { status, data } = useSession();
   const { plan: existingPlan, loading: planLoading } = useMyPlan({
     autoLoad: status === "authenticated",
   });
   const [replacePlanModalOpen, setReplacePlanModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    if (data?.user?.role === "ADMIN") {
+      router.replace("/admin/dashboard");
+    }
+  }, [status, data?.user?.role, router]);
 
   const ctaDisabled =
     status === "loading" ||

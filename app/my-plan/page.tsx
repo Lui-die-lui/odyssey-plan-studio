@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { signOut } from "next-auth/react";
+import { ModalShell } from "@/components/common/ModalShell";
+import { useRouter } from "next/navigation";
 
 import RequireAuthForPlan from "@/features/auth/components/RequireAuthForPlan";
 import { SubpageGlassVeil } from "@/components/layout/SubpageGlassVeil";
@@ -18,6 +21,10 @@ const myPlanFooterLinkClass =
 
 const MyPlanPageInner = () => {
   const [pdfExporting, setPdfExporting] = useState(false);
+  const router = useRouter();
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [withdrawBusy, setWithdrawBusy] = useState(false);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
   const { plan, loading, error, refetch } = useMyPlan({ autoLoad: true });
 
   const confettiColorVariant =
@@ -48,6 +55,43 @@ const MyPlanPageInner = () => {
       console.error(e);
     } finally {
       setPdfExporting(false);
+    }
+  };
+
+  const handleConfirmWithdraw = async () => {
+    if (withdrawBusy) return;
+    setWithdrawBusy(true);
+    setWithdrawError(null);
+
+    try {
+      const res = await fetch("/api/account/withdraw", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const data: unknown =
+        await res
+          .json()
+          .catch(() => ({ message: "탈퇴 요청 중 오류가 발생했습니다." }));
+
+      if (!res.ok) {
+        const msg =
+          typeof (data as { message?: unknown }).message === "string"
+            ? ((data as { message: string }).message)
+            : "탈퇴 요청에 실패했습니다.";
+        setWithdrawError(msg);
+        setWithdrawBusy(false);
+        return;
+      }
+
+      setWithdrawOpen(false);
+      await signOut({ callbackUrl: "/" });
+      // signOut 이후 redirect 되지만, 혹시 모를 경우 대비.
+      router.replace("/");
+    } catch {
+      setWithdrawError("네트워크 오류가 발생했습니다.");
+      setWithdrawBusy(false);
     }
   };
 
@@ -131,13 +175,17 @@ const MyPlanPageInner = () => {
           <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5">
             {/* 추후: GitHub, 이메일 등 동일 스타일 <li>로 나란히 추가 */}
             <li className="flex flex-col items-center gap-1">
-              <Link
-                href="/account/withdraw"
+              <button
+                type="button"
+                onClick={() => {
+                  setWithdrawError(null);
+                  setWithdrawOpen(true);
+                }}
                 className={myPlanFooterLinkClass}
                 aria-describedby="my-plan-withdraw-hint"
               >
                 회원 탈퇴
-              </Link>
+              </button>
               <span
                 id="my-plan-withdraw-hint"
                 className="text-[10px] font-normal leading-snug text-zinc-400 dark:text-zinc-500"
@@ -147,6 +195,51 @@ const MyPlanPageInner = () => {
             </li>
           </ul>
         </nav>
+
+        <ModalShell
+          open={withdrawOpen}
+          onClose={() => setWithdrawOpen(false)}
+          titleId="withdraw-confirm-title"
+          showCloseButton
+        >
+          <h2
+            id="withdraw-confirm-title"
+            className="pr-8 text-xl font-semibold tracking-tight text-black dark:text-zinc-50"
+          >
+            정말 탈퇴 하시겠습니까?
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+            탈퇴 시 모든 정보가 사라지며 1주일 뒤 재가입 가능합니다.
+          </p>
+          <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+            유예 기간 동안은 로그인/서비스 이용이 제한됩니다.
+          </p>
+
+          {withdrawError ? (
+            <p className="mt-4 rounded-md border border-red-200/70 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-400/20 dark:bg-red-950/30 dark:text-red-300">
+              {withdrawError}
+            </p>
+          ) : null}
+
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setWithdrawOpen(false)}
+              disabled={withdrawBusy}
+              className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-medium text-black transition-colors hover:bg-black/[.03] disabled:opacity-50 dark:border-white/10 dark:bg-black dark:text-zinc-50 dark:hover:bg-white/[.05]"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleConfirmWithdraw()}
+              disabled={withdrawBusy}
+              className="inline-flex h-11 items-center justify-center rounded-full bg-black px-4 text-sm font-medium text-white transition-colors hover:bg-black/90 disabled:opacity-50 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200"
+            >
+              {withdrawBusy ? "처리 중…" : "탈퇴 요청"}
+            </button>
+          </div>
+        </ModalShell>
       </main>
     </div>
   );

@@ -33,9 +33,48 @@ export const authOptions: NextAuthOptions = {
   ],
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
+    async signIn({ account }) {
+      if (!account?.provider || !account.providerAccountId) return true;
+
+      type WithdrawalUserRow = {
+        status?: "ACTIVE" | "PENDING_DELETION" | null;
+        hardDeleteAt?: Date | null;
+        role?: "USER" | "ADMIN" | null;
+      } | null;
+
+      const userDelegate = prisma.user as unknown as {
+        findUnique: (args: {
+          where: unknown;
+          select: { status: true; hardDeleteAt: true; role: true };
+        }) => Promise<WithdrawalUserRow>;
+      };
+
+      const dbUser = await userDelegate.findUnique({
+        where: {
+          provider_providerUserId: {
+            provider: account.provider,
+            providerUserId: account.providerAccountId,
+          },
+        },
+        select: {
+          status: true,
+          hardDeleteAt: true,
+          role: true,
+        },
+      });
+
+      if (dbUser?.status === "PENDING_DELETION") return false;
+
+      return true;
+    },
     async jwt({ token, user, account }) {
       if (user && account?.provider && account.providerAccountId) {
-        const dbUser = await prisma.user.upsert({
+        const now = new Date();
+        const upsertDelegate = prisma.user as unknown as {
+          upsert: (args: unknown) => Promise<{ id: string; role?: "USER" | "ADMIN" | null }>;
+        };
+
+        const dbUser = await upsertDelegate.upsert({
           where: {
             provider_providerUserId: {
               provider: account.provider,
@@ -48,20 +87,24 @@ export const authOptions: NextAuthOptions = {
             email: user.email ?? undefined,
             name: user.name ?? undefined,
             image: user.image ?? undefined,
+            lastLoginAt: now,
           },
           update: {
             email: user.email ?? undefined,
             name: user.name ?? undefined,
             image: user.image ?? undefined,
+            lastLoginAt: now,
           },
         });
         token.dbUserId = dbUser.id;
+        token.role = dbUser.role === "ADMIN" ? "ADMIN" : "USER";
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.dbUserId) {
         session.user.id = token.dbUserId;
+        session.user.role = token.role === "ADMIN" ? "ADMIN" : "USER";
       }
       return session;
     },

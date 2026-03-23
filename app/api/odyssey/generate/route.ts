@@ -7,6 +7,7 @@ import { formatOdysseyAnswersForModel } from "@/features/plan/interview/odyssey-
 import type { OdysseyInterviewAnswers } from "@/features/plan/interview/odyssey-interview.types";
 import { coerceOdysseyGenerateResponse } from "@/features/plan/lib/odyssey-generate-response.coerce";
 import { ODYSSEY_GENERATE_RESPONSE_SCHEMA } from "@/features/plan/lib/odyssey-generate.schema";
+import { prisma } from "@/lib/prisma";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -44,6 +45,64 @@ export async function POST(req: Request) {
   if (!session?.user) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
+  const userId = session.user.id;
+  if (typeof userId !== "string" || !userId.length) {
+    return NextResponse.json({ error: "로그인 정보를 확인할 수 없습니다." }, { status: 401 });
+  }
+  const ipAddress =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    null;
+  const requestType = "ODYSSEY_DRAFT_GENERATE";
+  const prismaDelegate = prisma as unknown as {
+    aiRequestLog: {
+      create: (args: unknown) => Promise<unknown>;
+    };
+    systemConfig: {
+      findUnique: (args: unknown) => Promise<{ value: string } | null>;
+    };
+    user: {
+      findUnique: (args: unknown) => Promise<{ aiBlocked: boolean } | null>;
+    };
+  };
+  const writeAiRequestLog = async (success: boolean, blockedReason?: string) => {
+    try {
+      await prismaDelegate.aiRequestLog.create({
+        data: {
+          userId,
+          ipAddress,
+          requestType,
+          success,
+          blockedReason: blockedReason ?? null,
+        },
+      });
+    } catch {
+      // Logging failure must not break user flow.
+    }
+  };
+
+  const [aiConfig, userState] = await Promise.all([
+    prismaDelegate.systemConfig.findUnique({
+      where: { key: "AI_DRAFT_ENABLED" },
+      select: { value: true },
+    }),
+    prismaDelegate.user.findUnique({
+      where: { id: userId },
+      select: { aiBlocked: true },
+    }),
+  ]);
+
+  if (aiConfig?.value === "false") {
+    await writeAiRequestLog(false, "GLOBAL_AI_OFF");
+    return NextResponse.json(
+      { error: "관리자 설정으로 현재 AI 초안 생성이 일시 중지되었습니다." },
+      { status: 503 },
+    );
+  }
+  if (userState?.aiBlocked) {
+    await writeAiRequestLog(false, "USER_AI_BLOCKED");
+    return NextResponse.json({ error: "AI 초안 생성이 제한된 계정입니다." }, { status: 403 });
+  }
 
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json(
@@ -69,7 +128,79 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "전송된 답변이 비어 있습니다." }, { status: 400 });
   }
 
+  // Monthly quota: user can generate AI draft (OpenAI call) up to N times.
+  // Charge happens right before we actually call OpenAI.
+  const MONTHLY_AI_DRAFT_LIMIT = 2;
+  const now = new Date();
+  const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+
   try {
+    const quotaResult = await prisma.$transaction(async (tx) => {
+      // Prisma Client 타입/증분생성 캐시 때문에 `tx.aiDraftUsage`가 IDE에서 누락처럼 보일 수 있어,
+      // 필요한 메서드만 시그니처로 좁혀 캐스팅합니다. (런타임 로직은 동일)
+      const aiDraftUsage = (tx as unknown as {
+        aiDraftUsage: {
+          upsert: (args: unknown) => Promise<unknown>;
+          updateMany: (args: unknown) => Promise<{ count: number }>;
+          findUnique: (args: unknown) => Promise<{ usedCount: number } | null>;
+        };
+      }).aiDraftUsage;
+
+      await aiDraftUsage.upsert({
+        where: { userId_monthKey: { userId, monthKey } },
+        create: { userId, monthKey, usedCount: 0 },
+        update: {},
+      });
+
+      const updated = await aiDraftUsage.updateMany({
+        where: {
+          userId,
+          monthKey,
+          usedCount: { lt: MONTHLY_AI_DRAFT_LIMIT },
+        },
+        data: { usedCount: { increment: 1 } },
+      });
+
+      if (updated.count !== 1) {
+        const usage = await aiDraftUsage.findUnique({
+          where: { userId_monthKey: { userId, monthKey } },
+          select: { usedCount: true },
+        });
+        return {
+          allowed: false as const,
+          usedCount: usage?.usedCount ?? MONTHLY_AI_DRAFT_LIMIT,
+        };
+      }
+
+      const usageAfter = await aiDraftUsage.findUnique({
+        where: { userId_monthKey: { userId, monthKey } },
+        select: { usedCount: true },
+      });
+
+      return {
+        allowed: true as const,
+        usedCountAfter: usageAfter?.usedCount ?? MONTHLY_AI_DRAFT_LIMIT,
+        remaining: Math.max(
+          0,
+          MONTHLY_AI_DRAFT_LIMIT - (usageAfter?.usedCount ?? MONTHLY_AI_DRAFT_LIMIT),
+        ),
+      };
+    });
+
+    if (!quotaResult.allowed) {
+      await writeAiRequestLog(false, "QUOTA_EXCEEDED");
+      return NextResponse.json(
+        {
+          error: "이번 달 AI 초안 생성 횟수가 모두 소진되었습니다.",
+          limit: MONTHLY_AI_DRAFT_LIMIT,
+          used: quotaResult.usedCount,
+        },
+        { status: 429 },
+      );
+    }
+
+    const remaining = quotaResult.remaining;
+
     const response = await openai.responses.create({
       model: "gpt-5.4-mini",
       store: false,
@@ -103,11 +234,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "모델 응답 형식이 올바르지 않습니다." }, { status: 502 });
     }
 
+    await writeAiRequestLog(true);
+
     return NextResponse.json({
       summary: coerced.summary,
       planForm: coerced.planForm,
+      remaining,
     });
   } catch (e) {
+    await writeAiRequestLog(false, "OPENAI_ERROR");
     console.error("[odyssey/generate]", e);
     const message = e instanceof Error ? e.message : "OpenAI 호출에 실패했습니다.";
     return NextResponse.json({ error: message }, { status: 500 });

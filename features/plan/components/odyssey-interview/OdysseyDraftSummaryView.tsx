@@ -93,20 +93,20 @@ export function OdysseyDraftSummaryView({
         </section>
       </div>
 
-      <div className="flex shrink-0 flex-col gap-2 pb-1 sm:flex-row sm:flex-wrap">
-        <button
-          type="button"
-          onClick={goToManualWithDraft}
-          className={interviewPrimaryBtnClass}
-        >
-          내 플랜 다듬기
-        </button>
+      <div className="flex shrink-0 flex-col gap-2 pb-1 sm:flex-row sm:flex-wrap sm:justify-end">
         <button
           type="button"
           onClick={onRestartInterview}
           className={interviewSecondaryBtnClass}
         >
           처음부터 다시
+        </button>
+        <button
+          type="button"
+          onClick={goToManualWithDraft}
+          className={interviewPrimaryBtnClass}
+        >
+          내 플랜 다듬기
         </button>
       </div>
     </div>

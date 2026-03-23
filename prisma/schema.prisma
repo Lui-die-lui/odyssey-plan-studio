@@ -6,6 +6,16 @@ datasource db {
   provider = "postgresql"
 }
 
+enum UserStatus {
+  ACTIVE
+  PENDING_DELETION
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
 model User {
   id             String  @id @default(cuid())
   provider       String?
@@ -13,9 +23,17 @@ model User {
   email          String?
   name           String?
   image          String?
+  role           UserRole @default(USER)
+  aiBlocked      Boolean  @default(false)
+  status         UserStatus @default(ACTIVE)
+  lastLoginAt    DateTime?
+  withdrawRequestedAt DateTime?
+  hardDeleteAt       DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   plan           Plan?
+  aiDraftUsages AiDraftUsage[]
+  aiRequestLogs  AiRequestLog[]
 
   @@unique([provider, providerUserId])
 }
@@ -88,4 +106,44 @@ model PlanYearKeyword {
 
   @@unique([planYearId, position])
   @@index([planYearId])
+}
+
+model AiDraftUsage {
+  id String @id @default(cuid())
+
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /** "YYYY-MM" (서버 기준) */
+  monthKey String
+
+  /** 월간 AI 초안 생성 누적 횟수 */
+  usedCount Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, monthKey])
+  @@index([userId, monthKey])
+}
+
+model AiRequestLog {
+  id            String   @id @default(cuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ipAddress     String?
+  requestType   String
+  success       Boolean
+  blockedReason String?
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([requestType, createdAt])
+  @@index([userId, createdAt])
+}
+
+model SystemConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }

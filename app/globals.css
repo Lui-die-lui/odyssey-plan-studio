@@ -36,20 +36,46 @@
   --color-app-canvas: #fafafa;
   /* Dark mode page canvas — matches My Plan (true black, not zinc-950) */
   --color-app-canvas-dark: #000000;
+  --admin-chart-grid-color: #e8edf3;
 }
 
-/*
- * 데스크톱: 스크롤바 생길 때 레이아웃 점프 방지.
- * 모바일(오버레이 스크롤바): stable이 오른쪽만 비워 두어 본문이 왼쪽으로 치우쳐 보일 수 있어 auto로 둠.
- */
+/* Ensure scrollbar-gutter / hidden scrollbar area uses the same canvas color. */
 html {
-  scrollbar-gutter: stable;
+  background-color: var(--color-app-canvas);
+  color-scheme: light;
+}
+body {
+  background-color: var(--color-app-canvas);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  html {
+    background-color: var(--color-app-canvas-dark);
+    color-scheme: dark;
+  }
+  body {
+    background-color: var(--color-app-canvas-dark);
+    color-scheme: dark;
+  }
+  :root {
+    --admin-chart-grid-color: #4a5260;
+  }
 }
 
-@media (max-width: 639px) {
-  html {
-    scrollbar-gutter: auto;
-  }
+/* Fallback for class-based dark mode (if `class="dark"` is on the root). */
+html.dark,
+body.dark {
+  background-color: var(--color-app-canvas-dark);
+}
+html.dark,
+body.dark,
+.dark {
+  --admin-chart-grid-color: #4a5260;
+}
+
+/* Avoid reserving a permanent scrollbar gutter strip on desktop. */
+html {
+  scrollbar-gutter: auto;
 }
 
 /* AI 인터뷰 대화(질문·답변) 영역: 스크롤은 되고 막대만 숨김 */
