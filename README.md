@@ -4,6 +4,9 @@
 
 이 프로젝트는 Next.js(App Router) + NextAuth + Prisma(PostgreSQL) 기반이며, AI 초안 생성에는 월간 쿼터/차단 정책과 운영용 어드민 대시보드가 포함됩니다.
 
+프로젝트 기간: 2026-03-20 ~ 2026-03-24
+현재 기능 완료 상태이며, 추후 리팩토링이 가능한 구조로 개선해왔습니다.
+
 ---
 
 ## 주요 기능
@@ -32,7 +35,7 @@
 
 - Next.js 16.2.0 (App Router)
 - React 19
-- NextAuth 4
+- NextAuth 4 (OAuth2)
 - Prisma 7 + PostgreSQL
 - Tailwind CSS
 - Framer Motion (인터뷰/패널 애니메이션)
