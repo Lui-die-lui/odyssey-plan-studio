@@ -31,9 +31,32 @@ const RequireAuthForPlan = ({ children }: RequireAuthForPlanProps) => {
 
   if (status === "loading") {
     return (
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-app-canvas px-4 py-16 text-sm text-zinc-600 dark:bg-app-canvas-dark dark:text-zinc-400">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas dark:bg-app-canvas-dark">
         <LandingConfetti />
-        <span className="relative z-10">Checking your session…</span>
+        <SubpageGlassVeil />
+        <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col py-8 sm:py-10">
+          <div
+            className={
+              "flex w-full flex-col gap-4 " +
+              "pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] " +
+              "sm:pl-[max(1.25rem,env(safe-area-inset-left))] sm:pr-[max(1.25rem,env(safe-area-inset-right))]"
+            }
+          >
+            <div aria-hidden className="flex flex-col gap-3">
+              <span className="h-8 w-64 max-w-full animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+              <span className="h-5 w-80 max-w-full animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+            </div>
+            <div
+              aria-hidden
+              className="rounded-2xl border border-zinc-200/80 bg-white p-6 dark:border-white/10 dark:bg-zinc-950"
+            >
+              <div className="flex flex-col gap-3">
+                <span className="h-11 w-full animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
+                <span className="h-11 w-full animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -43,9 +66,13 @@ const RequireAuthForPlan = ({ children }: RequireAuthForPlanProps) => {
       <div className="relative flex min-h-[50vh] flex-1 flex-col items-center justify-center overflow-hidden bg-app-canvas dark:bg-app-canvas-dark">
         <LandingConfetti />
         <SubpageGlassVeil />
-        <p className="relative z-10 text-sm text-zinc-600 dark:text-zinc-400">
-          로그인 화면으로 이동 중…
-        </p>
+        <div
+          aria-hidden
+          className="relative z-10 flex w-[min(100%,22rem)] flex-col gap-2 rounded-xl border border-zinc-200/70 bg-white/60 px-5 py-4 dark:border-white/10 dark:bg-zinc-950/45"
+        >
+          <span className="h-4 w-36 animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+          <span className="h-4 w-56 max-w-full animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+        </div>
       </div>
     );
   }

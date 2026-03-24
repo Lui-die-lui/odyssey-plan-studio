@@ -11,7 +11,18 @@ import {
 import { useMyPlan } from "@/features/plan/hooks/useMyPlan";
 
 const loadingBoxClass =
-  "rounded-2xl border border-zinc-200/80 bg-white p-6 text-sm text-zinc-600 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-300";
+  "rounded-2xl border border-zinc-200/80 bg-white p-6 dark:border-white/10 dark:bg-zinc-950";
+
+function ReplaceGateSkeleton() {
+  return (
+    <div className={loadingBoxClass} aria-hidden>
+      <div className="flex flex-col gap-3">
+        <span className="h-4 w-32 animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+        <span className="h-4 w-full animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+      </div>
+    </div>
+  );
+}
 
 function NewPlanReplaceGateInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -37,7 +48,7 @@ function NewPlanReplaceGateInner({ children }: { children: ReactNode }) {
         onConfirm={acknowledgeReplace}
       />
       {loading ? (
-        <div className={loadingBoxClass}>불러오는 중…</div>
+        <ReplaceGateSkeleton />
       ) : showReplaceGate ? null : (
         children
       )}
@@ -47,9 +58,7 @@ function NewPlanReplaceGateInner({ children }: { children: ReactNode }) {
 
 export function NewPlanReplaceGate({ children }: { children: ReactNode }) {
   return (
-    <Suspense
-      fallback={<div className={loadingBoxClass}>불러오는 중…</div>}
-    >
+    <Suspense fallback={<ReplaceGateSkeleton />}>
       <NewPlanReplaceGateInner>{children}</NewPlanReplaceGateInner>
     </Suspense>
   );

@@ -93,8 +93,16 @@ const EditPlanPageInner = () => {
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         <PlanEditorLayout>
         {loading ? (
-          <div className="rounded-2xl border border-zinc-200/80 bg-white p-6 text-sm text-zinc-600 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-300">
-            플랜을 불러오는 중…
+          <div
+            aria-hidden
+            className="rounded-2xl border border-zinc-200/80 bg-white p-6 dark:border-white/10 dark:bg-zinc-950"
+          >
+            <div className="flex flex-col gap-3">
+              <span className="h-6 w-52 animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+              <span className="h-10 w-full animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
+              <span className="h-10 w-full animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
+              <span className="h-10 w-11/12 animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
+            </div>
           </div>
         ) : error ? (
           <div

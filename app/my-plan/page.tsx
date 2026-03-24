@@ -142,8 +142,16 @@ const MyPlanPageInner = () => {
 
         <div className="mt-6">
           {loading ? (
-            <div className="rounded-md border border-black/10 bg-white p-4 text-sm text-zinc-600 dark:border-white/10 dark:bg-black dark:text-zinc-300">
-              플랜을 불러오는 중...
+            <div
+              aria-hidden
+              className="rounded-md border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-black"
+            >
+              <div className="flex flex-col gap-3">
+                <span className="h-6 w-56 animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+                <span className="h-4 w-full animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+                <span className="h-4 w-11/12 animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+                <span className="h-4 w-10/12 animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+              </div>
             </div>
           ) : error ? (
             <div

@@ -138,7 +138,12 @@ export function PlanCreateStartScreen({
                 <div className="flex min-h-0 flex-1 flex-col">
                   <h2 className={titleClass}>{opt.title}</h2>
                   <p className={descClass}>{opt.description}</p>
-                  {guidedDisabledLabel ? (
+                  {opt.id === "guided" && guidedQuotaLoading ? (
+                    <div aria-hidden className="mt-2 flex flex-col gap-2">
+                      <span className="h-3.5 w-48 max-w-full animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+                      <span className="h-3.5 w-40 max-w-full animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+                    </div>
+                  ) : guidedDisabledLabel ? (
                     <p className={quotaExhaustedClass}>{guidedDisabledLabel}</p>
                   ) : guidedRemainingLabel ? (
                     <p className={quotaInfoClass}>{guidedRemainingLabel}</p>
@@ -154,7 +159,12 @@ export function PlanCreateStartScreen({
                 <div className="flex min-h-0 flex-1 flex-col">
                   <h2 className={titleClass}>{opt.title}</h2>
                   <p className={descClass}>{opt.description}</p>
-                  {guidedDisabledLabel ? (
+                  {opt.id === "guided" && guidedQuotaLoading ? (
+                    <div aria-hidden className="mt-2 flex flex-col gap-2">
+                      <span className="h-3.5 w-48 max-w-full animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+                      <span className="h-3.5 w-40 max-w-full animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+                    </div>
+                  ) : guidedDisabledLabel ? (
                     <p className={quotaExhaustedClass}>{guidedDisabledLabel}</p>
                   ) : guidedRemainingLabel ? (
                     <p className={quotaInfoClass}>{guidedRemainingLabel}</p>

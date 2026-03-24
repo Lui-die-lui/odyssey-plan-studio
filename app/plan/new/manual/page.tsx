@@ -169,10 +169,28 @@ const NewPlanManualPageContent = () => {
 
   if (boot === "pending") {
     return (
-      <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden bg-app-canvas px-4 py-16 text-sm text-zinc-600 dark:bg-app-canvas-dark dark:text-zinc-400">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas dark:bg-app-canvas-dark">
         <LandingConfetti />
         <SubpageGlassVeil />
-        <span className="relative z-10">불러오는 중…</span>
+        <PlanEditorLayout>
+          <div className="relative z-10 flex w-full flex-col gap-4 py-1">
+            <div aria-hidden className="flex flex-col gap-3">
+              <span className="h-8 w-56 animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+              <span className="h-5 w-72 max-w-full animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+            </div>
+            <div
+              aria-hidden
+              className="rounded-2xl border border-zinc-200/80 bg-white p-5 dark:border-white/10 dark:bg-zinc-950"
+            >
+              <div className="flex flex-col gap-3">
+                <span className="h-10 w-full animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
+                <span className="h-10 w-full animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
+                <span className="h-10 w-11/12 animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
+                <span className="h-10 w-10/12 animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
+              </div>
+            </div>
+          </div>
+        </PlanEditorLayout>
       </div>
     );
   }
@@ -190,10 +208,27 @@ const NewPlanManualPageContent = () => {
 const NewPlanManualPageInner = () => (
   <Suspense
     fallback={
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-app-canvas px-4 py-16 text-sm text-zinc-600 dark:bg-app-canvas-dark dark:text-zinc-400">
+      <div className="relative flex flex-1 overflow-hidden bg-app-canvas dark:bg-app-canvas-dark">
         <LandingConfetti />
         <SubpageGlassVeil />
-        <span className="relative z-10">불러오는 중…</span>
+        <PlanEditorLayout>
+          <div className="relative z-10 flex w-full flex-col gap-4 py-1">
+            <div aria-hidden className="flex flex-col gap-3">
+              <span className="h-8 w-56 animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+              <span className="h-5 w-72 max-w-full animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
+            </div>
+            <div
+              aria-hidden
+              className="rounded-2xl border border-zinc-200/80 bg-white p-5 dark:border-white/10 dark:bg-zinc-950"
+            >
+              <div className="flex flex-col gap-3">
+                <span className="h-10 w-full animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
+                <span className="h-10 w-full animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
+                <span className="h-10 w-11/12 animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
+              </div>
+            </div>
+          </div>
+        </PlanEditorLayout>
       </div>
     }
   >
