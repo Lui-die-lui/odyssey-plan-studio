@@ -2,7 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import KakaoProvider from "next-auth/providers/kakao";
 
-import { prisma } from "@/lib/prisma";
+import { logPrismaDatasourceUsage, prisma } from "@/lib/prisma";
 
 const getEnv = (name: string): string | undefined => process.env[name];
 
@@ -35,6 +35,7 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ account }) {
       if (!account?.provider || !account.providerAccountId) return true;
+      logPrismaDatasourceUsage("nextauth.signIn");
 
       type WithdrawalUserRow = {
         status?: "ACTIVE" | "PENDING_DELETION" | null;
@@ -69,6 +70,7 @@ export const authOptions: NextAuthOptions = {
     },
     async jwt({ token, user, account }) {
       if (user && account?.provider && account.providerAccountId) {
+        logPrismaDatasourceUsage("nextauth.jwt");
         const now = new Date();
         const upsertDelegate = prisma.user as unknown as {
           upsert: (args: unknown) => Promise<{ id: string; role?: "USER" | "ADMIN" | null }>;
