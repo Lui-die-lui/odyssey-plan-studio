@@ -59,6 +59,7 @@ export function PlanCreateStartScreen({
   searchQueryString: string;
 }) {
   const [guidedRemaining, setGuidedRemaining] = useState<number | null>(null);
+  const [guidedQuotaLoading, setGuidedQuotaLoading] = useState(true);
   const [guidedBlockedReason, setGuidedBlockedReason] = useState<
     "GLOBAL_AI_OFF" | "USER_AI_BLOCKED" | "QUOTA_EXHAUSTED" | null
   >(null);
@@ -85,7 +86,9 @@ export function PlanCreateStartScreen({
             : null;
         setGuidedBlockedReason(blockedReason);
       } catch {
-        // Quota fetch failure should not block start options.
+        // Keep guided option blocked until quota can be determined.
+      } finally {
+        if (!cancelled) setGuidedQuotaLoading(false);
       }
     };
 
@@ -99,7 +102,8 @@ export function PlanCreateStartScreen({
   return (
     <ul className="grid grid-cols-1 gap-4 sm:auto-rows-fr sm:grid-cols-2 sm:gap-5">
       {PLAN_CREATE_START_OPTIONS.map((opt) => {
-        const guidedDisabled = opt.id === "guided" && guidedBlockedReason !== null;
+        const guidedDisabled =
+          opt.id === "guided" && (guidedQuotaLoading || guidedBlockedReason !== null);
         const guidedRemainingLabel =
           opt.id === "guided" &&
           typeof guidedRemaining === "number" &&
@@ -110,6 +114,8 @@ export function PlanCreateStartScreen({
         const guidedDisabledLabel =
           opt.id !== "guided"
             ? null
+            : guidedQuotaLoading
+              ? "AI 사용 가능 상태를 확인하는 중입니다."
             : guidedBlockedReason === "GLOBAL_AI_OFF"
               ? "관리자 설정으로 현재 AI 초안 생성이 일시 중지되었습니다."
               : guidedBlockedReason === "USER_AI_BLOCKED"

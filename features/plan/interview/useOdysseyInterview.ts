@@ -26,6 +26,7 @@ import type {
 } from "./odyssey-interview.types";
 
 const firstQuestion = ODYSSEY_INTERVIEW_QUESTIONS[0]!;
+const BOOTSTRAP_MS = 650;
 
 function initialMessages(): OdysseyChatMessage[] {
   // Start with an empty transcript and bootstrap the first question after
@@ -45,12 +46,30 @@ export function useOdysseyInterview() {
   answersRef.current = answers;
 
   const followUpTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const submitLockRef = useRef(false);
 
   const clearFollowUpTimeouts = useCallback(() => {
     for (const id of followUpTimeoutsRef.current) {
       clearTimeout(id);
     }
     followUpTimeoutsRef.current = [];
+  }, []);
+
+  const scheduleFirstQuestion = useCallback(() => {
+    setAwaitingAiFollowUp(true);
+    const id = setTimeout(() => {
+      setMessages([
+        {
+          id: nextOdysseyChatMessageId(),
+          role: "ai",
+          content: firstQuestion.prompt,
+          variant: "question",
+        },
+      ]);
+      setAwaitingAiFollowUp(false);
+      submitLockRef.current = false;
+    }, BOOTSTRAP_MS);
+    followUpTimeoutsRef.current.push(id);
   }, []);
 
   useEffect(
@@ -62,29 +81,16 @@ export function useOdysseyInterview() {
 
   // Bootstrap the very first AI question with the same "..." waiting tone.
   useEffect(() => {
-    const BOOTSTRAP_MS = 650;
-    const id = setTimeout(() => {
-      setMessages([
-        {
-          id: nextOdysseyChatMessageId(),
-          role: "ai",
-          content: firstQuestion.prompt,
-          variant: "question",
-        },
-      ]);
-      setAwaitingAiFollowUp(false);
-    }, BOOTSTRAP_MS);
-
-    followUpTimeoutsRef.current.push(id);
-    return () => clearTimeout(id);
-  }, []);
+    scheduleFirstQuestion();
+  }, [scheduleFirstQuestion]);
 
   const currentQuestion = getOdysseyQuestionById(currentQuestionId);
   const isCompleteScreen = currentQuestion?.type === "complete";
 
   const submitAnswer = useCallback((payload: OdysseyAnswerPayload) => {
     const q = getOdysseyQuestionById(currentQuestionId);
-    if (!q || q.type === "complete" || awaitingAiFollowUp) return;
+    if (!q || q.type === "complete" || awaitingAiFollowUp || submitLockRef.current) return;
+    submitLockRef.current = true;
 
     const prevAnswers = answersRef.current;
     const validation = validateOdysseyPayload(q, payload);
@@ -112,12 +118,14 @@ export function useOdysseyInterview() {
 
     if (!nextId) {
       console.error("Odyssey interview: missing next question for", q.id);
+      submitLockRef.current = false;
       return;
     }
 
     const nextQ = getOdysseyQuestionById(nextId);
     if (!nextQ) {
       console.error("Odyssey interview: unknown id", nextId);
+      submitLockRef.current = false;
       return;
     }
 
@@ -150,6 +158,7 @@ export function useOdysseyInterview() {
       ]);
       setCurrentQuestionId(nextId);
       setAwaitingAiFollowUp(false);
+      submitLockRef.current = false;
     };
 
     if (q.reaction.trim()) {
@@ -172,13 +181,14 @@ export function useOdysseyInterview() {
 
   const reset = useCallback(() => {
     clearFollowUpTimeouts();
+    submitLockRef.current = false;
     answersRef.current = {};
     setAnswers({});
     setMessages(initialMessages());
     setCurrentQuestionId(firstQuestion.id);
     setValidationError(null);
-    setAwaitingAiFollowUp(false);
-  }, [clearFollowUpTimeouts]);
+    scheduleFirstQuestion();
+  }, [clearFollowUpTimeouts, scheduleFirstQuestion]);
 
   const clearValidationError = useCallback(() => setValidationError(null), []);
 

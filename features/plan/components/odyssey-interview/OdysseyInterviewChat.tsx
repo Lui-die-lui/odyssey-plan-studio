@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import type {
   OdysseyDraftSummary,
@@ -23,6 +24,7 @@ type Phase = "chat" | "generating" | "summary";
  * 인터뷰 → POST /api/odyssey/generate → 요약 + planForm (클라이언트 상태·sessionStorage, DB 없음)
  */
 export function OdysseyInterviewChat({ manualHref }: OdysseyInterviewChatProps) {
+  const router = useRouter();
   const {
     messages,
     answers,
@@ -38,6 +40,21 @@ export function OdysseyInterviewChat({ manualHref }: OdysseyInterviewChatProps) 
   const [draftSummary, setDraftSummary] = useState<OdysseyDraftSummary | null>(null);
   const [draftPlanForm, setDraftPlanForm] = useState<OdysseyAiPlanFormDraft | null>(null);
   const [generateDraftError, setGenerateDraftError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (phase !== "summary") return;
+
+    const handlePopState = () => {
+      router.replace("/plan/new");
+    };
+
+    // Keep one extra entry while summary is visible, then intercept back.
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [phase, router]);
 
   const handleGenerateDraft = useCallback(async () => {
     setGenerateDraftError(null);
