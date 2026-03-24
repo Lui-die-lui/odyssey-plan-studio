@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import type { Prisma } from "@prisma/client";
 
 import type { PlanYearScores, SavePlanRequestPayload } from "@/features/plan/types/plan.types";
 
@@ -310,7 +311,7 @@ export async function POST(req: Request) {
 
     const planId = existingPlan.id;
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.planYear.deleteMany({ where: { planId } });
 
       await tx.plan.update({
