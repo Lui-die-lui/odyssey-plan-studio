@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { requireAdminRequest } from "@/features/admin/lib/admin-guard";
 import { getAdminUserAiState } from "@/features/admin/lib/ai-control";
 
+type AdminUserRow = Awaited<ReturnType<typeof getAdminUserAiState>>[number];
+
 export async function GET(req: Request) {
   const guard = await requireAdminRequest();
   if (!guard.ok) return guard.response;
@@ -13,7 +15,7 @@ export async function GET(req: Request) {
 
   const users = await getAdminUserAiState(limit);
   return NextResponse.json({
-    users: users.map((u) => ({
+    users: users.map((u: AdminUserRow) => ({
       ...u,
       createdAt: u.createdAt.toISOString(),
       lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
