@@ -1,6 +1,8 @@
 import { AiControlPanel } from "@/features/admin/components/ai-control-panel";
 import { getAdminUserAiState, isAiDraftEnabled } from "@/features/admin/lib/ai-control";
 
+type AdminAiUser = Awaited<ReturnType<typeof getAdminUserAiState>>[number];
+
 export default async function AdminAiControlPage() {
   const [enabled, users] = await Promise.all([isAiDraftEnabled(), getAdminUserAiState(80)]);
 
@@ -15,7 +17,7 @@ export default async function AdminAiControlPage() {
 
       <AiControlPanel
         initialEnabled={enabled}
-        initialUsers={users.map((u) => ({
+        initialUsers={users.map((u: AdminAiUser) => ({
           ...u,
           createdAt: u.createdAt.toISOString(),
           lastLoginAt: u.lastLoginAt?.toISOString() ?? null,

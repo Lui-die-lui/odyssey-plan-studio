@@ -161,7 +161,7 @@ export const validatePlanForm = (
     0,
   );
   if (goalCount === 0) {
-    errors.form = "Add at least one goal somewhere in your plan.";
+    errors.form = "최소 1개 이상의 목표를 추가해주세요.";
   }
 
   const hasAnyError =
