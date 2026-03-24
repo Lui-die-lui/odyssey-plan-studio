@@ -33,10 +33,10 @@ export function LoginScreen() {
       <SubpageGlassVeil />
       <main
         className={
-          "relative z-10 mx-4 flex w-full max-w-md flex-col gap-6 rounded-2xl border border-zinc-200/75 " +
-          "bg-white/45 px-6 py-10 text-zinc-900 shadow-sm backdrop-blur-xl backdrop-saturate-150 " +
+          "relative z-10 mx-auto flex w-[min(100%,21.5rem)] max-w-md flex-col gap-6 rounded-2xl border border-zinc-200/75 " +
+          "bg-white/45 px-5 py-9 text-zinc-900 shadow-sm backdrop-blur-xl backdrop-saturate-150 " +
           "dark:border-white/12 dark:bg-zinc-950/40 dark:text-zinc-50 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04)] " +
-          "sm:mx-auto sm:px-8 sm:py-12"
+          "sm:w-full sm:px-8 sm:py-12"
         }
       >
         <header className="flex flex-col gap-2 text-center">

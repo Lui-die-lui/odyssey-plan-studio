@@ -52,9 +52,13 @@ export function AppNavbar() {
           aria-label="Account"
         >
           {status === "loading" ? (
-            <span className="text-xs uppercase tracking-[0.2em] text-zinc-400">
-              …
-            </span>
+            <div
+              aria-hidden
+              className="flex items-center gap-3 sm:gap-4"
+            >
+              <span className="h-5 w-10 animate-pulse rounded-full bg-zinc-200/80 dark:bg-zinc-700/60" />
+              <span className="h-5 w-14 animate-pulse rounded-full bg-zinc-200/80 dark:bg-zinc-700/60" />
+            </div>
           ) : status === "unauthenticated" ? (
             <Link href="/login" className={navText}>
               Login
