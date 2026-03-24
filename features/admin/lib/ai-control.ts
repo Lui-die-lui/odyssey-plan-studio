@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
 
 const AI_DRAFT_ENABLED_KEY = "AI_DRAFT_ENABLED";
 
@@ -22,17 +21,15 @@ export async function setAiDraftEnabled(enabled: boolean) {
   return enabled;
 }
 
-type AdminUserAiStateRow = Prisma.UserGetPayload<{
-  select: {
-    id: true;
-    email: true;
-    name: true;
-    role: true;
-    aiBlocked: true;
-    createdAt: true;
-    lastLoginAt: true;
-  };
-}>;
+type AdminUserAiStateRow = {
+  id: string;
+  email: string | null;
+  name: string | null;
+  role: "USER" | "ADMIN";
+  aiBlocked: boolean;
+  createdAt: Date;
+  lastLoginAt: Date | null;
+};
 
 export async function getAdminUserAiState(limit = 50): Promise<AdminUserAiStateRow[]> {
   return prisma.user.findMany({

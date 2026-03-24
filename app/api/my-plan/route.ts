@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import type { Prisma } from "@prisma/client";
 
 import type { PlanYearScores, SavePlanRequestPayload } from "@/features/plan/types/plan.types";
 
@@ -19,6 +18,17 @@ import {
   planInclude,
 } from "@/features/plan/lib/plan-db.server";
 import { prisma } from "@/lib/prisma";
+
+type PrismaTransactionCallback = Extract<
+  Parameters<typeof prisma.$transaction>[0],
+  (...args: never[]) => unknown
+>;
+type PrismaTransactionClient = PrismaTransactionCallback extends (
+  tx: infer T,
+  ...args: never[]
+) => unknown
+  ? T
+  : never;
 
 const normalizeOptionalString = (value?: string): string | undefined => {
   const trimmed = value?.trim();
@@ -311,7 +321,7 @@ export async function POST(req: Request) {
 
     const planId = existingPlan.id;
 
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await prisma.$transaction(async (tx: PrismaTransactionClient) => {
       await tx.planYear.deleteMany({ where: { planId } });
 
       await tx.plan.update({

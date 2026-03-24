@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import OpenAI from "openai";
-import type { Prisma } from "@prisma/client";
 
 import { authOptions } from "@/features/auth/lib/auth";
 import { formatOdysseyAnswersForModel } from "@/features/plan/interview/odyssey-interview.prompt-format";
@@ -9,6 +8,17 @@ import type { OdysseyInterviewAnswers } from "@/features/plan/interview/odyssey-
 import { coerceOdysseyGenerateResponse } from "@/features/plan/lib/odyssey-generate-response.coerce";
 import { ODYSSEY_GENERATE_RESPONSE_SCHEMA } from "@/features/plan/lib/odyssey-generate.schema";
 import { prisma } from "@/lib/prisma";
+
+type PrismaTransactionCallback = Extract<
+  Parameters<typeof prisma.$transaction>[0],
+  (...args: never[]) => unknown
+>;
+type PrismaTransactionClient = PrismaTransactionCallback extends (
+  tx: infer T,
+  ...args: never[]
+) => unknown
+  ? T
+  : never;
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -136,7 +146,7 @@ export async function POST(req: Request) {
   const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 
   try {
-    const quotaResult = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const quotaResult = await prisma.$transaction(async (tx: PrismaTransactionClient) => {
       // Prisma Client 타입/증분생성 캐시 때문에 `tx.aiDraftUsage`가 IDE에서 누락처럼 보일 수 있어,
       // 필요한 메서드만 시그니처로 좁혀 캐스팅합니다. (런타임 로직은 동일)
       const aiDraftUsage = (tx as unknown as {
