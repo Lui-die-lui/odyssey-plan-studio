@@ -1,5 +1,7 @@
 import { getAdminUserAiState } from "@/features/admin/lib/ai-control";
 
+type AdminUserRow = Awaited<ReturnType<typeof getAdminUserAiState>>[number];
+
 export default async function AdminUsersPage() {
   const users = await getAdminUserAiState(120);
 
@@ -25,7 +27,7 @@ export default async function AdminUsersPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
+              {users.map((u: AdminUserRow) => (
                 <tr key={u.id} className="border-t border-zinc-100 dark:border-white/10">
                   <td className="px-2 py-2">{u.email ?? u.name ?? u.id}</td>
                   <td className="px-2 py-2">{u.role}</td>
