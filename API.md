@@ -111,7 +111,6 @@ Last updated: 2026-03-23
 | GET | `/api/odyssey/quota` | USER | AI 사용 가능 여부/잔여 횟수 조회 |
 | POST | `/api/account/withdraw` | USER | 회원 탈퇴 요청(유예 상태 전환) |
 | GET | `/api/plans/[planId]/summary-pdf` | USER | PDF 파일 생성/다운로드 |
-| GET | `/api/test-openai` | Public* | OpenAI 호출 테스트용 (*운영 비권장) |
 
 ## Admin API
 
@@ -352,7 +351,6 @@ Response:
 
 권장 운영 정책:
 
-1. `test-openai`는 운영 환경에서 비활성화 또는 관리자 내부망으로 제한
-2. 에러 응답 구조 통일(`error.code`, `error.message`)
-3. Admin API에 요청 ID/감사로그(actor, target, before/after) 추가
+1. 에러 응답 구조 통일(`error.code`, `error.message`)
+2. Admin API에 요청 ID/감사로그(actor, target, before/after) 추가
 

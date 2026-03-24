@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 import RequireAuthForPlan from "@/features/auth/components/RequireAuthForPlan";
 import { SubpageGlassVeil } from "@/components/layout/SubpageGlassVeil";
@@ -15,11 +15,7 @@ import {
 import { planCreateStepPath } from "@/features/plan/constants/plan-create-start";
 import { useMyPlan } from "@/features/plan/hooks/useMyPlan";
 
-const backLinkClass =
-  "inline-flex h-8 items-center justify-center rounded-full border border-transparent px-3 text-xs font-normal text-zinc-400 transition-colors hover:border-zinc-200/60 hover:bg-zinc-100/50 hover:text-zinc-600 dark:text-zinc-500 dark:hover:border-white/10 dark:hover:bg-white/[0.04] dark:hover:text-zinc-300";
-
 const NewPlanAiPageContent = () => {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { plan, loading: planLoading } = useMyPlan({ autoLoad: true });
   const manualHref = planCreateStepPath("manual", searchParams.toString());
@@ -39,15 +35,6 @@ const NewPlanAiPageContent = () => {
                 compactBelowDivider
                 title="AI와 함께 방향 찾기"
                 description="짧은 대화로 생각을 정리해요. 답변은 나중에 플랜 초안으로 이어질 수 있어요."
-                // actions={
-                //   <button
-                //     type="button"
-                //     onClick={() => router.push("/plan/new")}
-                //     className={backLinkClass}
-                //   >
-                //     이전
-                //   </button>
-                // }
               />
 
               <div className="flex w-full flex-col">

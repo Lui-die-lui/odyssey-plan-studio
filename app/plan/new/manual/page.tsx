@@ -28,9 +28,6 @@ import { mapPlanFormValuesToSavePayload } from "@/features/plan/lib/plan.mapper"
 import { saveMyPlan } from "@/features/plan/lib/plan.service";
 import type { PlanFormValues } from "@/features/plan/types/plan.types";
 
-const backLinkClass =
-  "inline-flex h-10 items-center justify-center rounded-full border border-zinc-200 bg-white px-5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800";
-
 type AiDraftBootstrap =
   | "pending"
   | { kind: "empty" }
@@ -107,15 +104,6 @@ const ManualPlanFormEditor = ({
               <PlanEditorPageHeader
                 title="My Odyssey Plan"
                 description="연차별 목표와 현재 상태를 정리해보세요."
-                actions={
-                  <button
-                    type="button"
-                    onClick={() => router.push("/plan/new")}
-                    className={backLinkClass}
-                  >
-                    이전
-                  </button>
-                }
               />
 
               {status ? (
