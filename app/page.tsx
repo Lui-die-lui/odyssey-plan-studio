@@ -40,12 +40,9 @@ const LandingPage = () => {
   const renderPrimaryCta = () => {
     if (ctaDisabled) {
       return (
-        <div
-          aria-hidden
-          className="inline-flex min-h-12 w-[8.75rem] shrink-0 items-center justify-center rounded-full bg-zinc-200/85 dark:bg-zinc-700/60"
-        >
-          <span className="h-4 w-16 animate-pulse rounded-md bg-zinc-300/90 dark:bg-zinc-600/80" />
-        </div>
+        <button type="button" disabled className={primaryCtaClass}>
+          CREATE
+        </button>
       );
     }
     if (status === "authenticated") {
