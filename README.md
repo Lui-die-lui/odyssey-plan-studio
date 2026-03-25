@@ -1,10 +1,11 @@
 # My Odyssey
 
+프로젝트 기간: 2026-03-20 ~ 2026-03-24
+
 5년 플랜(Year 1~5)을 “인터뷰 기반 초안 생성”으로 만들고, 사용자가 이후 직접 다듬고 편집할 수 있는 서비스입니다.
 
 이 프로젝트는 Next.js(App Router) + NextAuth + Prisma(PostgreSQL) 기반이며, AI 초안 생성에는 월간 쿼터/차단 정책과 운영용 어드민 대시보드가 포함됩니다.
 
-프로젝트 기간: 2026-03-20 ~ 2026-03-24
 현재 기능 완료 상태이며, 추후 리팩토링이 가능한 구조로 개선해왔습니다.
 
 ---
@@ -42,6 +43,19 @@
 - Recharts (어드민 차트)
 - OpenAI (초안 생성)
 - Puppeteer (PDF 렌더링)
+
+---
+
+## 배포 스택
+
+- 플랫폼: Vercel (Next.js App Router 서버/서버리스 실행)
+- 런타임 DB 접근: Prisma Client + `@prisma/adapter-pg`
+- 운영 DB: Supabase Postgres (Transaction Pooler `:6543` 권장)
+- 마이그레이션: Prisma Migrate (`npx prisma migrate deploy`)
+- 인증: NextAuth (Vercel 환경변수 기반 OAuth 클라이언트 설정)
+- 배포 필수 환경변수: `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, OAuth Provider 키들, `OPENAI_API_KEY`, `WITHDRAWAL_CLEANUP_SECRET`
+
+> 권장 사항: 런타임은 `DATABASE_URL`(pooler)만 사용하고, `DIRECT_URL`은 마이그레이션/관리 작업 전용으로 분리합니다.
 
 ---
 

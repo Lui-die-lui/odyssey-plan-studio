@@ -129,7 +129,7 @@ const MyPlanPageInner = () => {
                   href="/plan/new"
                   className="inline-flex h-10 items-center justify-center rounded-full bg-black px-4 text-sm font-medium text-white transition-colors hover:bg-black/90 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200"
                 >
-                  Create Plan
+                  플랜 생성
                 </Link>
               )}
             </div>
