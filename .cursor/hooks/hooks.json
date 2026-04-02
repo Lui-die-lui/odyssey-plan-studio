@@ -1,0 +1,7 @@
+{
+    "hooks": {
+        "preToolUse" : {
+            "toolNames" : ["read_file", "edit_file", "search", "terminal"]
+        }
+    }
+}
