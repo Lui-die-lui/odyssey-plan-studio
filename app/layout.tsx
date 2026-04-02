@@ -17,6 +17,21 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Odyssey Plan",
   description: "Odyssey Plan app.",
+  icons: {
+    // Favicon for browser tab (served from /public)
+    icon: "/odyssey.PNG",
+    // Some browsers / contexts use this rel for the same favicon
+    shortcut: "/odyssey.PNG",
+    // Pinned tabs / mobile homescreen
+    apple: "/odyssey.PNG",
+    // Fallback (Safari pinned tabs mask icon)
+    other: [
+      {
+        rel: "mask-icon",
+        url: "/odyssey.PNG",
+      },
+    ],
+  },
 };
 
 const RootLayout = ({
