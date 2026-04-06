@@ -2,6 +2,12 @@
     "hooks": {
         "preToolUse" : {
             "toolNames" : ["read_file", "edit_file", "search", "terminal"]
-        }
+        },
+        "hooks": [
+            {
+              "type": "command",
+              "command": "node .cursor/hooks/block-sensitive-files.mjs"
+            }
+          ]
     }
 }
