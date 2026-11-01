@@ -11,6 +11,11 @@ import { SubpageGlassVeil } from "@/components/layout/SubpageGlassVeil";
 import { LandingConfetti } from "@/features/landing/components/LandingConfetti";
 import { useMyPlan } from "@/features/plan/hooks/useMyPlan";
 import PlanSummary from "@/features/plan/components/PlanSummary";
+import {
+  MyPlanActionsSkeleton,
+  MyPlanPageSkeleton,
+  PlanSummarySkeleton,
+} from "@/features/plan/components/PlanSkeletons";
 
 /** 본문 CTA와 구분되는 작은 텍스트 링크 (GitHub·이메일 등 확장용) */
 const myPlanFooterLinkClass =
@@ -107,7 +112,9 @@ const MyPlanPageInner = () => {
             </h1>
 
             <div className="flex flex-wrap items-center gap-3">
-              {loading ? null : plan ? (
+              {loading ? (
+                <MyPlanActionsSkeleton />
+              ) : plan ? (
                 <>
                   <button
                     type="button"
@@ -142,17 +149,7 @@ const MyPlanPageInner = () => {
 
         <div className="mt-6">
           {loading ? (
-            <div
-              aria-hidden
-              className="rounded-md border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-black"
-            >
-              <div className="flex flex-col gap-3">
-                <span className="h-6 w-56 animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
-                <span className="h-4 w-full animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
-                <span className="h-4 w-11/12 animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
-                <span className="h-4 w-10/12 animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
-              </div>
-            </div>
+            <PlanSummarySkeleton />
           ) : error ? (
             <div
               role="alert"
@@ -254,7 +251,7 @@ const MyPlanPageInner = () => {
 };
 
 const MyPlanPage = () => (
-  <RequireAuthForPlan>
+  <RequireAuthForPlan fallback={<MyPlanPageSkeleton />}>
     <MyPlanPageInner />
   </RequireAuthForPlan>
 );

@@ -8,6 +8,7 @@ import { SubpageGlassVeil } from "@/components/layout/SubpageGlassVeil";
 import { LandingConfetti } from "@/features/landing/components/LandingConfetti";
 import { NewPlanReplaceGate } from "@/features/plan/components/NewPlanReplaceGate";
 import { PlanCreateStartScreen } from "@/features/plan/components/PlanCreateStartScreen";
+import { PlanContentSkeleton, PlanPageSkeleton } from "@/features/plan/components/PlanSkeletons";
 import {
   PlanEditorLayout,
   PlanEditorPageHeader,
@@ -27,7 +28,7 @@ const NewPlanStartPageContent = () => {
       <SubpageGlassVeil />
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         <PlanEditorLayout>
-          <NewPlanReplaceGate>
+          <NewPlanReplaceGate fallback={<PlanContentSkeleton variant="start" />}>
             <>
               <PlanEditorPageHeader
                 title="어떤 방식으로 시작할까요?"
@@ -45,37 +46,13 @@ const NewPlanStartPageContent = () => {
 };
 
 const NewPlanStartPageInner = () => (
-  <Suspense
-    fallback={
-      <div className="relative flex flex-1 overflow-hidden bg-app-canvas dark:bg-app-canvas-dark">
-        <LandingConfetti />
-        <SubpageGlassVeil />
-        <PlanEditorLayout>
-          <div className="relative z-10 flex w-full flex-col gap-4 py-1">
-            <div aria-hidden className="flex flex-col gap-3">
-              <span className="h-8 w-64 animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
-              <span className="h-5 w-80 max-w-full animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
-            </div>
-            <div
-              aria-hidden
-              className="rounded-2xl border border-zinc-200/80 bg-white p-6 dark:border-white/10 dark:bg-zinc-950"
-            >
-              <div className="flex flex-col gap-3">
-                <span className="h-11 w-full animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
-                <span className="h-11 w-full animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
-              </div>
-            </div>
-          </div>
-        </PlanEditorLayout>
-      </div>
-    }
-  >
+  <Suspense fallback={<PlanPageSkeleton variant="start" />}>
     <NewPlanStartPageContent />
   </Suspense>
 );
 
 const NewPlanStartPage = () => (
-  <RequireAuthForPlan>
+  <RequireAuthForPlan fallback={<PlanPageSkeleton variant="start" />}>
     <NewPlanStartPageInner />
   </RequireAuthForPlan>
 );

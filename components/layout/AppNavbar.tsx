@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 
+import { Skeleton } from "@/components/common/Skeleton";
 import { clearPlanClientState } from "@/lib/plan-client-state";
 import { SUBPAGE_VEIL_SURFACE_CLASS } from "@/components/layout/subpage-veil-styles";
 
@@ -52,12 +53,9 @@ export function AppNavbar() {
           aria-label="Account"
         >
           {status === "loading" ? (
-            <div
-              aria-hidden
-              className="flex items-center gap-3 sm:gap-4"
-            >
-              <span className="h-5 w-10 animate-pulse rounded-full bg-zinc-200/80 dark:bg-zinc-700/60" />
-              <span className="h-5 w-14 animate-pulse rounded-full bg-zinc-200/80 dark:bg-zinc-700/60" />
+            <div aria-hidden className="flex items-center gap-6 sm:gap-8">
+              <Skeleton className="h-4 w-6 rounded-md" />
+              <Skeleton className="h-4 w-14 rounded-md" />
             </div>
           ) : status === "unauthenticated" ? (
             <Link href="/login" className={navText}>

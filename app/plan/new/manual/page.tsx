@@ -12,6 +12,7 @@ import RequireAuthForPlan from "@/features/auth/components/RequireAuthForPlan";
 import { SubpageGlassVeil } from "@/components/layout/SubpageGlassVeil";
 import { LandingConfetti } from "@/features/landing/components/LandingConfetti";
 import { NewPlanReplaceGate } from "@/features/plan/components/NewPlanReplaceGate";
+import { PlanContentSkeleton, PlanPageSkeleton } from "@/features/plan/components/PlanSkeletons";
 import PlanForm from "@/features/plan/components/PlanForm";
 import {
   PlanEditorLayout,
@@ -99,7 +100,7 @@ const ManualPlanFormEditor = ({
       <SubpageGlassVeil />
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         <PlanEditorLayout>
-          <NewPlanReplaceGate>
+          <NewPlanReplaceGate fallback={<PlanContentSkeleton variant="form" />}>
             <>
               <PlanEditorPageHeader
                 title="My Odyssey Plan"
@@ -169,33 +170,7 @@ const NewPlanManualPageContent = () => {
     return () => window.clearTimeout(clearTimer);
   }, []);
 
-  if (boot === "pending") {
-    return (
-      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas dark:bg-app-canvas-dark">
-        <LandingConfetti />
-        <SubpageGlassVeil />
-        <PlanEditorLayout>
-          <div className="relative z-10 flex w-full flex-col gap-4 py-1">
-            <div aria-hidden className="flex flex-col gap-3">
-              <span className="h-8 w-56 animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
-              <span className="h-5 w-72 max-w-full animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
-            </div>
-            <div
-              aria-hidden
-              className="rounded-2xl border border-zinc-200/80 bg-white p-5 dark:border-white/10 dark:bg-zinc-950"
-            >
-              <div className="flex flex-col gap-3">
-                <span className="h-10 w-full animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
-                <span className="h-10 w-full animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
-                <span className="h-10 w-11/12 animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
-                <span className="h-10 w-10/12 animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
-              </div>
-            </div>
-          </div>
-        </PlanEditorLayout>
-      </div>
-    );
-  }
+  if (boot === "pending") return <PlanPageSkeleton variant="form" />;
 
   const initialValues = boot.kind === "seeded" ? boot.values : undefined;
 
@@ -208,38 +183,13 @@ const NewPlanManualPageContent = () => {
 };
 
 const NewPlanManualPageInner = () => (
-  <Suspense
-    fallback={
-      <div className="relative flex flex-1 overflow-hidden bg-app-canvas dark:bg-app-canvas-dark">
-        <LandingConfetti />
-        <SubpageGlassVeil />
-        <PlanEditorLayout>
-          <div className="relative z-10 flex w-full flex-col gap-4 py-1">
-            <div aria-hidden className="flex flex-col gap-3">
-              <span className="h-8 w-56 animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
-              <span className="h-5 w-72 max-w-full animate-pulse rounded-md bg-zinc-200/80 dark:bg-zinc-700/60" />
-            </div>
-            <div
-              aria-hidden
-              className="rounded-2xl border border-zinc-200/80 bg-white p-5 dark:border-white/10 dark:bg-zinc-950"
-            >
-              <div className="flex flex-col gap-3">
-                <span className="h-10 w-full animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
-                <span className="h-10 w-full animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
-                <span className="h-10 w-11/12 animate-pulse rounded-xl bg-zinc-200/80 dark:bg-zinc-700/60" />
-              </div>
-            </div>
-          </div>
-        </PlanEditorLayout>
-      </div>
-    }
-  >
+  <Suspense fallback={<PlanPageSkeleton variant="form" />}>
     <NewPlanManualPageContent />
   </Suspense>
 );
 
 const NewPlanManualPage = () => (
-  <RequireAuthForPlan>
+  <RequireAuthForPlan fallback={<PlanPageSkeleton variant="form" />}>
     <NewPlanManualPageInner />
   </RequireAuthForPlan>
 );
