@@ -148,6 +148,20 @@ function PathHeaderFields({
         />
       </div>
       <div>
+        <label htmlFor={`path-tagline-${kind}`} className={sectionTitleClass}>
+          한 줄 설명
+        </label>
+        <p className={`${helpTextClass} mt-0.5`}>PDF 비교표의 경로 제목 아래에 들어가요.</p>
+        <input
+          id={`path-tagline-${kind}`}
+          type="text"
+          maxLength={PLAN_PATH_LIMITS.listItemLength}
+          value={content.tagline}
+          onChange={(e) => onChange({ tagline: e.target.value })}
+          className={`${fieldClass} mt-2`}
+        />
+      </div>
+      <div>
         <label htmlFor={`path-appeal-${kind}`} className={sectionTitleClass}>
           이 경로가 끌리는 이유
         </label>

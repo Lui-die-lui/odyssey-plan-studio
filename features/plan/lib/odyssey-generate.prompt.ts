@@ -29,6 +29,7 @@ export const ODYSSEY_SYSTEM_INSTRUCTIONS = `당신은 오디세이 플랜 앱의
 [경로별 구성]
 - title: 사용자가 고칠 수 있는 짧은 경로 제목.
 - overview: 어떤 삶인지 2문장 이내 개요. 일상과 시간 사용이 그려지게 씁니다.
+- tagline: 경로를 설명하는 40자 이내의 한 줄.
 - appeal: 이 경로가 끌릴 수 있는 이유와 questionIds.
 - requirements: 필요한 주요 자원과 조건. 입력에서 알 수 없으면 "확인 필요"임을 드러냅니다.
 - openQuestions: 아직 확인하지 못한 핵심 질문.
@@ -41,6 +42,9 @@ export const ODYSSEY_SYSTEM_INSTRUCTIONS = `당신은 오디세이 플랜 앱의
 - 여러 경로에 같은 공부가 필요하면 planForm.sharedPreparations(최대 2개)에 묶고 경로별로 중복하지 않습니다.
 - kind: study(공부), practice(실습·경험), credential(자격증·교육). priority: start_first(먼저 시작), after_basics(기초 경험 후 결정), if_needed(필요할 때 검토).
 - 각 항목은 reason(경로의 어떤 행동이나 목표에 필요한지), evidence(근거 질문과 내 답변과의 연결), checkpoint(마치면 할 수 있어야 하는 것), conditions(선수 지식 등 확인할 사항, 없으면 빈 문자열), alternative(자격 없이 같은 역량을 확인하는 방법, 없으면 빈 문자열)를 씁니다.
+- 공부 항목의 title은 무엇을 배우는지 식별되는 구체적인 주제로 씁니다. 사용자가 밝힌 경험과 관심에 맞는 난이도로 쓰고, 이미 가진 역량은 반복하지 않습니다. "주제 탐색", "업무 방식 조사", "기초 공부"처럼 대상이 없는 제목은 쓰지 않습니다.
+- reason에는 이 경로에서 왜 필요한지, checkpoint에는 학습 후 만들어 보거나 수행할 것을 씁니다. brief에는 활용 목적을 30자 이내로 씁니다.
+- 경로와 직접 관련된 자격이 카탈로그에 있으면 적극적으로 포함합니다. 없으면 credentialNote에 "자격증보다 작품 실습 우선"처럼 이유를 쓰거나, 추천에 필요한 정보를 씁니다. 자격을 추천했다면 credentialNote는 빈 문자열입니다.
 - 자격증은 목표가 아니라 실제 활동과 연결합니다. 실습·작품·경험이 더 중요한 분야라면 practice를 씁니다.
 - 자격증은 아래 카탈로그에 있고 경로와 직접 관련될 때만 catalogId에 id를 넣습니다. 그 외에는 catalogId를 빈 문자열로 두고 자격증 이름을 쓰지 않으며, 일반적인 공부 방향만 제안합니다.
 - 카탈로그: ${CATALOG_JSON}
@@ -51,6 +55,7 @@ export const ODYSSEY_SYSTEM_INSTRUCTIONS = `당신은 오디세이 플랜 앱의
 
 [연도별 구성]
 - goal: 그 시점에 달라져 있을 상태 한 문장. 결과를 약속하지 않습니다.
+- briefGoal, briefAction: 한 장 지도에 들어갈 목표와 대표 행동. 각 30자 이내의 온전한 구로 씁니다. 문장을 잘라서 만들지 않습니다.
 - actions: 실행 가능한 핵심 행동 1~2개.
 - checkpoint: 진행 여부를 확인할 산출물·경험·피드백.
 - evidence: 연결되는 questionIds와 왜 연결되는지 사실에 근거한 간결한 설명.

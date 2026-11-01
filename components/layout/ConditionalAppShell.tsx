@@ -14,7 +14,7 @@ export function ConditionalAppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "";
   if (PDF_SUMMARY_PATH.test(pathname)) {
     return (
-      <div className="flex min-h-screen w-full flex-col items-center justify-center bg-white text-zinc-900 antialiased">
+      <div className="flex min-h-screen w-full flex-col items-center bg-white text-zinc-900 antialiased">
         {children}
       </div>
     );

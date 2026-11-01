@@ -90,6 +90,8 @@ export function mapYearToDto(y: {
           rationale: y.aiGuidance.rationale,
           evidenceQuestionIds: y.aiGuidance.evidenceQuestionIds,
           pivotCondition: y.aiGuidance.pivotCondition,
+          briefGoal: y.aiGuidance.briefGoal,
+          briefAction: y.aiGuidance.briefAction,
         }
       : undefined,
     goals: [...y.goals]
@@ -127,6 +129,7 @@ type DbPreparation = {
   kind: string;
   priority: string;
   reason: string;
+  brief: string;
   basis: string;
   evidenceQuestionIds: string[];
   checkpoint: string;
@@ -140,6 +143,7 @@ const mapPreparation = (p: DbPreparation): PlanPreparation => ({
   kind: p.kind as PlanPreparation["kind"],
   priority: p.priority as PlanPreparation["priority"],
   reason: p.reason,
+  brief: p.brief,
   basis: p.basis,
   evidenceQuestionIds: p.evidenceQuestionIds,
   checkpoint: p.checkpoint,
@@ -159,6 +163,8 @@ type DbPath = {
   kind: DbPathKind;
   title: string;
   overview: string;
+  tagline: string;
+  credentialNote: string;
   appeal: string;
   appealQuestionIds: string[];
   requirements: string[];
@@ -179,6 +185,8 @@ export function mapPathToDto(path: DbPath): PlanPathDto {
     kind: pathKindFromDb(path.kind),
     title: path.title,
     overview: path.overview,
+    tagline: path.tagline,
+    credentialNote: path.credentialNote,
     appeal: path.appeal,
     appealQuestionIds: path.appealQuestionIds,
     requirements: path.requirements,
@@ -204,6 +212,8 @@ export function mapPathPayloadToCreateData(path: PlanPathSavePayload) {
     kind: DB_PATH_KINDS[path.kind],
     title: path.title,
     overview: path.overview,
+    tagline: path.tagline,
+    credentialNote: path.credentialNote,
     appeal: path.appeal,
     appealQuestionIds: path.appealQuestionIds,
     requirements: path.requirements,

@@ -22,6 +22,9 @@ export type OdysseyPreparationContext = {
 };
 
 const TEXT_MAX = 400;
+const BRIEF_MAX = 60;
+/** Titles that name no topic; a person could not tell what to study from these. */
+const VAGUE_TITLE = /주제\s*탐색|업무\s*방식\s*조사|관심\s*분야|기초\s*공부|역량\s*강화$/;
 const UNLISTED_CREDENTIAL = /자격증|산업기사|기능사|기능장|면허|[가-힣]+기사\s*(시험|자격|취득)/;
 const REQUIRED_CLAIM = /필수|의무|반드시\s*(취득|보유|필요)/;
 const LINK = /https?:\/\/|www\./i;
@@ -85,6 +88,11 @@ export function validatePreparation(
   if (!PLAN_PREPARATION_PRIORITIES.includes(priority as PlanPreparationPriority)) {
     return fail(code("priority"));
   }
+  if (context && kind !== "credential" && VAGUE_TITLE.test(typeof title === "string" ? title : "")) {
+    return fail(code("vague_title"));
+  }
+  const brief = raw.brief ?? "";
+  if (!isText(brief, false) || brief.length > BRIEF_MAX) return fail(code("brief"));
   if (
     !isText(title) ||
     !isText(reason) ||
@@ -145,6 +153,7 @@ export function validatePreparation(
       kind: kind as PlanPreparationKind,
       priority: priority as PlanPreparationPriority,
       reason,
+      brief,
       basis: evidence.explanation,
       evidenceQuestionIds: evidence.questionIds as string[],
       checkpoint,

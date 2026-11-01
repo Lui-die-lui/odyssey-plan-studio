@@ -25,6 +25,7 @@ const study = {
   reason: "1년차 행동을 시작하려면 현장을 먼저 봐야 합니다.",
   evidence: { questionIds: ["q1"], explanation: "지금 하는 일을 답했습니다." },
   checkpoint: "현장의 하루를 설명할 수 있습니다.",
+  brief: "돌봄 현장 이해하기",
   conditions: "",
   alternative: "",
 };
@@ -62,7 +63,8 @@ const reason = (result: ReturnType<typeof check>) => (result.ok ? null : result.
 describe("catalog", () => {
   it("only lists entries with a source and a check date", () => {
     for (const entry of PLAN_PREPARATION_CATALOG) {
-      expect(entry.sourceUrl).toMatch(/^https:\/\/www\.law\.go\.kr\//);
+      expect(entry.sourceUrl).toMatch(/^https:\/\//);
+      if (entry.requirement === "required") expect(entry.basis).toMatch(/법 제\d+조/);
       expect(entry.checkedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(entry.keywords.length).toBeGreaterThan(0);
     }
@@ -154,8 +156,31 @@ describe("validatePreparation", () => {
   });
 });
 
+describe("specific study topics", () => {
+  it("rejects titles that name no topic", () => {
+    expect(reason(check({ ...study, title: "AI 개발 기초 주제 탐색" }))).toBe("preparation_vague_title");
+    expect(reason(check({ ...study, title: "관심 분야의 업무 방식 조사" }))).toBe("preparation_vague_title");
+  });
+
+  it("accepts a topic a person could look up", () => {
+    expect(check({ ...study, title: "RAG의 검색·응답 평가" }).ok).toBe(true);
+  });
+
+  it("recommends a relevant optional credential from the wider catalog", () => {
+    const raw = { ...credential, catalogId: "kr-sqld", alternative: "" };
+    const result = check(raw, {}, "백엔드 개발 경험을 살립니다");
+    expect(result.ok && result.value.title).toBe("SQL 개발자(SQLD)");
+    expect(reason(check(raw, {}, "도시를 옮겨 다니며 그림을 그립니다"))).toBe("preparation_unrelated");
+  });
+
+  it("never lets an optional credential be called required", () => {
+    const raw = { ...credential, catalogId: "kr-sqld", reason: "취업에 필수입니다." };
+    expect(reason(check(raw, {}, "백엔드 개발"))).toBe("preparation_unsourced_required");
+  });
+});
+
 describe("response limits", () => {
-  const item = { ...study, evidence: { questionIds: ["q1"], explanation: "근거" } };
+  const item = { ...study, evidence: { questionIds: ["q_path_a"], explanation: "근거" } };
 
   it("needs no preparation at all", () => {
     expect(validateOdysseyGenerateResponse(validResponse(), answeredIds).ok).toBe(true);

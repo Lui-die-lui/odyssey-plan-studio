@@ -107,6 +107,7 @@ describe.skipIf(!databaseUrl)("/api/my-plan persistence", () => {
       kind: "credential" as const,
       priority: "after_basics" as const,
       reason: "돌봄 일을 살펴봅니다.",
+      brief: "돌봄 현장 이해",
       basis: "경험을 답했습니다.",
       evidenceQuestionIds: ["q_assets"],
       checkpoint: "조건을 설명할 수 있습니다.",
@@ -122,6 +123,8 @@ describe.skipIf(!databaseUrl)("/api/my-plan persistence", () => {
 
     const saved = await load();
     expect(saved.paths[1].preparations).toEqual([item]);
+    expect(saved.paths[1].tagline).toBe(validResponse().planForm.paths[1]!.tagline);
+    expect(saved.paths[0].years[0].aiGuidance.briefGoal).toBe("직접 겪어 본 상태");
     expect(saved.sharedPreparations[0].title).toBe("공통 공부");
     expect(JSON.stringify(saved.sharedPreparations)).not.toContain("http");
 

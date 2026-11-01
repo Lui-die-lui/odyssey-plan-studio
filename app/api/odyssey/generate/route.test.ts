@@ -156,6 +156,7 @@ describe("POST /api/odyssey/generate", () => {
         kind: "credential",
         priority: "after_basics",
         reason: "돌봄 일을 위해 살펴봅니다.",
+        brief: "돌봄 현장 이해",
         evidence: { questionIds: ["q_assets"], explanation: "경험을 답했습니다." },
         checkpoint: "조건을 설명할 수 있습니다.",
         conditions: "",

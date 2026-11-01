@@ -68,10 +68,14 @@ model PlanPath {
 
   title             String
   overview          String   @default("")
+  /// One line for the PDF map; the overview stays the full description.
+  tagline           String   @default("")
   appeal            String   @default("")
   appealQuestionIds String[] @default([])
   requirements      String[] @default([])
   openQuestions     String[] @default([])
+  /// Why no credential is suggested, such as practice mattering more here.
+  credentialNote    String   @default("")
   /// User's comparison notes such as "attracted"; several paths may carry the same one.
   marks             String[] @default([])
 
@@ -107,6 +111,8 @@ model PlanPreparation {
   kind                String
   priority            String
   reason              String
+  /// One line for the PDF map: what the study is for.
+  brief               String   @default("")
   basis               String
   evidenceQuestionIds String[] @default([])
   checkpoint          String
@@ -216,6 +222,9 @@ model PlanYearAiGuidance {
   rationale           String
   evidenceQuestionIds String[]
   pivotCondition      String
+  /// Short forms for the PDF map, valid only while the generated goals are unedited.
+  briefGoal           String   @default("")
+  briefAction         String   @default("")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

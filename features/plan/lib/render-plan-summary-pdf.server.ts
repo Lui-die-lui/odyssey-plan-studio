@@ -1,7 +1,7 @@
 import { launchPdfBrowser } from "./puppeteer-browser";
 
-const MARGIN_MM_STR = "12mm";
-const MARGIN_MM_NUM = 12;
+const MARGIN_MM_STR = "8mm";
+const MARGIN_MM_NUM = 8;
 /** A4 landscape (mm): long × short */
 const A4_L_MM = 297;
 const A4_S_MM = 210;
@@ -11,12 +11,11 @@ function mmToCssPx(mm: number): number {
   return (mm * 96) / 25.4;
 }
 
-/** Below this scale text gets hard to read, so the rating panels move to the next page instead. */
-const MIN_PDF_SCALE = 0.75;
+/** The sheet is laid out at 10pt; a fuller plan may shrink to 9pt and no further. */
+const MIN_PDF_SCALE = 0.9;
 
 /**
- * Printable area inside 12mm margins on A4 landscape.
- * Used to derive a `scale` that fits the summary on its page; details flow after it.
+ * Printable area inside the margins on A4 landscape, used to fit the one-page sheet.
  */
 function printableInnerCssPx(): { w: number; h: number } {
   const innerWmm = A4_L_MM - 2 * MARGIN_MM_NUM;
@@ -47,7 +46,7 @@ export async function renderPlanSummaryPdfFromUrl(
     const content = await page.evaluate(() => {
       const root = document.querySelector("[data-pdf-root]");
       if (!root || !(root instanceof HTMLElement)) {
-        return { width: 1, summaryHeight: 1, yearGridHeight: 1 };
+        return { width: 1, summaryHeight: 1 };
       }
       const top = root.getBoundingClientRect().top;
       const paddingBottom = parseFloat(getComputedStyle(root).paddingBottom) || 0;
@@ -58,18 +57,13 @@ export async function renderPlanSummaryPdfFromUrl(
       return {
         width: Math.max(root.scrollWidth, root.offsetWidth, 1),
         summaryHeight: heightTo("[data-pdf-summary]"),
-        yearGridHeight: heightTo("[data-pdf-year-grid]"),
       };
     });
 
     /** Slightly under 1 avoids float edge cases that spawn a second blank/extra page. */
     const fitScale = (height: number) =>
       Math.min(inner.w / content.width, inner.h / height, 1) * 0.99;
-    const summaryScale = fitScale(content.summaryHeight);
-    const pdfScale =
-      summaryScale >= MIN_PDF_SCALE
-        ? summaryScale
-        : Math.max(MIN_PDF_SCALE, fitScale(content.yearGridHeight));
+    const pdfScale = Math.max(MIN_PDF_SCALE, fitScale(content.summaryHeight));
 
     const pdf = await page.pdf({
       format: "A4",

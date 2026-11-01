@@ -1,11 +1,13 @@
 "use client";
 
 import {
+  PLAN_PREPARATION_CREDENTIAL_TITLE,
   PLAN_PREPARATION_KIND_LABELS,
   PLAN_PREPARATION_LOOKUPS,
   PLAN_PREPARATION_NOTE,
   PLAN_PREPARATION_PRIORITY_LABELS,
   PLAN_PREPARATION_SHARED_TITLE,
+  PLAN_PREPARATION_STUDY_TITLE,
   PLAN_PREPARATION_TITLE,
   PLAN_PREPARATION_UNVERIFIED_LABEL,
   findPreparationCatalogEntry,
@@ -41,7 +43,7 @@ function PreparationItem({ item }: { item: PlanPreparation }) {
       </div>
       {entry ? (
         <p className="mt-1 text-xs text-ink-3">
-          근거 {entry.basis} ·{" "}
+          {entry.basis ? `근거 ${entry.basis} · ` : ""}
           <a
             href={entry.sourceUrl}
             target="_blank"
@@ -61,11 +63,16 @@ function PreparationItem({ item }: { item: PlanPreparation }) {
 export function PlanPreparationList({
   items,
   shared,
+  credentialNote,
 }: {
   items: PlanPreparation[];
   shared: PlanPreparation[];
+  credentialNote: string;
 }) {
-  if (!items.length && !shared.length) return null;
+  if (!items.length && !shared.length && !credentialNote) return null;
+
+  const studies = items.filter((item) => item.kind !== "credential");
+  const credentials = items.filter((item) => item.kind === "credential");
 
   return (
     <details>
@@ -73,13 +80,32 @@ export function PlanPreparationList({
         {PLAN_PREPARATION_TITLE}
       </summary>
       <p className="mb-3 text-sm leading-relaxed text-ink-3">{PLAN_PREPARATION_NOTE}</p>
-      {items.length ? (
-        <ul className="flex flex-col gap-4">
-          {items.map((item) => (
-            <PreparationItem key={item.title} item={item} />
-          ))}
-        </ul>
-      ) : null}
+      <section>
+        <h4 className="text-sm font-semibold text-ink">{PLAN_PREPARATION_STUDY_TITLE}</h4>
+        {studies.length ? (
+          <ul className="mt-2 flex flex-col gap-4">
+            {studies.map((item) => (
+              <PreparationItem key={item.title} item={item} />
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 text-sm text-ink-3">먼저 작은 실험으로 필요한 공부를 찾아보세요.</p>
+        )}
+      </section>
+      <section className="mt-4">
+        <h4 className="text-sm font-semibold text-ink">{PLAN_PREPARATION_CREDENTIAL_TITLE}</h4>
+        {credentials.length ? (
+          <ul className="mt-2 flex flex-col gap-4">
+            {credentials.map((item) => (
+              <PreparationItem key={item.title} item={item} />
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 text-sm text-ink-2">
+            {credentialNote || "희망 직무가 정해지면 필요한 자격을 확인해 보세요."}
+          </p>
+        )}
+      </section>
       {shared.length ? (
         <section className="mt-4">
           <h4 className="text-sm font-medium text-ink-3">{PLAN_PREPARATION_SHARED_TITLE}</h4>

@@ -35,6 +35,8 @@ export function mapOdysseyAiPlanFormToPlanFormValues(
         rationale: row.evidence.explanation,
         evidenceQuestionIds: row.evidence.questionIds,
         pivotCondition: row.pivotCondition,
+        briefGoal: row.briefGoal,
+        briefAction: row.briefAction,
       },
     };
   });

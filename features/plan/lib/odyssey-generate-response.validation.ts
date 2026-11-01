@@ -46,6 +46,11 @@ type IsKnownQuestionId = (id: string) => boolean;
 const MAX_EVIDENCE_IDS = 6;
 const MAX_AI_ACTIONS_PER_YEAR = 2;
 const MAX_AI_EXPERIMENTS = 3;
+const BRIEF_MAX = 60;
+
+/** Older drafts have no briefs, so a missing one is fine but a long one is not. */
+const isBrief = (v: unknown): v is string | undefined =>
+  v === undefined || (typeof v === "string" && v.trim().length <= BRIEF_MAX);
 
 /** 두 경로의 목표·행동이 이 비율 이상 겹치면 표현만 바꾼 같은 계획으로 봅니다. */
 const MAX_PATH_SIMILARITY = 0.7;
@@ -202,6 +207,7 @@ function validateYear(
     return fail(code("keywords"));
   }
   if ([...actions, checkpoint].some(isVague)) return fail(code("vague"));
+  if (!isBrief(item.briefGoal) || !isBrief(item.briefAction)) return fail(code("brief"));
 
   return {
     ok: true,
@@ -213,6 +219,8 @@ function validateYear(
       evidence: { questionIds: evidence.questionIds, explanation: evidence.explanation },
       pivotCondition,
       keywords,
+      briefGoal: (item.briefGoal as string | undefined) ?? "",
+      briefAction: (item.briefAction as string | undefined) ?? "",
     },
   };
 }
@@ -302,6 +310,7 @@ function validatePath(
 
   if (!isText(title, PLAN_PATH_LIMITS.title)) return fail(`${prefix}title`);
   if (!isText(overview, PLAN_PATH_LIMITS.text)) return fail(`${prefix}overview`);
+  if (!isBrief(raw.tagline) || !isBrief(raw.credentialNote)) return fail(`${prefix}brief`);
   if (
     !isRecord(appeal) ||
     !isText(appeal.text, PLAN_PATH_LIMITS.text) ||
@@ -337,6 +346,8 @@ function validatePath(
     ok: true,
     value: {
       kind: kind as PlanPathKind,
+      tagline: (raw.tagline as string | undefined) ?? "",
+      credentialNote: (raw.credentialNote as string | undefined) ?? "",
       preparations: preparations.value,
       title,
       overview,

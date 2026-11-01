@@ -35,6 +35,8 @@ describe("AI draft to form", () => {
       rationale: draft().years[0].evidence.explanation,
       evidenceQuestionIds: ["q_path_a", "q_time"],
       pivotCondition: draft().years[0].pivotCondition,
+      briefGoal: draft().years[0].briefGoal,
+      briefAction: draft().years[0].briefAction,
     });
   });
 
@@ -82,6 +84,7 @@ describe("sessionStorage drafts", () => {
         kind: "credential",
         priority: "after_basics",
         reason: "살펴봅니다.",
+        brief: "",
         basis: "답변",
         evidenceQuestionIds: ["q1"],
         checkpoint: "설명할 수 있습니다.",

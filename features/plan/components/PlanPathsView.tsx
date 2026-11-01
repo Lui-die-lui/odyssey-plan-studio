@@ -103,7 +103,11 @@ function PathDetails({
         </section>
       ) : null}
 
-      <PlanPreparationList items={path.preparations} shared={sharedPreparations} />
+      <PlanPreparationList
+        items={path.preparations}
+        shared={sharedPreparations}
+        credentialNote={path.credentialNote}
+      />
     </div>
   );
 }

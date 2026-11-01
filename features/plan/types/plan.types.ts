@@ -22,6 +22,9 @@ export type PlanYearAiGuidance = {
   rationale: string;
   evidenceQuestionIds: string[];
   pivotCondition: string;
+  /** Short forms for the one-page PDF; empty in older data. */
+  briefGoal?: string;
+  briefAction?: string;
 };
 
 /** API + persisted shape for one odyssey year. */
@@ -63,6 +66,8 @@ export type PlanPreparation = {
   kind: PlanPreparationKind;
   priority: PlanPreparationPriority;
   reason: string;
+  /** One line for the PDF: what this is for. */
+  brief: string;
   basis: string;
   evidenceQuestionIds: string[];
   checkpoint: string;
@@ -75,10 +80,13 @@ export type PlanPathContent = {
   kind: PlanPathKind;
   title: string;
   overview: string;
+  tagline: string;
   appeal: string;
   appealQuestionIds: string[];
   requirements: string[];
   openQuestions: string[];
+  /** Why no credential is suggested; empty when one is. */
+  credentialNote: string;
   experiments: PlanPathExperiment[];
   preparations: PlanPreparation[];
   /** How the whole path feels now; never copied from yearly scores. */

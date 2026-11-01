@@ -76,12 +76,16 @@ export const validYear = (yearIndex: number, kind: PlanPathKind = "continue") =>
   },
   pivotCondition: "맞지 않으면 다른 경로와 비교합니다.",
   keywords: ["기록"],
+  briefGoal: "직접 겪어 본 상태",
+  briefAction: "주 3시간 시험하기",
 });
 
 export const validPath = (kind: PlanPathKind) => ({
   kind,
   title: `${kind} 경로`,
   overview: `${PATH_THEMES[kind]}를 중심으로 지내는 5년입니다.`,
+  tagline: PATH_THEMES[kind],
+  credentialNote: "자격증보다 실습 우선",
   appeal: { text: "답변과 연결됩니다.", questionIds: ["q_path_a"] },
   requirements: ["주 3시간"],
   openQuestions: ["이 생활이 나에게 맞을까요?"],

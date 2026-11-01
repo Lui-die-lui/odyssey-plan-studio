@@ -124,7 +124,19 @@ const parseAiGuidance = (raw: unknown): PlanYearAiGuidance | null => {
   ) {
     return null;
   }
-  return { sourceGoalTexts, checkpoint, rationale, evidenceQuestionIds, pivotCondition };
+  const briefGoal = o.briefGoal ?? "";
+  const briefAction = o.briefAction ?? "";
+  if (!isBoundedText(briefGoal, PLAN_PATH_LIMITS.listItemLength)) return null;
+  if (!isBoundedText(briefAction, PLAN_PATH_LIMITS.listItemLength)) return null;
+  return {
+    sourceGoalTexts,
+    checkpoint,
+    rationale,
+    evidenceQuestionIds,
+    pivotCondition,
+    briefGoal,
+    briefAction,
+  };
 };
 
 const parseBoundedStringList = (
@@ -285,6 +297,7 @@ const parsePreparations = (raw: unknown, max: number): PlanPreparation[] | null 
       !PLAN_PREPARATION_PRIORITIES.includes(p.priority as PlanPreparationPriority) ||
       !isBoundedText(p.title, PLAN_PATH_LIMITS.title) ||
       !isBoundedText(p.reason, text) ||
+      !isBoundedText(p.brief ?? "", text) ||
       !isBoundedText(p.basis, text) ||
       !isBoundedText(p.checkpoint, text) ||
       !isBoundedText(p.conditions, text) ||
@@ -300,6 +313,7 @@ const parsePreparations = (raw: unknown, max: number): PlanPreparation[] | null 
       kind: p.kind as PlanPreparationKind,
       priority: p.priority as PlanPreparationPriority,
       reason: p.reason,
+      brief: (p.brief as string | undefined) ?? "",
       basis: p.basis,
       evidenceQuestionIds: p.evidenceQuestionIds as string[],
       checkpoint: p.checkpoint,
@@ -322,6 +336,8 @@ function parsePath(raw: unknown): ParsedList<PlanPathSavePayload> {
     !isBoundedText(p.title, PLAN_PATH_LIMITS.title) ||
     !p.title.trim() ||
     !isBoundedText(p.overview, PLAN_PATH_LIMITS.text) ||
+    !isBoundedText(p.tagline ?? "", PLAN_PATH_LIMITS.text) ||
+    !isBoundedText(p.credentialNote ?? "", PLAN_PATH_LIMITS.text) ||
     !isBoundedText(p.appeal, PLAN_PATH_LIMITS.text)
   ) {
     return invalid(`Invalid text for path ${kind}.`);
@@ -365,6 +381,8 @@ function parsePath(raw: unknown): ParsedList<PlanPathSavePayload> {
       kind,
       title: p.title,
       overview: p.overview,
+      tagline: (p.tagline as string | undefined) ?? "",
+      credentialNote: (p.credentialNote as string | undefined) ?? "",
       appeal: p.appeal,
       appealQuestionIds: ids as string[],
       requirements: p.requirements,

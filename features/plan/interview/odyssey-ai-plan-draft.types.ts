@@ -22,6 +22,9 @@ export type OdysseyAiPlanYearDraft = {
   /** 어떤 결과면 이후 계획을 바꿀지 */
   pivotCondition: string;
   keywords: string[];
+  /** 한 장 PDF용 짧은 표현. 이전 초안에는 없을 수 있습니다. */
+  briefGoal: string;
+  briefAction: string;
 };
 
 export type OdysseyAiPathExperiment = {
@@ -33,6 +36,8 @@ export type OdysseyAiPathDraft = {
   kind: PlanPathKind;
   title: string;
   overview: string;
+  tagline: string;
+  credentialNote: string;
   appeal: { text: string; questionIds: string[] };
   requirements: string[];
   openQuestions: string[];
