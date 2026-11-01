@@ -127,7 +127,7 @@ Last updated: 2026-03-23
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| POST | `/api/internal/users/withdrawal-cleanup` | Internal token | 유예 만료 계정 하드 삭제 |
+| GET, POST | `/api/internal/users/withdrawal-cleanup` | Internal token / Cron | 유예 만료 계정 하드 삭제 |
 
 ---
 
@@ -302,12 +302,12 @@ Response:
 
 ---
 
-### 4.7 `POST /api/internal/users/withdrawal-cleanup` (INTERNAL)
+### 4.7 `GET, POST /api/internal/users/withdrawal-cleanup` (INTERNAL)
 
 인증:
 
 - 헤더: `x-internal-token: <WITHDRAWAL_CLEANUP_SECRET>`
-- 또는 쿼리: `?token=<WITHDRAWAL_CLEANUP_SECRET>`
+- 또는 헤더: `Authorization: Bearer <CRON_SECRET>` (Vercel Cron이 자동으로 전송)
 
 Response:
 

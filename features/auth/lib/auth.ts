@@ -37,31 +37,14 @@ export const authOptions: NextAuthOptions = {
       if (!account?.provider || !account.providerAccountId) return true;
       logPrismaDatasourceUsage("nextauth.signIn");
 
-      type WithdrawalUserRow = {
-        status?: "ACTIVE" | "PENDING_DELETION" | null;
-        hardDeleteAt?: Date | null;
-        role?: "USER" | "ADMIN" | null;
-      } | null;
-
-      const userDelegate = prisma.user as unknown as {
-        findUnique: (args: {
-          where: unknown;
-          select: { status: true; hardDeleteAt: true; role: true };
-        }) => Promise<WithdrawalUserRow>;
-      };
-
-      const dbUser = await userDelegate.findUnique({
+      const dbUser = await prisma.user.findUnique({
         where: {
           provider_providerUserId: {
             provider: account.provider,
             providerUserId: account.providerAccountId,
           },
         },
-        select: {
-          status: true,
-          hardDeleteAt: true,
-          role: true,
-        },
+        select: { status: true },
       });
 
       if (dbUser?.status === "PENDING_DELETION") return false;
@@ -72,11 +55,7 @@ export const authOptions: NextAuthOptions = {
       if (user && account?.provider && account.providerAccountId) {
         logPrismaDatasourceUsage("nextauth.jwt");
         const now = new Date();
-        const upsertDelegate = prisma.user as unknown as {
-          upsert: (args: unknown) => Promise<{ id: string; role?: "USER" | "ADMIN" | null }>;
-        };
-
-        const dbUser = await upsertDelegate.upsert({
+        const dbUser = await prisma.user.upsert({
           where: {
             provider_providerUserId: {
               provider: account.provider,
@@ -99,7 +78,7 @@ export const authOptions: NextAuthOptions = {
           },
         });
         token.dbUserId = dbUser.id;
-        token.role = dbUser.role === "ADMIN" ? "ADMIN" : "USER";
+        token.role = dbUser.role;
       }
       return token;
     },

@@ -43,7 +43,9 @@ export function useOdysseyInterview() {
   const [awaitingAiFollowUp, setAwaitingAiFollowUp] = useState(true);
 
   const answersRef = useRef(answers);
-  answersRef.current = answers;
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
 
   const followUpTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const submitLockRef = useRef(false);
@@ -56,7 +58,6 @@ export function useOdysseyInterview() {
   }, []);
 
   const scheduleFirstQuestion = useCallback(() => {
-    setAwaitingAiFollowUp(true);
     const id = setTimeout(() => {
       setMessages([
         {
@@ -187,6 +188,7 @@ export function useOdysseyInterview() {
     setMessages(initialMessages());
     setCurrentQuestionId(firstQuestion.id);
     setValidationError(null);
+    setAwaitingAiFollowUp(true);
     scheduleFirstQuestion();
   }, [clearFollowUpTimeouts, scheduleFirstQuestion]);
 

@@ -154,6 +154,8 @@ const NewPlanManualPageContent = () => {
   useLayoutEffect(() => {
     const draft = peekOdysseyAiPlanDraftFromSession();
     if (draft) {
+      // sessionStorage is client-only, so this cannot run as an initial state without a hydration mismatch.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setBoot({
         kind: "seeded",
         values: mapOdysseyAiPlanFormToPlanFormValues(draft),

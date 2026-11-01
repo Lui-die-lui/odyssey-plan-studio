@@ -39,7 +39,7 @@
 - 데이터 흐름: OAuth provider callback -> `signIn` 검사 -> `jwt`에서 `User` upsert/lastLoginAt 갱신 -> `session`에 user id/role 주입.
 - 연관 기능: Admin 권한 검사, 플랜 CRUD API 인증, 탈퇴 상태 차단.
 - 구현 상태: 완료
-- 비고: `PENDING_DELETION` 사용자는 `signIn` 단계에서 차단된다.
+- 비고: `PENDING_DELETION` 사용자는 `signIn`에서 차단되고, 기존 세션도 `getActiveSessionUser`가 API/페이지에서 거부한다.
 
 ### 로그인 완료 라우트(returnTo 정리) 및 역할별 리다이렉트
 - 설명: 인증 완료 후 안전한 경로로 이동시키고, ADMIN은 대시보드로 우선 라우팅한다.
@@ -59,6 +59,7 @@
   - `proxy.ts`: `/admin/*` 미들웨어 수준 토큰 role 검사.
   - `app/admin/layout.tsx`: 서버 세션 기반 admin 렌더 가드.
   - `features/admin/lib/admin-guard.ts`: admin API 공통 가드.
+  - `features/auth/lib/session-user.ts`: DB 기준 활성 사용자/역할 조회.
 - 데이터 흐름: 경로 진입 -> 토큰/세션/role 검증 -> 허용 또는 redirect/401/403.
 - 연관 기능: 모든 plan/admin 페이지 및 admin API.
 - 구현 상태: 완료
@@ -192,7 +193,7 @@
 - 데이터 흐름: 요청 -> auth/user/block/quota 검사 -> OpenAI call -> 응답 파싱 -> 성공/실패 로깅.
 - 연관 기능: quota 조회, admin AI 제어, AI 요청 통계.
 - 구현 상태: 완료
-- 비고: 모델은 `gpt-5.4-mini` 사용, 월간 quota는 서버 트랜잭션에서 차감.
+- 비고: 모델은 `gpt-6-luna` 사용, 월간 quota는 서버 트랜잭션에서 차감하고 생성 실패 시 환불한다.
 
 ### AI 초안 임시 저장(브리지) 및 수동편집 전환
 - 설명: 생성된 planForm을 sessionStorage에 저장한 뒤 수동 작성 화면에서 초기값으로 불러온다.
@@ -227,7 +228,8 @@
 - 설명: 현재 사용자 기준으로 플랜을 조회하고, 저장 시 5개 연차 전체를 검증/업데이트한다.
 - 사용자 역할: 저장/조회의 일관성 보장(필수 연차 누락, 길이/개수 제한 방지).
 - 관련 파일:
-  - `app/api/my-plan/route.ts`: GET/POST + 서버 검증 + transaction.
+  - `app/api/my-plan/route.ts`: GET/POST + transaction.
+  - `features/plan/lib/plan-save.validation.ts`: 저장 요청 서버 검증.
   - `features/plan/lib/plan-db.server.ts`: DB include/query + response mapping.
   - `features/plan/types/plan.types.ts`: API 요청/응답 타입.
   - `features/plan/constants/plan.constants.ts`: 점수/텍스트/개수 제한 상수.
@@ -327,7 +329,7 @@
 
 ### 사용자 탈퇴 요청(소프트 삭제 예약)
 - 설명: 사용자가 탈퇴를 요청하면 즉시 삭제하지 않고 7일 유예 상태로 전환한다.
-- 사용자 역할: 탈퇴 요청/취소 기간을 갖는 안전한 계정 종료.
+- 사용자 역할: 7일 유예 후 삭제되는 계정 종료. 앱에서 탈퇴 취소는 지원하지 않는다.
 - 관련 파일:
   - `app/my-plan/page.tsx`: 탈퇴 모달/요청 버튼.
   - `app/api/account/withdraw/route.ts`: `PENDING_DELETION`, `hardDeleteAt` 업데이트.
@@ -343,10 +345,10 @@
 - 관련 파일:
   - `app/api/internal/users/withdrawal-cleanup/route.ts`: 토큰 검증 + `deleteMany`.
   - `prisma/schema.prisma`: Cascade로 연관 plan 데이터 함께 삭제.
-- 데이터 흐름: 내부 요청(header/query token) -> 조건 삭제(`hardDeleteAt <= now`) -> 삭제 건수 응답.
+- 데이터 흐름: Vercel Cron 또는 내부 요청(header token) -> 조건 삭제(`hardDeleteAt <= now`) -> 삭제 건수 응답.
 - 연관 기능: 탈퇴 요청 API.
 - 구현 상태: 완료
-- 비고: `WITHDRAWAL_CLEANUP_SECRET` 누락 시 인증 실패.
+- 비고: `vercel.json`의 cron이 매일 호출한다. `CRON_SECRET`, `WITHDRAWAL_CLEANUP_SECRET`이 없으면 해당 방식의 인증은 실패한다.
 
 ### 계정 탈퇴 안내 페이지(축소 placeholder)
 - 설명: `/account/withdraw`는 실제 처리 화면이 아니라 안내/리다이렉트 역할로 축소되어 있다.
@@ -466,14 +468,7 @@
 - 9) 관리자 대시보드(KPI/추이/AI 제어/사용자 관리)
 - 10) 탈퇴 예약(PENDING_DELETION) + 내부 cleanup 하드삭제 API
 
-## 아직 비어 있거나 덜 구현된 기능 추정
-- `features/plan/components/EmptyPlanToastHandler.tsx`: 미구현 추정(파일 비어 있음)
-- `features/plan/components/PlanIntroSection.tsx`: 미구현 추정
-- `features/plan/components/PlanQuestionStep.tsx`: 미구현 추정
-- `features/plan/components/PlanActionButtons.tsx`: 미구현 추정
-- `features/plan/components/StrengthWeaknessCard.tsx`: 미구현 추정
-- `features/plan/components/YearSummaryCard.tsx`: 미구현 추정
-- `features/plan/hooks/useSavePlan.ts`: 미구현 추정
+## 덜 구현된 기능 추정
 - `features/plan/interview/odyssey-interview.flow.ts`: 더미 플로우 주석으로 보아 질문 설계 고도화 여지 존재(부분 구현 추정)
 
 ## 구조상 결합도가 높은 기능들
@@ -483,9 +478,6 @@
 - PDF 출력(`my-plan` 버튼, summary-pdf API, printable page, puppeteer 렌더)
 
 ## 리팩토링 우선순위 후보
-- 1) 빈 파일/미사용 컴포넌트 정리(혼란도 감소, 탐색 비용 절감)
-- 2) AI 인터뷰 플로우 더미 정의를 실제 시나리오로 교체(도메인 품질 향상)
-- 3) auth/admin 가드 중복 책임 명확화(미들웨어 vs 레이아웃 vs API guard 역할 문서화)
-- 4) `/api/my-plan`의 대형 검증 로직 분리(validator 모듈화로 테스트 용이성 증가)
-- 5) 운영 스크립트(`set-admin-role.js`)를 공식 scripts 체계로 편입 및 안전장치 추가
-
+- 1) AI 인터뷰 플로우 더미 정의를 실제 시나리오로 교체(도메인 품질 향상)
+- 2) 미사용 `YearPlanItem` 테이블 제거 마이그레이션 추가
+- 3) 운영 스크립트(`set-admin-role.js`)를 공식 scripts 체계로 편입 및 안전장치 추가

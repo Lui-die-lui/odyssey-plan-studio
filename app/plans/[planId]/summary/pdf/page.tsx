@@ -1,7 +1,6 @@
 import { notFound, redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
 
-import { authOptions } from "@/features/auth/lib/auth";
+import { getActiveSessionUser } from "@/features/auth/lib/session-user";
 import { PlanSummaryPdfDocument } from "@/features/plan/components/PlanSummaryPdfDocument";
 import {
   getPlanByIdForUser,
@@ -16,16 +15,15 @@ export const dynamic = "force-dynamic";
 
 export default async function PlanSummaryPdfPage({ params }: PageProps) {
   const { planId } = await params;
-  const session = await getServerSession(authOptions);
-  const userId = session?.user?.id;
+  const user = await getActiveSessionUser();
 
-  if (typeof userId !== "string" || !userId.length) {
+  if (!user) {
     redirect(
       `/login?callbackUrl=${encodeURIComponent(`/plans/${planId}/summary/pdf`)}`,
     );
   }
 
-  const row = await getPlanByIdForUser(planId, userId);
+  const row = await getPlanByIdForUser(planId, user.id);
   if (!row) notFound();
 
   return (

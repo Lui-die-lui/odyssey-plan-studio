@@ -1,0 +1,9 @@
+{
+  "regions": ["icn1"],
+  "crons": [
+    {
+      "path": "/api/internal/users/withdrawal-cleanup",
+      "schedule": "0 18 * * *"
+    }
+  ]
+}

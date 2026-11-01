@@ -128,12 +128,15 @@ export function InterviewComposer({
     [choices],
   );
 
-  useEffect(() => {
+  // Reset drafts during render when the question changes, avoiding a stale frame.
+  const [draftQuestionId, setDraftQuestionId] = useState(question?.id);
+  if (draftQuestionId !== question?.id) {
+    setDraftQuestionId(question?.id);
     setSelectedSingle(null);
     setSelectedMulti(new Set());
     setOtherDraft("");
     setTextEntryOpen(false);
-  }, [question?.id]);
+  }
 
   const otherSelectedSingle = selectedSingle === ODYSSEY_OTHER_CHOICE_ID;
   const otherSelectedMulti = selectedMulti.has(ODYSSEY_OTHER_CHOICE_ID);

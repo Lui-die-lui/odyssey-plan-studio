@@ -11,7 +11,7 @@ const brandText =
   "text-sm font-normal tracking-tight text-zinc-900 transition-colors hover:text-black dark:text-zinc-100 dark:hover:text-zinc-50 font-landing-logo-serif-strong";
 
 const navText =
-  "text-xs font-medium uppercase tracking-[0.2em] text-zinc-600 transition-colors hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100";
+  "cursor-pointer text-xs font-medium uppercase tracking-[0.2em] text-zinc-600 transition-colors hover:text-black dark:text-zinc-400 dark:hover:text-zinc-100";
 
 /**
  * Top bar: site title (left) and auth actions (right).

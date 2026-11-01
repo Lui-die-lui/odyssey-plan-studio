@@ -1,22 +1,12 @@
 import { NextResponse } from "next/server";
 
+import { isAuthorizedInternalRequest } from "@/lib/internal-auth";
 import { prisma } from "@/lib/prisma";
 
 const MS_IN_7_DAYS = 7 * 24 * 60 * 60 * 1000;
 
-async function verifyInternalRequest(req: Request) {
-  const expected = process.env.WITHDRAWAL_CLEANUP_SECRET;
-  if (!expected) return false;
-
-  const headerToken = req.headers.get("x-internal-token");
-  const queryToken = new URL(req.url).searchParams.get("token");
-
-  return Boolean(headerToken && headerToken === expected) || Boolean(queryToken && queryToken === expected);
-}
-
-export async function POST(req: Request) {
-  const ok = await verifyInternalRequest(req);
-  if (!ok) {
+async function runCleanup(req: Request) {
+  if (!isAuthorizedInternalRequest(req)) {
     return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
   }
 
@@ -42,3 +32,11 @@ export async function POST(req: Request) {
   });
 }
 
+/** Vercel Cron invokes jobs with GET. */
+export async function GET(req: Request) {
+  return runCleanup(req);
+}
+
+export async function POST(req: Request) {
+  return runCleanup(req);
+}

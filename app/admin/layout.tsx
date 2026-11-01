@@ -1,15 +1,13 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
 
 import { AdminSidebar } from "@/features/admin/components/admin-sidebar";
-import { authOptions } from "@/features/auth/lib/auth";
+import { getActiveSessionUser } from "@/features/auth/lib/session-user";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-  const session = await getServerSession(authOptions);
-  const user = session?.user;
+  const user = await getActiveSessionUser();
 
-  if (!user?.id) {
+  if (!user) {
     redirect("/login?callbackUrl=%2Fadmin%2Fdashboard");
   }
   if (user.role !== "ADMIN") {

@@ -54,7 +54,7 @@ function KakaoMark({ className }: { className?: string }) {
 }
 
 const circleBtn =
-  "flex size-14 shrink-0 items-center justify-center rounded-full shadow-sm ring-1 ring-black/[0.06] transition-colors transition-transform active:scale-[0.97] " +
+  "flex size-14 shrink-0 cursor-pointer items-center justify-center rounded-full shadow-sm ring-1 ring-black/[0.06] transition-colors transition-transform active:scale-[0.97] " +
   "dark:shadow-zinc-950/20 " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 dark:ring-white/10 dark:focus-visible:ring-zinc-500 dark:focus-visible:ring-offset-zinc-950";
 

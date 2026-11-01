@@ -48,8 +48,7 @@ const toolName =
 
 // ===== 1) 민감 파일/경로 직접 접근 차단 =====
 const SENSITIVE_FILE_PATTERNS = [
-  /^\.env(?:\..*)?$/i,
-  /(^|\/)\.env(?:\.[A-Za-z0-9_-]+)?$/i,
+  /(^|\/)\.env(?:\.[\w.-]+)?$/i,
   /\.pem$/i,
   /\.key$/i,
   /\.p12$/i,
@@ -60,21 +59,9 @@ const SENSITIVE_FILE_PATTERNS = [
   /firebase-adminsdk.*\.json$/i,
 ];
 
-// 코드 파일은 예외 처리
-const CODE_FILE_PATTERNS = [
-  /\.(js|cjs|mjs|ts|cts|mts|jsx|tsx)$/i,
-  /prisma\.config\.ts$/i,
-];
-
-function isCodeFile(value) {
-  return CODE_FILE_PATTERNS.some((re) => re.test(value));
-}
-
 function isSensitivePath(value) {
   if (typeof value !== "string") return false;
   const normalized = normalize(value);
-
-  if (isCodeFile(normalized)) return false;
 
   return SENSITIVE_FILE_PATTERNS.some((re) => re.test(normalized));
 }
@@ -94,6 +81,7 @@ if (matchedSensitivePath) {
 // ===== 2) 터미널/쉘에서 비밀값 추출/출력 차단 =====
 const SECRET_ENV_NAMES = [
     "DATABASE_URL",
+    "DIRECT_URL",
     "OPENAI_API_KEY",
     "ANTHROPIC_API_KEY",
     "NEXTAUTH_SECRET",
@@ -103,15 +91,16 @@ const SECRET_ENV_NAMES = [
     "JWT_SECRET",
     "ACCESS_TOKEN_SECRET",
     "REFRESH_TOKEN_SECRET",
+    "WITHDRAWAL_CLEANUP_SECRET",
+    "CRON_SECRET",
   ];
-  
+
+const SECRET_ENV_ALTERNATION = SECRET_ENV_NAMES.join("|");
+
 const SUSPICIOUS_TERMINAL_PATTERNS = [
-  // 직접 파일 읽기
-  /\bcat\s+.+\.env(?:\.[A-Za-z0-9_-]+)?\b/i,
-  /\bless\s+.+\.env(?:\.[A-Za-z0-9_-]+)?\b/i,
-  /\bmore\s+.+\.env(?:\.[A-Za-z0-9_-]+)?\b/i,
-  /\btail\s+.+\.env(?:\.[A-Za-z0-9_-]+)?\b/i,
-  /\bhead\s+.+\.env(?:\.[A-Za-z0-9_-]+)?\b/i,
+  // 직접 파일 읽기 (bash / PowerShell / cmd)
+  /\b(?:cat|less|more|tail|head|type|bat|sed|awk|cp|copy|grep|rg|findstr|gc|Get-Content|Select-String|sls)\b[^\n]*\.env(?:\.[\w.-]+)?(?=$|[\s"'|;&>)])/i,
+  /<\s*\S*\.env(?:\.[\w.-]+)?(?=$|[\s"'|;&)])/i,
 
   // env 출력 계열
   /\bprintenv\b/i,
@@ -119,14 +108,14 @@ const SUSPICIOUS_TERMINAL_PATTERNS = [
   /\bset\b\s*(\||$)/i,
 
   // shell 변수 직접 출력
-  new RegExp(`\\becho\\s+\\$${SECRET_ENV_NAMES}\\b`, "i"),
-  new RegExp(`\\bprintf\\b.*\\$${SECRET_ENV_NAMES}\\b`, "i"),
+  new RegExp(`\\b(?:echo|Write-Output|Write-Host)\\s+\\$(?:env:)?(?:${SECRET_ENV_ALTERNATION})\\b`, "i"),
+  new RegExp(`\\bprintf\\b.*\\$(?:${SECRET_ENV_ALTERNATION})\\b`, "i"),
 
   // node / js
   /\bnode\b[\s\S]*process\.env\b/i,
   /\bconsole\.log\s*\(\s*process\.env\b/i,
-  new RegExp(`process\\.env\\.${SECRET_ENV_NAMES}`, "i"),
-  new RegExp(`process\\.env\\[['"]${SECRET_ENV_NAMES}['"]\\]`, "i"),
+  new RegExp(`process\\.env\\.(?:${SECRET_ENV_ALTERNATION})\\b`, "i"),
+  new RegExp(`process\\.env\\[['"](?:${SECRET_ENV_ALTERNATION})['"]\\]`, "i"),
 
   // python
   /\bpython(?:3)?\b[\s\S]*os\.getenv\s*\(/i,

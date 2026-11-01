@@ -1,13 +1,11 @@
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
-import { authOptions } from "@/features/auth/lib/auth";
+import { getActiveSessionUser } from "@/features/auth/lib/session-user";
 
 export async function requireAdminRequest() {
-  const session = await getServerSession(authOptions);
-  const user = session?.user;
+  const user = await getActiveSessionUser();
 
-  if (!user?.id) {
+  if (!user) {
     return { ok: false as const, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
   if (user.role !== "ADMIN") {

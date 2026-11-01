@@ -34,26 +34,27 @@
 
 ## 기술 스택
 
-- Next.js 16.2.0 (App Router)
+- Next.js 16.1.6 (App Router)
 - React 19
 - NextAuth 4 (OAuth2)
 - Prisma 7 + PostgreSQL
 - Tailwind CSS
 - Framer Motion (인터뷰/패널 애니메이션)
 - Recharts (어드민 차트)
-- OpenAI (초안 생성)
+- OpenAI (초안 생성, 모델은 `app/api/odyssey/generate/route.ts`에서 지정)
 - Puppeteer (PDF 렌더링)
 
 ---
 
 ## 배포 스택
 
-- 플랫폼: Vercel (Next.js App Router 서버/서버리스 실행)
+- 플랫폼: Vercel (함수 리전 `icn1`, `vercel.json`에서 지정)
 - 런타임 DB 접근: Prisma Client + `@prisma/adapter-pg`
-- 운영 DB: Supabase Postgres (Transaction Pooler `:6543` 권장)
-- 마이그레이션: Prisma Migrate (`npx prisma migrate deploy`)
+- 운영 DB: Supabase Postgres, 다른 앱과 프로젝트를 공유하므로 `odyssey` 스키마 사용 (앱은 Transaction Pooler `:6543`)
+- 마이그레이션: Prisma Migrate (`npx prisma migrate deploy`, `DIRECT_URL` 사용)
+- 탈퇴 계정 정리: Vercel Cron이 매일 03:00 KST에 cleanup API 호출
 - 인증: NextAuth (Vercel 환경변수 기반 OAuth 클라이언트 설정)
-- 배포 필수 환경변수: `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, OAuth Provider 키들, `OPENAI_API_KEY`, `WITHDRAWAL_CLEANUP_SECRET`
+- 배포 필수 환경변수: `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, OAuth Provider 키들, `OPENAI_API_KEY`, `WITHDRAWAL_CLEANUP_SECRET`, `CRON_SECRET`
 
 
 ---
@@ -66,7 +67,8 @@
 - `NEXT_PUBLIC_APP_URL`: 배포된 서비스의 기본 URL
 
 ### 데이터베이스
-- `DATABASE_URL`: PostgreSQL 연결 문자열
+- `DATABASE_URL`: 앱용 PostgreSQL 연결 문자열 (`schema=odyssey` 포함)
+- `DIRECT_URL`: 마이그레이션용 연결 문자열 (Session Pooler `:5432`, `schema=odyssey` 포함)
 
 ### OAuth Provider
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: Google OAuth 로그인용 키
@@ -74,7 +76,8 @@
 
 ### 외부 연동 / 내부 작업
 - `OPENAI_API_KEY`: OpenAI API 호출용 키
-- `WITHDRAWAL_CLEANUP_SECRET`: 내부 회원 정리(cleanup) API 인증용 토큰
+- `WITHDRAWAL_CLEANUP_SECRET`: 내부 회원 정리(cleanup) API 수동 호출용 토큰
+- `CRON_SECRET`: Vercel Cron이 cleanup API를 호출할 때 쓰는 토큰
 
 ---
 
@@ -149,5 +152,13 @@ npm run dev
 ```
 
 기본 접속: `http://localhost:3000`
+
+검증:
+
+```bash
+npx tsc --noEmit
+npm run lint
+npm test
+```
 
 ---
