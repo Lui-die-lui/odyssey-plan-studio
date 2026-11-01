@@ -304,7 +304,10 @@ function validatePath(
   context?: OdysseyPreparationContext,
 ): Validated<OdysseyAiPathDraft> {
   if (!isRecord(raw)) return fail("path_shape");
-  const { kind, title, overview, appeal, requirements, openQuestions } = raw;
+  const { kind, title, overview, appeal } = raw;
+  // No longer generated; drafts saved earlier may still carry them.
+  const requirements = raw.requirements ?? [];
+  const openQuestions = raw.openQuestions ?? [];
   if (!PLAN_PATH_KINDS.includes(kind as PlanPathKind)) return fail("path_kind");
   const prefix = `${kind as string}_`;
 
@@ -321,10 +324,7 @@ function validatePath(
   if (!isTextList(requirements, 5, PLAN_PATH_LIMITS.listItemLength)) {
     return fail(`${prefix}requirements`);
   }
-  if (
-    !isTextList(openQuestions, 4, PLAN_PATH_LIMITS.listItemLength) ||
-    openQuestions.length < 1
-  ) {
+  if (!isTextList(openQuestions, 4, PLAN_PATH_LIMITS.listItemLength)) {
     return fail(`${prefix}open_questions`);
   }
 

@@ -182,6 +182,14 @@ describe("specific study topics", () => {
 describe("response limits", () => {
   const item = { ...study, evidence: { questionIds: ["q_path_a"], explanation: "근거" } };
 
+  it("still reads drafts saved with requirements and open questions", () => {
+    const response = validResponse() as ReturnType<typeof validResponse>;
+    response.planForm.paths[0]!.requirements = ["주 3시간"] as never;
+    response.planForm.paths[0]!.openQuestions = ["맞을까요?"] as never;
+    const result = validateOdysseyGenerateResponse(response, answeredIds);
+    expect(result.ok && result.value.planForm.paths[0]!.openQuestions).toEqual(["맞을까요?"]);
+  });
+
   it("needs no preparation at all", () => {
     expect(validateOdysseyGenerateResponse(validResponse(), answeredIds).ok).toBe(true);
   });

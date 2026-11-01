@@ -92,7 +92,8 @@ function pathContent(path: PlanPathDto): PlanPathContent {
     appealQuestionIds: path.appealQuestionIds,
     requirements: path.requirements,
     openQuestions: path.openQuestions,
-    experiments: path.experiments,
+    // An older autosave can hold a blank row, and nothing on screen could fix it now.
+    experiments: path.experiments.filter((e) => e.action.trim() && e.learning.trim()),
     preparations: path.preparations,
     scores: path.scores,
     marks: path.marks,

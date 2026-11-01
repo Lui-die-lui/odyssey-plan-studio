@@ -161,7 +161,7 @@ describe("buildOneSheet", () => {
   it("keeps unrated short and real ratings visible", () => {
     expect(buildOneSheet(plan()).columns[0]!.rating).toBe("자기평가 전");
     const rated = path({ scores: { ...unrated, resources: 1 } });
-    expect(buildOneSheet(plan({ paths: [rated] })).columns[0]!.rating).toBe("현실 여건과 자원 1");
+    expect(buildOneSheet(plan({ paths: [rated] })).columns[0]!.rating).toBe("자기평가 여건 1");
   });
 
   it("keeps very long saved text within what one page can hold", () => {

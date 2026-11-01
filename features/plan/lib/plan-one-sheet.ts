@@ -4,7 +4,7 @@ import {
   PLAN_PREPARATION_UNVERIFIED_LABEL,
   findPreparationCatalogEntry,
 } from "../constants/plan-preparation.constants";
-import { PLAN_SCORE_KEYS, PLAN_SCORE_LABELS } from "../constants/plan-score.constants";
+import { PLAN_SCORE_KEYS, type PlanScoreKey } from "../constants/plan-score.constants";
 import type {
   PlanPathDto,
   PlanPreparation,
@@ -28,6 +28,14 @@ const PURPOSE_CHARS = 26;
 const NOTE_CHARS = 44;
 const STEP_CHARS = 56;
 const STUDIES_SHOWN = 2;
+
+/** Fits all four ratings on one supporting line. */
+const SHORT_SCORE_LABELS: Record<PlanScoreKey, string> = {
+  resources: "여건",
+  interest: "마음",
+  confidence: "자신감",
+  coherence: "일치감",
+};
 
 export const NO_CREDENTIAL_FALLBACK = "희망 직무가 정해지면 필요한 자격을 확인해 보세요";
 
@@ -103,7 +111,7 @@ const summarizeYears = (years: PlanYearDto[], chars = GOAL_CHARS) =>
 function summarizeRating(scores: PlanYearScores): string {
   const rated = PLAN_SCORE_KEYS.filter((key) => scores[key] !== null);
   if (!rated.length) return "자기평가 전";
-  return rated.map((key) => `${PLAN_SCORE_LABELS[key].ko} ${scores[key]}`).join(" · ");
+  return "자기평가 " + rated.map((key) => `${SHORT_SCORE_LABELS[key]} ${scores[key]}`).join(" · ");
 }
 
 function summarizeStudies(items: PlanPreparation[]) {

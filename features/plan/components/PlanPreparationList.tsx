@@ -89,7 +89,7 @@ export function PlanPreparationList({
             ))}
           </ul>
         ) : (
-          <p className="mt-1 text-sm text-ink-3">먼저 작은 실험으로 필요한 공부를 찾아보세요.</p>
+          <p className="mt-1 text-sm text-ink-3">1년차를 해보며 필요한 공부를 찾아보세요.</p>
         )}
       </section>
       <section className="mt-4">

@@ -79,7 +79,7 @@ export function OdysseyDraftSummaryView({
                 {path.title}
               </p>
               <p className="mt-1 text-sm leading-relaxed text-ink-2">{path.overview}</p>
-              <p className="mt-2 text-xs text-ink-3">먼저 해볼 작은 실험</p>
+              <p className="mt-2 text-xs text-ink-3">먼저 해볼 일</p>
               <p className="text-sm leading-relaxed text-ink-2">{path.experiments[0]?.action}</p>
             </li>
           ))}
@@ -100,7 +100,7 @@ export function OdysseyDraftSummaryView({
 
       <div className="flex flex-col gap-3 border-t border-line pt-5">
         <p className={helpTextClass}>
-          다음 화면에서 경로별 5년과 작은 실험을 고치고, 직접 평가한 뒤 저장할 수 있어요. 다시 만들면
+          다음 화면에서 경로별 5년을 고치고, 직접 평가한 뒤 저장할 수 있어요. 다시 만들면
           이번 달 이용 횟수를 1회 더 사용합니다.
         </p>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">

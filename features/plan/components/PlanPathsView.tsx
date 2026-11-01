@@ -31,20 +31,6 @@ const LEGACY_TAB = "legacy";
 const pathTabId = (key: string) => `plan-path-tab-${key}`;
 const PATH_PANEL_ID = "plan-path-panel";
 
-function TextList({ title, items }: { title: string; items: string[] }) {
-  if (!items.length) return null;
-  return (
-    <section>
-      <h3 className="text-sm font-medium text-ink-3">{title}</h3>
-      <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-5 text-[15px] leading-relaxed text-ink-2">
-        {items.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 function PathDetails({
   path,
   sharedPreparations,
@@ -79,30 +65,6 @@ function PathDetails({
         </section>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        <TextList title="필요한 자원과 조건" items={path.requirements} />
-        <TextList title="아직 확인하지 못한 질문" items={path.openQuestions} />
-      </div>
-
-      {path.experiments.length ? (
-        <section>
-          <h3 className="text-sm font-medium text-ink-3">작은 실험</h3>
-          <ul className="mt-1.5 flex flex-col gap-3">
-            {path.experiments.map((experiment, index) => (
-              <li key={index} className="border-l-2 border-line-strong pl-3">
-                <p className="text-[15px] leading-relaxed text-ink">
-                  {experiment.nextUp ? (
-                    <span className="mr-1.5 text-xs font-medium text-accent">먼저 해볼 실험</span>
-                  ) : null}
-                  {experiment.action}
-                </p>
-                <p className="text-sm leading-relaxed text-ink-3">확인할 것: {experiment.learning}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
       <PlanPreparationList
         items={path.preparations}
         shared={sharedPreparations}
@@ -113,12 +75,6 @@ function PathDetails({
 }
 
 function PathComparison({ paths }: { paths: PlanPathDto[] }) {
-  const nextExperiments = paths.flatMap((path) =>
-    path.experiments
-      .filter((experiment) => experiment.nextUp)
-      .map((experiment) => ({ kind: path.kind, action: experiment.action })),
-  );
-
   return (
     <section aria-labelledby="plan-path-compare" className="border-t border-line pt-6">
       <h2 id="plan-path-compare" className={sectionTitleClass}>
@@ -172,21 +128,6 @@ function PathComparison({ paths }: { paths: PlanPathDto[] }) {
         </table>
       </div>
 
-      {nextExperiments.length ? (
-        <div className="mt-5">
-          <h3 className="text-sm font-medium text-ink-3">먼저 시험해 볼 행동</h3>
-          <ul className="mt-1.5 flex flex-col gap-1.5">
-            {nextExperiments.map((experiment) => (
-              <li key={experiment.kind + experiment.action} className="text-[15px] leading-relaxed text-ink">
-                <span className="mr-1.5 font-medium text-ink-3">
-                  {PLAN_PATHS[experiment.kind].letter}
-                </span>
-                {experiment.action}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
     </section>
   );
 }

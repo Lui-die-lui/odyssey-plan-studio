@@ -7,7 +7,6 @@ import { Notice } from "@/components/common/Notice";
 import { computePlanFill } from "@/features/field/future-field-core";
 import { setFieldFill } from "@/features/field/future-field-store";
 import {
-  buttonClass,
   fieldClass,
   helpTextClass,
   sectionTitleClass,
@@ -82,47 +81,6 @@ function usePathEditors(forms: PlanPathForm[], autosaveScope: string) {
   };
 }
 
-function LinesField({
-  id,
-  label,
-  help,
-  value,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  help: string;
-  value: string[];
-  onChange: (lines: string[]) => void;
-}) {
-  // Blank lines stay while typing and are dropped from what gets saved.
-  const [text, setText] = useState(value.join("\n"));
-  return (
-    <div>
-      <label htmlFor={id} className={sectionTitleClass}>
-        {label}
-      </label>
-      <p className={`${helpTextClass} mt-0.5`}>{help}</p>
-      <textarea
-        id={id}
-        rows={3}
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          onChange(
-            e.target.value
-              .split("\n")
-              .map((line) => line.trim())
-              .filter(Boolean)
-              .slice(0, PLAN_PATH_LIMITS.listItems),
-          );
-        }}
-        className={`${fieldClass} mt-2 resize-none [field-sizing:content]`}
-      />
-    </div>
-  );
-}
-
 function PathHeaderFields({
   content,
   onChange,
@@ -185,15 +143,7 @@ function PathFooterFields({
   content: PlanPathContent;
   onChange: (patch: Partial<PlanPathContent>) => void;
 }) {
-  const { kind, experiments, marks, scores } = content;
-
-  const patchExperiment = (index: number, patch: Partial<PlanPathContent["experiments"][number]>) => {
-    onChange({
-      experiments: experiments.map((experiment, i) =>
-        i === index ? { ...experiment, ...patch } : experiment,
-      ),
-    });
-  };
+  const { kind, marks, scores } = content;
 
   const toggleMark = (mark: PlanPathMark) => {
     onChange({
@@ -203,94 +153,6 @@ function PathFooterFields({
 
   return (
     <div className="flex flex-col gap-6 border-t border-line pt-6">
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        <LinesField
-          key={`requirements-${kind}`}
-          id={`path-requirements-${kind}`}
-          label="필요한 자원과 조건"
-          help="한 줄에 하나씩 적어 주세요."
-          value={content.requirements}
-          onChange={(requirements) => onChange({ requirements })}
-        />
-        <LinesField
-          key={`questions-${kind}`}
-          id={`path-questions-${kind}`}
-          label="아직 확인하지 못한 질문"
-          help="한 줄에 하나씩 적어 주세요."
-          value={content.openQuestions}
-          onChange={(openQuestions) => onChange({ openQuestions })}
-        />
-      </div>
-
-      <section aria-labelledby={`path-experiments-${kind}`}>
-        <h2 id={`path-experiments-${kind}`} className={sectionTitleClass}>
-          작은 실험
-        </h2>
-        <p className={`${helpTextClass} mt-0.5`}>
-          큰 결정을 내리기 전에 이 삶의 일부를 경험해 보는 행동이에요.
-        </p>
-        <ul className="mt-3 flex flex-col gap-3">
-          {experiments.map((experiment, index) => (
-            <li key={index} className="rounded-lg border border-line bg-raised p-3">
-              <label className="text-xs text-ink-3" htmlFor={`exp-action-${kind}-${index}`}>
-                할 일
-              </label>
-              <textarea
-                id={`exp-action-${kind}-${index}`}
-                rows={1}
-                maxLength={PLAN_PATH_LIMITS.listItemLength}
-                value={experiment.action}
-                onChange={(e) => patchExperiment(index, { action: e.target.value })}
-                className={`${fieldClass} mt-1 resize-none [field-sizing:content]`}
-              />
-              <label className="mt-2 block text-xs text-ink-3" htmlFor={`exp-learning-${kind}-${index}`}>
-                무엇을 확인할까요?
-              </label>
-              <textarea
-                id={`exp-learning-${kind}-${index}`}
-                rows={1}
-                maxLength={PLAN_PATH_LIMITS.listItemLength}
-                value={experiment.learning}
-                onChange={(e) => patchExperiment(index, { learning: e.target.value })}
-                className={`${fieldClass} mt-1 resize-none [field-sizing:content]`}
-              />
-              <div className="mt-1 flex items-center justify-between gap-2">
-                <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-ink-2">
-                  <input
-                    type="checkbox"
-                    checked={experiment.nextUp}
-                    onChange={(e) => patchExperiment(index, { nextUp: e.target.checked })}
-                    className="size-4 accent-[var(--accent)]"
-                  />
-                  먼저 해볼래요
-                </label>
-                <button
-                  type="button"
-                  onClick={() => onChange({ experiments: experiments.filter((_, i) => i !== index) })}
-                  className="min-h-11 cursor-pointer rounded-md px-2 text-sm text-ink-3 transition-colors hover:text-danger"
-                  aria-label={`${index + 1}번째 실험 삭제`}
-                >
-                  삭제
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-        {experiments.length < PLAN_PATH_LIMITS.experiments ? (
-          <button
-            type="button"
-            onClick={() =>
-              onChange({
-                experiments: [...experiments, { action: "", learning: "", nextUp: false }],
-              })
-            }
-            className={buttonClass("secondary", "mt-3")}
-          >
-            실험 추가
-          </button>
-        ) : null}
-      </section>
-
       {content.preparations.length ? (
         <section aria-labelledby={`path-preparation-${kind}`}>
           <h2 id={`path-preparation-${kind}`} className={sectionTitleClass}>
@@ -436,9 +298,6 @@ export function PlanPathsEditor({
   const editor = editors[activeKind];
   const content = contents[activeKind];
 
-  const experimentsComplete = PLAN_PATH_KINDS.every((kind) =>
-    contents[kind].experiments.every((e) => e.action.trim() && e.learning.trim()),
-  );
   const hasGoal = PLAN_PATH_KINDS.some((kind) =>
     editors[kind].values.years.some((y) => y.goals.some((g) => g.text.trim())),
   );
@@ -447,7 +306,7 @@ export function PlanPathsEditor({
       (y) => !y.goalLines?.length && !y.keywordLines?.length && !y.note && !y.goals && !y.keywords,
     ),
   );
-  const canSave = hasGoal && linesValid && experimentsComplete;
+  const canSave = hasGoal && linesValid;
 
   const patchContent = (patch: Partial<PlanPathContent>) => {
     setContents((prev) => ({ ...prev, [activeKind]: { ...prev[activeKind], ...patch } }));
@@ -490,13 +349,11 @@ export function PlanPathsEditor({
 
   const statusText = !hasGoal
     ? "목표를 한 줄 이상 적으면 저장할 수 있어요"
-    : !experimentsComplete
-      ? "실험의 할 일과 확인할 것을 모두 적어 주세요"
-      : isDirty
-        ? "저장하지 않은 변경이 있어요"
-        : isDraft
-          ? "아직 저장되지 않은 초안이에요"
-          : "변경 사항 없음";
+    : isDirty
+      ? "저장하지 않은 변경이 있어요"
+      : isDraft
+        ? "아직 저장되지 않은 초안이에요"
+        : "변경 사항 없음";
 
   return (
     <>
