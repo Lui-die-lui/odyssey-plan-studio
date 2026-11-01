@@ -15,11 +15,11 @@ const navText =
 
 /**
  * Top bar: site title (left) and auth actions (right).
- * Guest: LOGIN only. Signed in: MY PLAN + LOGOUT.
+ * Guest: LOGIN only. Signed in: MY PLAN + LOGOUT, plus ADMIN for admin users.
  */
 export function AppNavbar() {
   const pathname = usePathname() ?? "";
-  const { status } = useSession();
+  const { status, data: session } = useSession();
   /** Landing has no {@link SubpageGlassVeil}; match solid canvas so the bar is not tinted alone. */
   const isHome = pathname === "/" || pathname === "";
 
@@ -65,6 +65,11 @@ export function AppNavbar() {
             </Link>
           ) : (
             <>
+              {session?.user?.role === "ADMIN" ? (
+                <Link href="/admin/dashboard" className={navText}>
+                  Admin
+                </Link>
+              ) : null}
               <Link href="/my-plan" className={navText}>
                 My
               </Link>

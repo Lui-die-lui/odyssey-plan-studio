@@ -16,15 +16,18 @@ async function main() {
   const schema = new URL(process.env.DATABASE_URL).searchParams.get("schema") ?? "public";
   const userTable = `${client.escapeIdentifier(schema)}."User"`;
 
-  await client.query(
+  const updated = await client.query(
     `UPDATE ${userTable} SET role = $1 WHERE email = $2;`,
     ["ADMIN", EMAIL],
   );
 
-  await client.query(
+  const result = await client.query(
     `SELECT id, email, role, "aiBlocked" FROM ${userTable} WHERE email = $1;`,
     [EMAIL],
   );
+
+  console.log(`Target: ${userTable}, updated rows: ${updated.rowCount}`);
+  console.log(result.rows);
 
   await client.end();
 }
