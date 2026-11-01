@@ -8,6 +8,7 @@ import {
   parseStoredDraft,
   parseStoredPathsDraft,
 } from "./odyssey-ai-draft-session";
+import { validateOdysseyAiPlanForm } from "./odyssey-generate-response.validation";
 import { describeEvidenceQuestions, isAiGuidanceOutdated } from "./plan-ai-guidance";
 import { mapYearPayloadToCreateData, mapYearToDto } from "./plan-db.server";
 import { parseSavePlanBody } from "./plan-save.validation";
@@ -46,6 +47,52 @@ describe("AI draft to form", () => {
 });
 
 describe("sessionStorage drafts", () => {
+  it("keeps preparation through a refresh", () => {
+    const stored = validResponse().planForm;
+    const validated = validateOdysseyAiPlanForm(
+      {
+        ...stored,
+        sharedPreparations: [
+          {
+            catalogId: "",
+            title: "공통 공부",
+            kind: "study",
+            priority: "if_needed",
+            reason: "도움이 됩니다.",
+            evidence: { questionIds: ["q1"], explanation: "답변" },
+            checkpoint: "설명할 수 있습니다.",
+            conditions: "",
+            alternative: "",
+          },
+        ],
+      },
+      () => true,
+    );
+    const planForm = validated.ok ? validated.value : null;
+    const restored = parseStoredPathsDraft(JSON.stringify({ v: 3, planForm }));
+    expect(restored?.sharedPreparations[0]?.basis).toBe("답변");
+  });
+
+  it("does not drop a stored credential that only the answers made relevant", () => {
+    const planForm = validResponse().planForm;
+    planForm.paths[0]!.preparations = [
+      {
+        catalogId: "kr-social-worker",
+        title: "사회복지사",
+        kind: "credential",
+        priority: "after_basics",
+        reason: "살펴봅니다.",
+        basis: "답변",
+        evidenceQuestionIds: ["q1"],
+        checkpoint: "설명할 수 있습니다.",
+        conditions: "",
+        alternative: "",
+      },
+    ] as never;
+    const restored = parseStoredPathsDraft(JSON.stringify({ v: 3, planForm }));
+    expect(restored?.paths[0]?.preparations[0]?.catalogId).toBe("kr-social-worker");
+  });
+
   it("restores the three-path format", () => {
     const planForm = validResponse().planForm;
     expect(parseStoredPathsDraft(JSON.stringify({ v: 3, planForm }))?.paths).toHaveLength(3);
@@ -186,6 +233,7 @@ describe("saved plan read back", () => {
     planId: "p1",
     years: [dto],
     paths: [],
+    sharedPreparations: [],
   });
 
   it("keeps existing scores and their unverified flag through an edit save", () => {

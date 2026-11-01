@@ -22,8 +22,9 @@ import {
   PLAN_UNRATED_LABEL,
 } from "../constants/plan-score.constants";
 import { describeEvidenceQuestions } from "../lib/plan-ai-guidance";
-import type { PlanPathDto, SavedPlanResponse } from "../types/plan.types";
+import type { PlanPathDto, PlanPreparation, SavedPlanResponse } from "../types/plan.types";
 import { PlanPathBadge } from "./PlanPathBadge";
+import { PlanPreparationList } from "./PlanPreparationList";
 import PlanSummary from "./PlanSummary";
 
 const LEGACY_TAB = "legacy";
@@ -44,7 +45,13 @@ function TextList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-function PathDetails({ path }: { path: PlanPathDto }) {
+function PathDetails({
+  path,
+  sharedPreparations,
+}: {
+  path: PlanPathDto;
+  sharedPreparations: PlanPreparation[];
+}) {
   const evidence = describeEvidenceQuestions(path.appealQuestionIds);
 
   return (
@@ -95,6 +102,8 @@ function PathDetails({ path }: { path: PlanPathDto }) {
           </ul>
         </section>
       ) : null}
+
+      <PlanPreparationList items={path.preparations} shared={sharedPreparations} />
     </div>
   );
 }
@@ -288,7 +297,7 @@ export function PlanPathsView({ plan }: { plan: SavedPlanResponse }) {
         >
           {activePath ? (
             <>
-              <PathDetails path={activePath} />
+              <PathDetails path={activePath} sharedPreparations={plan.sharedPreparations} />
               <div>
                 <h2 className={`${sectionTitleClass} mb-2`}>{activePath.title}의 5년</h2>
                 <PlanSummary

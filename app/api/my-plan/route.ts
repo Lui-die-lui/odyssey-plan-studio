@@ -4,6 +4,7 @@ import { getActiveSessionUser } from "@/features/auth/lib/session-user";
 import {
   getPlanByUserId,
   mapPathPayloadToCreateData,
+  mapPreparationsToCreateData,
   mapPlanToResponse,
   mapYearPayloadToCreateData,
   planInclude,
@@ -75,12 +76,19 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    const { title, years, paths } = parsed.data;
+    const { title, years, paths, sharedPreparations } = parsed.data;
 
     const writePaths = async (tx: PrismaTransactionClient, planId: string) => {
-      for (const path of paths ?? []) {
+      if (!paths) return;
+      await tx.planPreparation.createMany({
+        data: mapPreparationsToCreateData(sharedPreparations ?? [], planId, null),
+      });
+      for (const path of paths) {
         const { id: pathId } = await tx.planPath.create({
           data: { planId, ...mapPathPayloadToCreateData(path) },
+        });
+        await tx.planPreparation.createMany({
+          data: mapPreparationsToCreateData(path.preparations, planId, pathId),
         });
         for (const year of path.years) {
           await tx.planYear.create({
@@ -137,6 +145,7 @@ export async function POST(req: Request) {
       }
 
       if (paths) {
+        await tx.planPreparation.deleteMany({ where: { planId } });
         await tx.planPath.deleteMany({ where: { planId } });
         await writePaths(tx, planId);
         if (title !== undefined && !years) {

@@ -32,6 +32,7 @@ const PathsEditPage = ({ plan }: { plan: SavedPlanResponse }) => {
         initialForms={forms}
         autosaveScope={`edit-paths:${plan.planId}`}
         planTitle={plan.title}
+        sharedPreparations={plan.sharedPreparations}
         isDraft={false}
         header={
           <PlanEditorPageHeader

@@ -1,4 +1,5 @@
 import type { PlanPathKind } from "../constants/plan-path.constants";
+import type { PlanPreparation } from "../types/plan.types";
 
 /**
  * OpenAI가 반환하는 세 경로 초안 (폼 매핑 전).
@@ -36,12 +37,14 @@ export type OdysseyAiPathDraft = {
   requirements: string[];
   openQuestions: string[];
   experiments: OdysseyAiPathExperiment[];
+  preparations: PlanPreparation[];
   years: OdysseyAiPlanYearDraft[];
 };
 
 export type OdysseyAiPlanFormDraft = {
   title: string;
   paths: OdysseyAiPathDraft[];
+  sharedPreparations: PlanPreparation[];
 };
 
 /** sessionStorage v2 시절의 단일 경로 초안 */

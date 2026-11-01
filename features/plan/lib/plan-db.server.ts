@@ -10,6 +10,7 @@ import {
 import type {
   PlanPathDto,
   PlanPathSavePayload,
+  PlanPreparation,
   PlanYearAiGuidance,
   PlanYearDto,
   PlanYearSavePayload,
@@ -24,7 +25,10 @@ const yearInclude = {
   aiGuidance: true,
 } as const;
 
+const preparationOrder = { orderBy: { position: "asc" as const } };
+
 export const planInclude = {
+  preparations: { where: { pathId: null }, ...preparationOrder },
   years: {
     where: { pathId: null },
     orderBy: { yearIndex: "asc" as const },
@@ -33,6 +37,7 @@ export const planInclude = {
   paths: {
     include: {
       experiments: { orderBy: { position: "asc" as const } },
+      preparations: preparationOrder,
       years: {
         orderBy: { yearIndex: "asc" as const },
         include: yearInclude,
@@ -116,6 +121,39 @@ export function mapYearPayloadToCreateData(y: PlanYearSavePayload) {
   };
 }
 
+type DbPreparation = {
+  catalogId: string | null;
+  title: string;
+  kind: string;
+  priority: string;
+  reason: string;
+  basis: string;
+  evidenceQuestionIds: string[];
+  checkpoint: string;
+  conditions: string;
+  alternative: string;
+};
+
+const mapPreparation = (p: DbPreparation): PlanPreparation => ({
+  catalogId: p.catalogId,
+  title: p.title,
+  kind: p.kind as PlanPreparation["kind"],
+  priority: p.priority as PlanPreparation["priority"],
+  reason: p.reason,
+  basis: p.basis,
+  evidenceQuestionIds: p.evidenceQuestionIds,
+  checkpoint: p.checkpoint,
+  conditions: p.conditions,
+  alternative: p.alternative,
+});
+
+/** Rows for `PlanPreparation`, with or without a path. */
+export const mapPreparationsToCreateData = (
+  items: PlanPreparation[],
+  planId: string,
+  pathId: string | null,
+) => items.map((item, position) => ({ ...item, planId, pathId, position }));
+
 type DbPath = {
   id: string;
   kind: DbPathKind;
@@ -131,6 +169,7 @@ type DbPath = {
   confidenceScore: number | null;
   coherenceScore: number | null;
   experiments: { action: string; learning: string; nextUp: boolean; position: number }[];
+  preparations: DbPreparation[];
   years: Array<Parameters<typeof mapYearToDto>[0]>;
 };
 
@@ -154,6 +193,7 @@ export function mapPathToDto(path: DbPath): PlanPathDto {
     experiments: [...path.experiments]
       .sort((a, b) => a.position - b.position)
       .map(({ action, learning, nextUp }) => ({ action, learning, nextUp })),
+    preparations: path.preparations.map(mapPreparation),
     years: [...path.years].sort((a, b) => a.yearIndex - b.yearIndex).map(mapYearToDto),
   };
 }
@@ -187,6 +227,7 @@ export function mapPlanToResponse(plan: {
   updatedAt: Date;
   years: Array<Parameters<typeof mapYearToDto>[0]>;
   paths: DbPath[];
+  preparations: DbPreparation[];
 }): SavedPlanResponse {
   return {
     planId: plan.id,
@@ -198,6 +239,7 @@ export function mapPlanToResponse(plan: {
     paths: [...plan.paths]
       .map(mapPathToDto)
       .sort((a, b) => PLAN_PATH_KINDS.indexOf(a.kind) - PLAN_PATH_KINDS.indexOf(b.kind)),
+    sharedPreparations: plan.preparations.map(mapPreparation),
     createdAt: plan.createdAt.toISOString(),
     updatedAt: plan.updatedAt.toISOString(),
   };

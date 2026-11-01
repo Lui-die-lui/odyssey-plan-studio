@@ -147,6 +147,37 @@ describe("POST /api/odyssey/generate", () => {
     );
   });
 
+  it("refunds when a suggestion repeats a credential the user holds", async () => {
+    const response = validResponse();
+    response.planForm.paths[0]!.preparations = [
+      {
+        catalogId: "kr-care-worker",
+        title: "요양보호사",
+        kind: "credential",
+        priority: "after_basics",
+        reason: "돌봄 일을 위해 살펴봅니다.",
+        evidence: { questionIds: ["q_assets"], explanation: "경험을 답했습니다." },
+        checkpoint: "조건을 설명할 수 있습니다.",
+        conditions: "",
+        alternative: "",
+      },
+    ] as never;
+    mocks.createResponse.mockResolvedValue({ output_text: JSON.stringify(response) });
+
+    const res = await POST(
+      request(
+        fullAnswers({ q_assets: { choiceIds: ["__other__"], text: "요양보호사 자격 보유" } }),
+      ),
+    );
+
+    expect(res.status).toBe(502);
+    expect(mocks.refund).toHaveBeenCalledTimes(1);
+    expect(console.error).toHaveBeenCalledWith(
+      "[odyssey/generate] invalid model response:",
+      "continue_preparation_already_held",
+    );
+  });
+
   it("does not refund when the quota was never charged", async () => {
     mocks.consume.mockRejectedValue(new Error("db down"));
 

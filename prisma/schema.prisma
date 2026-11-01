@@ -50,6 +50,7 @@ model Plan {
   /// Years with no path are an existing single plan and stay as they are.
   years PlanYear[]
   paths PlanPath[]
+  preparations PlanPreparation[]
 }
 
 enum PlanPathKind {
@@ -83,11 +84,40 @@ model PlanPath {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  years       PlanYear[]
-  experiments PlanPathExperiment[]
+  years        PlanYear[]
+  experiments  PlanPathExperiment[]
+  preparations PlanPreparation[]
 
   @@unique([planId, kind])
   @@index([planId])
+}
+
+/// Something to study, practise or check before a path; no path means it helps several.
+/// Source links and requirement status come from the code catalog through `catalogId`.
+model PlanPreparation {
+  id     String    @id @default(cuid())
+  planId String
+  plan   Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+  pathId String?
+  path   PlanPath? @relation(fields: [pathId], references: [id], onDelete: Cascade)
+
+  position            Int
+  catalogId           String?
+  title               String
+  kind                String
+  priority            String
+  reason              String
+  basis               String
+  evidenceQuestionIds String[] @default([])
+  checkpoint          String
+  conditions          String   @default("")
+  alternative         String   @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([planId])
+  @@index([pathId])
 }
 
 /// A small action that tries part of a path before any big decision.

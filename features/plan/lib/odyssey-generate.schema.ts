@@ -1,3 +1,9 @@
+import {
+  PLAN_PREPARATION_CATALOG,
+  PLAN_PREPARATION_KINDS,
+  PLAN_PREPARATION_PRIORITIES,
+} from "../constants/plan-preparation.constants";
+
 const evidencedTextSchema = (description: string, questionIdsMinItems: number) => ({
   type: "object",
   additionalProperties: false,
@@ -80,6 +86,50 @@ const yearSchema = {
   },
 };
 
+const preparationSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "catalogId",
+    "title",
+    "kind",
+    "priority",
+    "reason",
+    "evidence",
+    "checkpoint",
+    "conditions",
+    "alternative",
+  ],
+  properties: {
+    catalogId: {
+      type: "string",
+      enum: ["", ...PLAN_PREPARATION_CATALOG.map((entry) => entry.id)],
+      description: "카탈로그의 자격일 때만 id. 그 외에는 빈 문자열.",
+    },
+    title: { type: "string", description: "공부 주제, 실습 또는 자격 이름." },
+    kind: { type: "string", enum: [...PLAN_PREPARATION_KINDS] },
+    priority: { type: "string", enum: [...PLAN_PREPARATION_PRIORITIES] },
+    reason: { type: "string", description: "경로의 어떤 행동이나 목표에 필요한지." },
+    evidence: {
+      type: "object",
+      additionalProperties: false,
+      required: ["questionIds", "explanation"],
+      properties: {
+        questionIds: {
+          type: "array",
+          minItems: 1,
+          maxItems: 6,
+          items: { type: "string" },
+        },
+        explanation: { type: "string", description: "반영한 답변과 현재 경험." },
+      },
+    },
+    checkpoint: { type: "string", description: "마치면 무엇을 할 수 있어야 하는지." },
+    conditions: { type: "string", description: "확인할 사항. 없으면 빈 문자열." },
+    alternative: { type: "string", description: "자격 없이 확인하는 방법. 없으면 빈 문자열." },
+  },
+};
+
 const pathSchema = {
   type: "object",
   additionalProperties: false,
@@ -91,6 +141,7 @@ const pathSchema = {
     "requirements",
     "openQuestions",
     "experiments",
+    "preparations",
     "years",
   ],
   properties: {
@@ -130,6 +181,13 @@ const pathSchema = {
           learning: { type: "string", description: "무엇을 확인할지." },
         },
       },
+    },
+    preparations: {
+      type: "array",
+      minItems: 0,
+      maxItems: 3,
+      description: "이 경로의 준비 항목. 공통 항목과 합쳐 최대 3개. 없으면 빈 배열.",
+      items: preparationSchema,
     },
     years: {
       type: "array",
@@ -215,11 +273,18 @@ export const ODYSSEY_GENERATE_RESPONSE_SCHEMA: Record<string, unknown> = {
     planForm: {
       type: "object",
       additionalProperties: false,
-      required: ["title", "paths"],
+      required: ["title", "paths", "sharedPreparations"],
       properties: {
         title: {
           type: "string",
           description: "세 경로 전체를 대표하는 80자 이내의 짧은 제목.",
+        },
+        sharedPreparations: {
+          type: "array",
+          minItems: 0,
+          maxItems: 2,
+          description: "여러 경로에 도움이 되는 준비. 없으면 빈 배열.",
+          items: preparationSchema,
         },
         paths: {
           type: "array",

@@ -15,6 +15,12 @@ import {
 import { ODYSSEY_OTHER_CHOICE_ID } from "./odyssey-interview.types";
 
 describe("interview question flow", () => {
+  it("collects held credentials, study time and region without new questions", () => {
+    expect(getOdysseyQuestionById("q_assets")!.prompt).toContain("자격");
+    expect(getOdysseyQuestionById("q_time")!.prompt).toContain("공부");
+    expect(getOdysseyQuestionById("q_limits")!.choices!.map((c) => c.id)).toContain("q_limits_abroad");
+  });
+
   it("asks each path question once, for any current activity", () => {
     const prompts = ["q_path_a", "q_path_b", "q_path_c"].map(
       (id) => getOdysseyQuestionById(id)!.prompt,

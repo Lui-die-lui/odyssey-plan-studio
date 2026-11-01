@@ -13,6 +13,15 @@ import {
   type PlanPathKind,
 } from "@/features/plan/constants/plan-path.constants";
 import {
+  PLAN_PREPARATION_KINDS,
+  PLAN_PREPARATION_MAX_PER_PATH,
+  PLAN_PREPARATION_MAX_SHARED,
+  PLAN_PREPARATION_PRIORITIES,
+  findPreparationCatalogEntry,
+  type PlanPreparationKind,
+  type PlanPreparationPriority,
+} from "@/features/plan/constants/plan-preparation.constants";
+import {
   PLAN_SCORE_KEYS,
   type PlanScoreKey,
 } from "@/features/plan/constants/plan-score.constants";
@@ -20,6 +29,7 @@ import type {
   PlanDistanceScore,
   PlanPathExperiment,
   PlanPathSavePayload,
+  PlanPreparation,
   PlanYearAiGuidance,
   PlanYearSavePayload,
   PlanYearScores,
@@ -260,6 +270,46 @@ const parseExperiments = (raw: unknown): PlanPathExperiment[] | null => {
   return experiments;
 };
 
+const parsePreparations = (raw: unknown, max: number): PlanPreparation[] | null => {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw) || raw.length > max) return null;
+  const items: PlanPreparation[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") return null;
+    const p = item as Record<string, unknown>;
+    const text = PLAN_PATH_LIMITS.listItemLength * 2;
+    const catalogId = p.catalogId ?? null;
+    if (catalogId !== null && !findPreparationCatalogEntry(catalogId as string)) return null;
+    if (
+      !PLAN_PREPARATION_KINDS.includes(p.kind as PlanPreparationKind) ||
+      !PLAN_PREPARATION_PRIORITIES.includes(p.priority as PlanPreparationPriority) ||
+      !isBoundedText(p.title, PLAN_PATH_LIMITS.title) ||
+      !isBoundedText(p.reason, text) ||
+      !isBoundedText(p.basis, text) ||
+      !isBoundedText(p.checkpoint, text) ||
+      !isBoundedText(p.conditions, text) ||
+      !isBoundedText(p.alternative, text) ||
+      !Array.isArray(p.evidenceQuestionIds) ||
+      !p.evidenceQuestionIds.every((id) => typeof id === "string" && QUESTION_ID_PATTERN.test(id))
+    ) {
+      return null;
+    }
+    items.push({
+      catalogId: catalogId as string | null,
+      title: p.title,
+      kind: p.kind as PlanPreparationKind,
+      priority: p.priority as PlanPreparationPriority,
+      reason: p.reason,
+      basis: p.basis,
+      evidenceQuestionIds: p.evidenceQuestionIds as string[],
+      checkpoint: p.checkpoint,
+      conditions: p.conditions,
+      alternative: p.alternative,
+    });
+  }
+  return items;
+};
+
 function parsePath(raw: unknown): ParsedList<PlanPathSavePayload> {
   const invalid = (message: string): ParsedList<PlanPathSavePayload> => ({ ok: false, message });
   if (!raw || typeof raw !== "object") return invalid("Invalid path.");
@@ -302,6 +352,9 @@ function parsePath(raw: unknown): ParsedList<PlanPathSavePayload> {
     return invalid(`Invalid marks for path ${kind}.`);
   }
 
+  const preparations = parsePreparations(p.preparations, PLAN_PREPARATION_MAX_PER_PATH);
+  if (!preparations) return invalid(`Invalid preparations for path ${kind}.`);
+
   if (!Array.isArray(p.years)) return invalid(`Invalid years for path ${kind}.`);
   const years = parseYearList(p.years);
   if (!years.ok) return invalid(`${years.message} (path ${kind})`);
@@ -317,6 +370,7 @@ function parsePath(raw: unknown): ParsedList<PlanPathSavePayload> {
       requirements: p.requirements,
       openQuestions: p.openQuestions,
       experiments,
+      preparations,
       scores,
       marks: p.marks as PlanPathSavePayload["marks"],
       years: years.values,
@@ -365,10 +419,13 @@ export function parseSavePlanBody(body: unknown): ParseSavePlanResult {
     }
   }
 
+  const sharedPreparations = parsePreparations(o.sharedPreparations, PLAN_PREPARATION_MAX_SHARED);
+  if (!sharedPreparations) return invalid("Invalid shared preparations.");
+
   const allYears = [...(years ?? []), ...(paths ?? []).flatMap((p) => p.years)];
   if (allYears.every((y) => y.goals.length === 0)) {
     return invalid("At least one goal is required.");
   }
 
-  return { ok: true, data: { title, years, paths } };
+  return { ok: true, data: { title, years, paths, sharedPreparations } };
 }

@@ -5,6 +5,7 @@ import type {
   PlanPathContent,
   PlanPathDto,
   PlanPathSavePayload,
+  PlanPreparation,
   PlanYearScores,
   SavedPlanResponse,
 } from "../types/plan.types";
@@ -38,6 +39,7 @@ function emptyContent(kind: PlanPathKind): PlanPathContent {
     requirements: [],
     openQuestions: [],
     experiments: [],
+    preparations: [],
     scores: UNRATED_SCORES,
     marks: [],
   };
@@ -61,6 +63,7 @@ export function mapAiDraftToPathForms(draft: OdysseyAiPlanFormDraft): PlanPathFo
       requirements: path.requirements,
       openQuestions: path.openQuestions,
       experiments: path.experiments.map((e) => ({ ...e, nextUp: false })),
+      preparations: path.preparations,
     },
     values: mapOdysseyAiPlanFormToPlanFormValues({ title: path.title, years: path.years }),
   }));
@@ -84,14 +87,17 @@ function pathContent(path: PlanPathDto): PlanPathContent {
     requirements: path.requirements,
     openQuestions: path.openQuestions,
     experiments: path.experiments,
+    preparations: path.preparations,
     scores: path.scores,
     marks: path.marks,
   };
 }
 
 function pathValues(path: PlanPathDto): PlanFormValues {
-  return mapSavedPlanResponseToForm({ planId: path.id, title: path.title, years: path.years, paths: [] });
+  return mapSavedPlanResponseToForm({ planId: path.id, title: path.title, years: path.years, paths: [], sharedPreparations: [] });
 }
+
+export type { PlanPreparation };
 
 export function mapPathFormToSavePayload(form: PlanPathForm): PlanPathSavePayload {
   return {

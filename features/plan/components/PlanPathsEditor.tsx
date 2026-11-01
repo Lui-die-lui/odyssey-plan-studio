@@ -24,6 +24,10 @@ import {
   type PlanPathMark,
 } from "../constants/plan-path.constants";
 import {
+  PLAN_PREPARATION_NOTE,
+  PLAN_PREPARATION_TITLE,
+} from "../constants/plan-preparation.constants";
+import {
   PLAN_RATING_SCALE_NOTE,
   PLAN_SCORE_LABELS,
 } from "../constants/plan-score.constants";
@@ -40,7 +44,7 @@ import {
   type PlanPathForm,
 } from "../lib/plan-path.mapper";
 import { saveMyPlan } from "../lib/plan.service";
-import type { PlanDistanceScore, PlanPathContent } from "../types/plan.types";
+import type { PlanDistanceScore, PlanPathContent, PlanPreparation } from "../types/plan.types";
 import { PLAN_EDITOR_SCORE_FIELDS } from "./editor";
 import { PlanDistanceScale } from "./PlanDistanceScale";
 import { PlanPathBadge } from "./PlanPathBadge";
@@ -273,6 +277,34 @@ function PathFooterFields({
         ) : null}
       </section>
 
+      {content.preparations.length ? (
+        <section aria-labelledby={`path-preparation-${kind}`}>
+          <h2 id={`path-preparation-${kind}`} className={sectionTitleClass}>
+            {PLAN_PREPARATION_TITLE}
+          </h2>
+          <p className={`${helpTextClass} mt-0.5`}>{PLAN_PREPARATION_NOTE}</p>
+          <ul className="mt-2 flex flex-col">
+            {content.preparations.map((item, index) => (
+              <li key={item.title} className="flex items-center justify-between gap-3 border-b border-line">
+                <span className="min-w-0 text-sm text-ink-2">{item.title}</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChange({
+                      preparations: content.preparations.filter((_, i) => i !== index),
+                    })
+                  }
+                  className="min-h-11 shrink-0 cursor-pointer rounded-md px-2 text-sm text-ink-3 transition-colors hover:text-danger"
+                  aria-label={`${item.title} 삭제`}
+                >
+                  삭제
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <section aria-labelledby={`path-rating-${kind}`}>
         <h2 id={`path-rating-${kind}`} className={sectionTitleClass}>
           이 경로 전체를 지금 어떻게 느끼나요?
@@ -334,6 +366,8 @@ export type PlanPathsEditorProps = {
   /** Separates unsaved copies of a new draft from those of a saved plan. */
   autosaveScope: string;
   planTitle?: string;
+  /** Kept through saves; a path's preparation is edited with the path. */
+  sharedPreparations?: PlanPreparation[];
   header: ReactNode;
   isDraft: boolean;
 };
@@ -346,6 +380,7 @@ export function PlanPathsEditor({
   initialForms,
   autosaveScope,
   planTitle,
+  sharedPreparations = [],
   header,
   isDraft,
 }: PlanPathsEditorProps) {
@@ -410,6 +445,7 @@ export function PlanPathsEditor({
     try {
       await saveMyPlan({
         title: planTitle,
+        sharedPreparations,
         paths: PLAN_PATH_KINDS.map((kind) =>
           mapPathFormToSavePayload({ content: contents[kind], values: editors[kind].values }),
         ),

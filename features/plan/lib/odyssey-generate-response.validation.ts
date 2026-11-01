@@ -8,6 +8,15 @@ import {
   PLAN_PATH_LIMITS,
   type PlanPathKind,
 } from "../constants/plan-path.constants";
+import {
+  PLAN_PREPARATION_MAX_PER_PATH,
+  PLAN_PREPARATION_MAX_SHARED,
+} from "../constants/plan-preparation.constants";
+import type { PlanPreparation } from "../types/plan.types";
+import {
+  validatePreparation,
+  type OdysseyPreparationContext,
+} from "./odyssey-preparation.validation";
 import type {
   OdysseyAiPathDraft,
   OdysseyAiPathExperiment,
@@ -261,9 +270,30 @@ function validateExperiments(
   return { ok: true, value: experiments };
 }
 
+function validatePreparations(
+  raw: unknown,
+  options: {
+    prefix: string;
+    isKnownId: IsKnownQuestionId;
+    context?: OdysseyPreparationContext;
+    planText: string;
+    pathKind?: PlanPathKind;
+  },
+): Validated<PlanPreparation[]> {
+  if (!Array.isArray(raw)) return fail(`${options.prefix}preparation_shape`);
+  const items: PlanPreparation[] = [];
+  for (const item of raw) {
+    const result = validatePreparation(item, options);
+    if (!result.ok) return result;
+    items.push(result.value);
+  }
+  return { ok: true, value: items };
+}
+
 function validatePath(
   raw: unknown,
   isKnownId: IsKnownQuestionId,
+  context?: OdysseyPreparationContext,
 ): Validated<OdysseyAiPathDraft> {
   if (!isRecord(raw)) return fail("path_shape");
   const { kind, title, overview, appeal, requirements, openQuestions } = raw;
@@ -294,10 +324,20 @@ function validatePath(
   const years = validateYears(raw.years, isKnownId, prefix);
   if (!years.ok) return years;
 
+  const preparations = validatePreparations(raw.preparations ?? [], {
+    prefix,
+    isKnownId,
+    context,
+    pathKind: kind as PlanPathKind,
+    planText: [title, overview, ...years.value.flatMap((y) => [y.goal, ...y.actions])].join(" "),
+  });
+  if (!preparations.ok) return preparations;
+
   return {
     ok: true,
     value: {
       kind: kind as PlanPathKind,
+      preparations: preparations.value,
       title,
       overview,
       appeal: { text: appeal.text, questionIds: appeal.questionIds },
@@ -333,6 +373,7 @@ export function measurePathSimilarity(a: OdysseyAiPathDraft, b: OdysseyAiPathDra
 export function validateOdysseyAiPlanForm(
   data: unknown,
   isKnownId: IsKnownQuestionId,
+  context?: OdysseyPreparationContext,
 ): Validated<OdysseyAiPlanFormDraft> {
   if (!isRecord(data)) return fail("plan_shape");
   const { title, paths } = data;
@@ -343,7 +384,7 @@ export function validateOdysseyAiPlanForm(
 
   const parsed: OdysseyAiPathDraft[] = [];
   for (const raw of paths) {
-    const path = validatePath(raw, isKnownId);
+    const path = validatePath(raw, isKnownId, context);
     if (!path.ok) return path;
     if (parsed.some((p) => p.kind === path.value.kind)) return fail("plan_path_duplicate");
     parsed.push(path.value);
@@ -357,8 +398,29 @@ export function validateOdysseyAiPlanForm(
     }
   }
 
+  const rawShared = data.sharedPreparations ?? [];
+  if (!Array.isArray(rawShared) || rawShared.length > PLAN_PREPARATION_MAX_SHARED) {
+    return fail("shared_preparation_count");
+  }
+  const sharedPreparations = validatePreparations(rawShared, {
+    prefix: "shared_",
+    isKnownId,
+    context,
+    planText: parsed.map(textOf).join(" "),
+  });
+  if (!sharedPreparations.ok) return sharedPreparations;
+
+  for (const path of parsed) {
+    if (path.preparations.length + rawShared.length > PLAN_PREPARATION_MAX_PER_PATH) {
+      return fail(`${path.kind}_preparation_count`);
+    }
+  }
+
   parsed.sort((a, b) => PLAN_PATH_KINDS.indexOf(a.kind) - PLAN_PATH_KINDS.indexOf(b.kind));
-  return { ok: true, value: { title, paths: parsed } };
+  return {
+    ok: true,
+    value: { title, paths: parsed, sharedPreparations: sharedPreparations.value },
+  };
 }
 
 /** 이전 버전(sessionStorage v2)의 단일 경로 초안을 읽습니다. */
@@ -384,13 +446,14 @@ export function validateOdysseyGenerateDraft(
 export function validateOdysseyGenerateResponse(
   parsed: unknown,
   answeredQuestionIds: ReadonlySet<string>,
+  context?: OdysseyPreparationContext,
 ): Validated<OdysseyGenerateValidated> {
   if (!isRecord(parsed)) return fail("root_shape");
   const isKnownId = (id: string) => answeredQuestionIds.has(id);
 
   const summary = validateSummary(parsed.summary, isKnownId);
   if (!summary.ok) return summary;
-  const planForm = validateOdysseyAiPlanForm(parsed.planForm, isKnownId);
+  const planForm = validateOdysseyAiPlanForm(parsed.planForm, isKnownId, context);
   if (!planForm.ok) return planForm;
 
   return { ok: true, value: { summary: summary.value, planForm: planForm.value } };

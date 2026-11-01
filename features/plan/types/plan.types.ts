@@ -1,5 +1,9 @@
 import type { PlanOdysseyYearIndex } from "../constants/plan.constants";
 import type { PlanPathKind, PlanPathMark } from "../constants/plan-path.constants";
+import type {
+  PlanPreparationKind,
+  PlanPreparationPriority,
+} from "../constants/plan-preparation.constants";
 import type { PlanScoreKey } from "../constants/plan-score.constants";
 
 /** 1–5 self-rating; higher is more positive (RESOURCES, INTEREST, …). */
@@ -52,6 +56,20 @@ export type PlanPathExperiment = {
   nextUp: boolean;
 };
 
+export type PlanPreparation = {
+  /** Set only for verified catalog entries; links and status come from the catalog. */
+  catalogId: string | null;
+  title: string;
+  kind: PlanPreparationKind;
+  priority: PlanPreparationPriority;
+  reason: string;
+  basis: string;
+  evidenceQuestionIds: string[];
+  checkpoint: string;
+  conditions: string;
+  alternative: string;
+};
+
 /** Everything about a path except its years. */
 export type PlanPathContent = {
   kind: PlanPathKind;
@@ -62,6 +80,7 @@ export type PlanPathContent = {
   requirements: string[];
   openQuestions: string[];
   experiments: PlanPathExperiment[];
+  preparations: PlanPreparation[];
   /** How the whole path feels now; never copied from yearly scores. */
   scores: PlanYearScores;
   marks: PlanPathMark[];
@@ -78,6 +97,8 @@ export type SavedPlanResponse = {
   /** An existing single plan; empty once a plan only has paths. */
   years: PlanYearDto[];
   paths: PlanPathDto[];
+  /** Preparation that helps several paths. */
+  sharedPreparations: PlanPreparation[];
   userId?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -122,6 +143,7 @@ export type SavePlanRequestPayload = {
   title?: string;
   years?: PlanYearSavePayload[];
   paths?: PlanPathSavePayload[];
+  sharedPreparations?: PlanPreparation[];
 };
 
 export type PlanYearSavePayload = {

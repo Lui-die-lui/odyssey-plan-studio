@@ -28,6 +28,7 @@ const NewPlanPathsContent = () => {
           initialForms={forms}
           autosaveScope="new-paths"
           planTitle={draft?.title}
+          sharedPreparations={draft?.sharedPreparations}
           isDraft={draft != null}
           header={
             <PlanEditorPageHeader

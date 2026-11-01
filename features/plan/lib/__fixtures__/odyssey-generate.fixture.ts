@@ -86,6 +86,7 @@ export const validPath = (kind: PlanPathKind) => ({
   requirements: ["주 3시간"],
   openQuestions: ["이 생활이 나에게 맞을까요?"],
   experiments: [{ action: "관련 일을 하는 사람과 대화합니다.", learning: "실제 하루가 어떤지" }],
+  preparations: [],
   years: [1, 2, 3, 4, 5].map((y) => validYear(y, kind)),
 });
 
@@ -103,5 +104,6 @@ export const validResponse = () => ({
   planForm: {
     title: "세 가지 5년",
     paths: (["continue", "alternative", "unbound"] as const).map(validPath),
+    sharedPreparations: [],
   },
 });

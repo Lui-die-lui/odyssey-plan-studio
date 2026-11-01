@@ -149,7 +149,7 @@ export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
     id: "q_assets",
     type: "multi_with_other",
     prompt:
-      "해본 일이나 활용할 수 있는 경험·자원이 있나요? (복수 선택 가능)",
+      "해본 일이나 활용할 수 있는 경험·자원이 있나요? (복수 선택 가능, 보유한 자격은 직접 입력에 적어 주세요)",
     reaction: "",
     choices: [
       { id: "q_assets_work", label: "관련된 일이나 공부를 해봤어요" },
@@ -163,7 +163,7 @@ export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
   {
     id: "q_time",
     type: "single_with_other",
-    prompt: "이 계획에 일주일에 현실적으로 얼마나 쓸 수 있나요?",
+    prompt: "이 계획과 공부에 일주일에 현실적으로 얼마나 쓸 수 있나요?",
     reaction: "",
     choices: [
       { id: "q_time_low", label: "2시간 이하" },
@@ -185,6 +185,7 @@ export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
       { id: "q_limits_care", label: "가족·돌봄" },
       { id: "q_limits_schedule", label: "지금 일이나 학업 일정" },
       { id: "q_limits_income", label: "수입 유지" },
+      { id: "q_limits_abroad", label: "한국 밖에서 지낼 계획이에요" },
       { id: "q_limits_none", label: "특별히 없거나 말하고 싶지 않아요" },
       otherOption,
     ],

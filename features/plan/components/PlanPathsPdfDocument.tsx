@@ -14,8 +14,21 @@ import {
   PLAN_SCORE_LABELS,
   PLAN_UNRATED_LABEL,
 } from "@/features/plan/constants/plan-score.constants";
+import {
+  PLAN_PREPARATION_KIND_LABELS,
+  PLAN_PREPARATION_NOTE,
+  PLAN_PREPARATION_PRIORITY_LABELS,
+  PLAN_PREPARATION_SHARED_TITLE,
+  PLAN_PREPARATION_TITLE,
+  PLAN_PREPARATION_UNVERIFIED_LABEL,
+  findPreparationCatalogEntry,
+} from "@/features/plan/constants/plan-preparation.constants";
 import { describeEvidenceQuestions } from "@/features/plan/lib/plan-ai-guidance";
-import type { PlanPathDto, SavedPlanResponse } from "@/features/plan/types/plan.types";
+import type {
+  PlanPathDto,
+  PlanPreparation,
+  SavedPlanResponse,
+} from "@/features/plan/types/plan.types";
 
 import { PdfYearDetailCard } from "./PlanSummaryPdfDocument";
 
@@ -103,7 +116,44 @@ function Lines({ label, items }: { label: string; items: string[] }) {
   );
 }
 
-function PathSection({ path }: { path: PlanPathDto }) {
+function Preparations({ title, items }: { title: string; items: PlanPreparation[] }) {
+  if (!items.length) return null;
+  return (
+    <div>
+      <p style={s.label}>{title}</p>
+      {items.map((item) => {
+        const entry = findPreparationCatalogEntry(item.catalogId);
+        return (
+          <div key={item.title} style={{ breakInside: "avoid", marginTop: 4 }}>
+            <p style={{ ...s.text, fontWeight: 600 }}>
+              {item.title} ({PLAN_PREPARATION_KIND_LABELS[item.kind]} ·{" "}
+              {PLAN_PREPARATION_PRIORITY_LABELS[item.priority]} ·{" "}
+              {entry ? entry.requirementLabel : PLAN_PREPARATION_UNVERIFIED_LABEL})
+            </p>
+            <p style={s.text}>
+              {item.reason} 마치면: {item.checkpoint}
+              {item.conditions ? ` 확인할 조건: ${item.conditions}` : ""}
+              {item.alternative ? ` 자격 없이 확인: ${item.alternative}` : ""}
+            </p>
+            {entry ? (
+              <p style={{ ...s.text, fontSize: 10, color: "#71717a" }}>
+                근거 {entry.basis} · {entry.sourceName} {entry.sourceUrl} · {entry.checkedAt} 확인
+              </p>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PathSection({
+  path,
+  shared,
+}: {
+  path: PlanPathDto;
+  shared: PlanPreparation[];
+}) {
   const evidence = describeEvidenceQuestions(path.appealQuestionIds);
   return (
     <section style={s.section}>
@@ -125,6 +175,10 @@ function PathSection({ path }: { path: PlanPathDto }) {
         <Lines label="필요한 자원과 조건" items={path.requirements} />
         <Lines label="아직 확인하지 못한 질문" items={path.openQuestions} />
       </div>
+      <Preparations title={PLAN_PREPARATION_TITLE} items={path.preparations} />
+      {path.preparations.length || shared.length ? (
+        <p style={{ ...s.text, fontSize: 10, color: "#71717a" }}>{PLAN_PREPARATION_NOTE}</p>
+      ) : null}
       {path.years.map((year) => (
         <PdfYearDetailCard key={year.id} year={year} showRatings={false} />
       ))}
@@ -183,11 +237,12 @@ export function PlanPathsPdfDocument({ plan, generatedAt }: PlanPathsPdfDocument
       </div>
 
       {paths.map((path) => (
-        <PathSection key={path.kind} path={path} />
+        <PathSection key={path.kind} path={path} shared={plan.sharedPreparations} />
       ))}
 
       <section style={s.section}>
         <h2 style={s.heading}>자기평가와 작은 실험</h2>
+        <Preparations title={PLAN_PREPARATION_SHARED_TITLE} items={plan.sharedPreparations} />
         <p style={{ ...s.text, fontSize: 11 }}>
           경로 전체에 대한 자기평가입니다. {PLAN_RATING_SCALE_NOTE}
         </p>

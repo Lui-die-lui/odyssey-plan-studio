@@ -100,6 +100,37 @@ describe.skipIf(!databaseUrl)("/api/my-plan persistence", () => {
     expect(after.paths[0].years).toHaveLength(5);
   });
 
+  it("keeps preparation through save and reload, without storing links", async () => {
+    const item = {
+      catalogId: "kr-care-worker",
+      title: "요양보호사",
+      kind: "credential" as const,
+      priority: "after_basics" as const,
+      reason: "돌봄 일을 살펴봅니다.",
+      basis: "경험을 답했습니다.",
+      evidenceQuestionIds: ["q_assets"],
+      checkpoint: "조건을 설명할 수 있습니다.",
+      conditions: "",
+      alternative: "봉사 활동",
+    };
+    const paths = pathPayload();
+    paths[1]!.preparations = [item];
+
+    expect(
+      (await save({ paths, sharedPreparations: [{ ...item, catalogId: null, kind: "study", title: "공통 공부" }] })).status,
+    ).toBe(200);
+
+    const saved = await load();
+    expect(saved.paths[1].preparations).toEqual([item]);
+    expect(saved.sharedPreparations[0].title).toBe("공통 공부");
+    expect(JSON.stringify(saved.sharedPreparations)).not.toContain("http");
+
+    expect((await save({ paths: pathPayload() })).status).toBe(200);
+    const replaced = await load();
+    expect(replaced.paths[1].preparations).toEqual([]);
+    expect(replaced.sharedPreparations).toEqual([]);
+  });
+
   it("updates a path and leaves the single plan, then edits the single plan alone", async () => {
     const before = await load();
     const paths = pathPayload();

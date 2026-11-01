@@ -16,6 +16,7 @@ import {
 } from "@/features/plan/lib/odyssey-generate.prompt";
 import { validateOdysseyGenerateResponse } from "@/features/plan/lib/odyssey-generate-response.validation";
 import { ODYSSEY_GENERATE_RESPONSE_SCHEMA } from "@/features/plan/lib/odyssey-generate.schema";
+import { buildPreparationContext } from "@/features/plan/lib/odyssey-preparation.validation";
 import { prisma } from "@/lib/prisma";
 
 /** Three paths take longer to generate than the old single plan. */
@@ -202,6 +203,7 @@ export async function POST(req: Request) {
     const validated = validateOdysseyGenerateResponse(
       parsed,
       new Set(modelAnswers.map((answer) => answer.questionId)),
+      buildPreparationContext(body.answers),
     );
     if (!validated.ok) {
       console.error("[odyssey/generate] invalid model response:", validated.reason);
