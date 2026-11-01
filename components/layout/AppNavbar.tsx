@@ -27,7 +27,7 @@ export function AppNavbar() {
   };
 
   return (
-    <header className="relative z-20 shrink-0 border-b border-line/70 bg-canvas/80">
+    <header className="sticky top-0 z-30 shrink-0 border-b border-line/10 bg-canvas/50 backdrop-blur-xl backdrop-saturate-150">
       <div
         className={
           "mx-auto flex h-14 max-w-6xl items-center justify-between " +

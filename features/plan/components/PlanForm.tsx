@@ -268,7 +268,7 @@ const PlanForm = ({
         {slotTop}
       </div>
 
-      <div className="sticky top-0 z-20 -mx-4 border-b border-line bg-canvas px-4 sm:-mx-5 sm:px-5">
+      <div className="sticky top-14 z-20 -mx-4 border-b border-line bg-canvas px-4 sm:-mx-5 sm:px-5">
         <YearTimeline
           idPrefix={TIMELINE_ID}
           label="편집할 연차 선택"
