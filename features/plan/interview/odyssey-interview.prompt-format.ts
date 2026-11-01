@@ -1,33 +1,46 @@
-import { ODYSSEY_INTERVIEW_QUESTIONS, getOdysseyChoices } from "./odyssey-interview.flow";
+import { getOdysseyChoices, getOdysseyQuestionById } from "./odyssey-interview.flow";
+import { collectActiveOdysseyAnswers } from "./odyssey-interview.logic";
 import type { OdysseyInterviewAnswers } from "./odyssey-interview.types";
 import { ODYSSEY_OTHER_CHOICE_ID } from "./odyssey-interview.types";
 
-/** 모델 입력용: 질문 문구 + 사용자가 고른 라벨·직접 입력만 나열 */
-export function formatOdysseyAnswersForModel(answers: OdysseyInterviewAnswers): string {
-  const blocks: string[] = [];
+export type OdysseyModelAnswer = {
+  questionId: string;
+  question: string;
+  selected: string[];
+  freeText?: string;
+};
 
-  for (const q of ODYSSEY_INTERVIEW_QUESTIONS) {
-    if (q.type === "complete") continue;
-    const a = answers[q.id];
-    if (!a) continue;
+/** 모델 입력용: 실제 지나온 질문만, 질문 ID와 사용자가 고른 라벨·직접 입력으로 정리합니다. */
+export function buildOdysseyModelAnswers(
+  answers: OdysseyInterviewAnswers,
+): OdysseyModelAnswer[] {
+  const active = collectActiveOdysseyAnswers(answers);
 
-    const opts = getOdysseyChoices(q, answers);
-    const choiceLabels = a.choiceIds
+  return Object.values(active).flatMap((answer) => {
+    const q = getOdysseyQuestionById(answer.questionId);
+    if (!q) return [];
+
+    const labels = new Map(getOdysseyChoices(q, active).map((c) => [c.id, c.label]));
+    const selected = answer.choiceIds
       .filter((id) => id !== ODYSSEY_OTHER_CHOICE_ID)
-      .map((id) => opts.find((c) => c.id === id)?.label ?? id);
+      .flatMap((id) => labels.get(id) ?? []);
+    const freeText = answer.text?.trim();
 
-    const hasOther = a.choiceIds.includes(ODYSSEY_OTHER_CHOICE_ID);
-    const trimmedText = a.text?.trim();
+    return [
+      {
+        questionId: q.id,
+        question: q.prompt,
+        selected,
+        ...(freeText ? { freeText } : {}),
+      },
+    ];
+  });
+}
 
-    let answerLine = choiceLabels.join(", ");
-    if (trimmedText) {
-      answerLine = answerLine ? `${answerLine} (${trimmedText})` : trimmedText;
-    } else if (hasOther) {
-      answerLine = answerLine || "(직접 입력)";
-    }
-
-    blocks.push(`- 질문: ${q.prompt}\n  답변: ${answerLine || "(없음)"}`);
-  }
-
-  return blocks.join("\n\n");
+/** JSON 문자열로 직렬화해, 답변 안의 문장이 지시문 구조를 깨고 나오지 못하게 합니다. */
+export function formatOdysseyAnswersForModel(
+  answers: OdysseyInterviewAnswers,
+): string {
+  const entries = buildOdysseyModelAnswers(answers);
+  return entries.length ? JSON.stringify(entries, null, 2) : "";
 }

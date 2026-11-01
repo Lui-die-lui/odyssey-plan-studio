@@ -20,7 +20,6 @@ import {
 } from "@/features/plan/components/editor";
 import { usePlanEditor } from "@/features/plan/hooks/usePlanEditor";
 import { useMyPlan } from "@/features/plan/hooks/useMyPlan";
-import { mapOdysseyAiPlanFormToPlanFormValues } from "@/features/plan/lib/odyssey-ai-plan-draft.mapper";
 import {
   clearOdysseyAiPlanDraftFromSession,
   peekOdysseyAiPlanDraftFromSession,
@@ -49,6 +48,7 @@ const ManualPlanFormEditor = ({
     resetForm,
     setTitle,
     setScore,
+    confirmUnverifiedScores,
     setYearNote,
     setGoalLine,
     commitGoal,
@@ -132,6 +132,7 @@ const ManualPlanFormEditor = ({
                 resetLabel="초기화"
                 onTitleChange={setTitle}
                 onScoreChange={setScore}
+                onConfirmUnverifiedScores={confirmUnverifiedScores}
                 onYearNoteChange={setYearNote}
                 onGoalChange={setGoalLine}
                 onCommitGoal={commitGoal}
@@ -159,7 +160,7 @@ const NewPlanManualPageContent = () => {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setBoot({
         kind: "seeded",
-        values: mapOdysseyAiPlanFormToPlanFormValues(draft),
+        values: draft,
       });
     } else {
       setBoot({ kind: "empty" });

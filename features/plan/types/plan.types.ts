@@ -1,13 +1,22 @@
 import type { PlanOdysseyYearIndex } from "../constants/plan.constants";
+import type { PlanScoreKey } from "../constants/plan-score.constants";
 
-/** 1–5 scale for “distance” indicators (RESOURCES, INTEREST, …). */
+/** 1–5 self-rating; higher is more positive (RESOURCES, INTEREST, …). */
 export type PlanDistanceScore = 1 | 2 | 3 | 4 | 5;
 
-export type PlanYearScores = {
-  resources: PlanDistanceScore;
-  interest: PlanDistanceScore;
-  confidence: PlanDistanceScore;
-  coherence: PlanDistanceScore;
+/** `null` means not rated yet, which is different from a rating of 1. */
+export type PlanYearScores = Record<PlanScoreKey, PlanDistanceScore | null>;
+
+/**
+ * Explanation kept from AI generation. `sourceGoalTexts` is the generated goal
+ * and actions, compared with the current goals to detect later edits.
+ */
+export type PlanYearAiGuidance = {
+  sourceGoalTexts: string[];
+  checkpoint: string;
+  rationale: string;
+  evidenceQuestionIds: string[];
+  pivotCondition: string;
 };
 
 /** API + persisted shape for one odyssey year. */
@@ -28,8 +37,11 @@ export type PlanYearDto = {
   yearIndex: PlanOdysseyYearIndex;
   note?: string;
   scores: PlanYearScores;
+  /** Scores saved before self-rating existed; their author cannot be determined. */
+  unverifiedScoreKeys: PlanScoreKey[];
   goals: PlanYearGoalDto[];
   keywords: PlanYearKeywordDto[];
+  aiGuidance?: PlanYearAiGuidance;
 };
 
 export type SavedPlanResponse = {
@@ -51,8 +63,10 @@ export type PlanYearForm = {
   yearIndex: PlanOdysseyYearIndex;
   note: string;
   scores: PlanYearScores;
+  unverifiedScoreKeys: PlanScoreKey[];
   goals: PlanGoalLineForm[];
   keywords: string[];
+  aiGuidance?: PlanYearAiGuidance;
 };
 
 export type PlanFormValues = {
@@ -70,7 +84,9 @@ export type PlanYearSavePayload = {
   yearIndex: PlanOdysseyYearIndex;
   note?: string;
   scores: PlanYearScores;
+  unverifiedScoreKeys: PlanScoreKey[];
   /** Ordered; empty strings stripped server-side; max 5 kept. */
   goals: string[];
   keywords: string[];
+  aiGuidance?: PlanYearAiGuidance;
 };

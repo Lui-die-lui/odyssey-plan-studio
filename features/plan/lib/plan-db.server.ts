@@ -1,4 +1,14 @@
-import type { PlanYearDto, PlanYearScores, SavedPlanResponse } from "../types/plan.types";
+import {
+  PLAN_SCORE_KEYS,
+  type PlanScoreKey,
+} from "../constants/plan-score.constants";
+import type {
+  PlanYearAiGuidance,
+  PlanYearDto,
+  PlanYearSavePayload,
+  PlanYearScores,
+  SavedPlanResponse,
+} from "../types/plan.types";
 import { prisma } from "@/lib/prisma";
 
 export const planInclude = {
@@ -7,6 +17,7 @@ export const planInclude = {
     include: {
       goals: { orderBy: { position: "asc" as const } },
       keywords: { orderBy: { position: "asc" as const } },
+      aiGuidance: true,
     },
   },
 } as const;
@@ -15,10 +26,12 @@ export function mapYearToDto(y: {
   id: string;
   yearIndex: number;
   note: string | null;
-  resourcesScore: number;
-  interestScore: number;
-  confidenceScore: number;
-  coherenceScore: number;
+  resourcesScore: number | null;
+  interestScore: number | null;
+  confidenceScore: number | null;
+  coherenceScore: number | null;
+  unverifiedScoreKeys: string[];
+  aiGuidance: PlanYearAiGuidance | null;
   goals: { id: string; position: number; text: string }[];
   keywords: { id: string; position: number; text: string }[];
 }): PlanYearDto {
@@ -32,12 +45,44 @@ export function mapYearToDto(y: {
       confidence: y.confidenceScore as PlanYearScores["confidence"],
       coherence: y.coherenceScore as PlanYearScores["coherence"],
     },
+    unverifiedScoreKeys: PLAN_SCORE_KEYS.filter((key: PlanScoreKey) =>
+      y.unverifiedScoreKeys.includes(key),
+    ),
+    aiGuidance: y.aiGuidance
+      ? {
+          sourceGoalTexts: y.aiGuidance.sourceGoalTexts,
+          checkpoint: y.aiGuidance.checkpoint,
+          rationale: y.aiGuidance.rationale,
+          evidenceQuestionIds: y.aiGuidance.evidenceQuestionIds,
+          pivotCondition: y.aiGuidance.pivotCondition,
+        }
+      : undefined,
     goals: [...y.goals]
       .sort((a, b) => a.position - b.position)
       .map((g) => ({ id: g.id, position: g.position, text: g.text })),
     keywords: [...y.keywords]
       .sort((a, b) => a.position - b.position)
       .map((k) => ({ id: k.id, position: k.position, text: k.text })),
+  };
+}
+
+/** One `PlanYear` create payload, shared by new plans and full replacement saves. */
+export function mapYearPayloadToCreateData(y: PlanYearSavePayload) {
+  return {
+    yearIndex: y.yearIndex,
+    note: y.note ?? null,
+    resourcesScore: y.scores.resources,
+    interestScore: y.scores.interest,
+    confidenceScore: y.scores.confidence,
+    coherenceScore: y.scores.coherence,
+    unverifiedScoreKeys: y.unverifiedScoreKeys,
+    goals: {
+      create: y.goals.map((text, position) => ({ position, text })),
+    },
+    keywords: {
+      create: y.keywords.map((text, position) => ({ position, text })),
+    },
+    ...(y.aiGuidance ? { aiGuidance: { create: y.aiGuidance } } : {}),
   };
 }
 

@@ -33,15 +33,12 @@ export type PlanFormValidationResult = {
   errors: PlanFormValidationErrors;
 };
 
-const clampScore = (n: number): number =>
-  Math.min(PLAN_SCORE_MAX, Math.max(PLAN_SCORE_MIN, Math.round(n)));
-
 const validateScoreField = (
-  value: number,
+  value: PlanYearForm["scores"]["resources"],
   label: string,
 ): string | undefined => {
-  const v = clampScore(Number(value));
-  if (v < PLAN_SCORE_MIN || v > PLAN_SCORE_MAX) {
+  if (value === null) return undefined;
+  if (!Number.isInteger(value) || value < PLAN_SCORE_MIN || value > PLAN_SCORE_MAX) {
     return `${label} must be between ${PLAN_SCORE_MIN} and ${PLAN_SCORE_MAX}.`;
   }
   return undefined;

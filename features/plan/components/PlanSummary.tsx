@@ -5,32 +5,63 @@ import { useMemo, useState } from "react";
 import type { PlanYearDto, SavedPlanResponse } from "../types/plan.types";
 import type { PlanOdysseyYearIndex } from "../constants/plan.constants";
 import { PLAN_ODYSSEY_YEAR_INDICES } from "../constants/plan.constants";
-import type { PlanSummaryCategoryKey } from "../lib/plan-summary-stats";
 import {
-  computeCategoryAverages,
-  formatDistanceOneDecimal,
-  highestAndLowestCategory,
-  overallAverageDistance,
-  yearAverageDistance,
-  yearWithHighestAverage,
+  PLAN_RATING_AVERAGE_LABEL,
+  PLAN_RATING_OVERALL_LABEL,
+  PLAN_RATING_SCALE_NOTE,
+  PLAN_SCORE_KEYS,
+  PLAN_SCORE_LABELS,
+  PLAN_UNRATED_LABEL,
+  PLAN_UNVERIFIED_SCORES_NOTE,
+} from "../constants/plan-score.constants";
+import {
+  AI_SUGGESTION_LABEL,
+  isAiGuidanceOutdated,
+} from "../lib/plan-ai-guidance";
+import type { PlanRatingSummary } from "../lib/plan-summary-stats";
+import {
+  compareCategoryRatings,
+  countUnverifiedScores,
+  describeCategoryComparison,
+  formatRatingOneDecimal,
+  summarizeCategoryRatings,
+  summarizeOverallRating,
+  summarizeYearRating,
 } from "../lib/plan-summary-stats";
+import { PlanYearGuidanceDetails } from "./PlanYearGuidanceDetails";
 
 export type PlanSummaryProps = {
   plan: SavedPlanResponse | null;
   emptyStateMessage?: string;
 };
 
-const CATEGORY_LABELS: Record<
-  PlanSummaryCategoryKey,
-  { en: string; ko: string }
-> = {
-  resources: { en: "RESOURCES", ko: "현실 여건과 자원" },
-  interest: { en: "INTEREST", ko: "하고 싶은 마음" },
-  confidence: { en: "CONFIDENCE", ko: "해낼 수 있다는 감각" },
-  coherence: { en: "COHERENCE", ko: "나 다운 방향과의 일치감" },
-};
+/** Beyond this length the clamped note preview may cut text, so offer the full memo. */
+const NOTE_PREVIEW_CHARS = 60;
 
-const CATEGORY_KEYS = Object.keys(CATEGORY_LABELS) as PlanSummaryCategoryKey[];
+/** Average with its rated count; partial ratings show how many items it covers. */
+function RatingValue({ rating }: { rating: PlanRatingSummary }) {
+  if (rating.average === null) {
+    return (
+      <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+        {PLAN_UNRATED_LABEL}
+      </span>
+    );
+  }
+  return (
+    <span className="tabular-nums text-zinc-900 dark:text-zinc-100">
+      <span className="text-base font-bold tracking-tight lg:text-sm">
+        {formatRatingOneDecimal(rating.average)}
+      </span>
+      <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+        {" "}
+        / 5
+        {rating.ratedCount < rating.totalCount
+          ? ` (${rating.ratedCount}/${rating.totalCount}개 평가)`
+          : ""}
+      </span>
+    </span>
+  );
+}
 
 /** Points down when collapsed; rotates to point up when expanded. */
 function CollapseChevron({ expanded }: { expanded: boolean }) {
@@ -50,16 +81,19 @@ function CollapseChevron({ expanded }: { expanded: boolean }) {
   );
 }
 
-function YearDistanceBar({
+function YearRatingBar({
   yearLabel,
-  value,
+  rating,
   highlight,
 }: {
   yearLabel: string;
-  value: number;
+  rating: PlanRatingSummary;
   highlight?: boolean;
 }) {
-  const pct = Math.min(100, Math.max(0, (value / 5) * 100));
+  const pct =
+    rating.average === null
+      ? 0
+      : Math.min(100, Math.max(0, (rating.average / 5) * 100));
   const fill =
     highlight
       ? "bg-[#2E3F66] dark:bg-[#8FA8C9]"
@@ -75,8 +109,10 @@ function YearDistanceBar({
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="w-10 shrink-0 text-right text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
-        {formatDistanceOneDecimal(value)}
+      <span className="w-16 shrink-0 text-right text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
+        {rating.average === null
+          ? PLAN_UNRATED_LABEL
+          : `${formatRatingOneDecimal(rating.average)} (${rating.ratedCount}/${rating.totalCount})`}
       </span>
     </div>
   );
@@ -85,18 +121,23 @@ function YearDistanceBar({
 function YearDetailCard({
   idx,
   y,
-  avg,
+  rating,
   className = "",
   /** 모바일 캐러셀: 행 높이 = 가장 긴 슬라이드, 본문만 스크롤·하단 고정 */
   layout = "stack",
 }: {
   idx: PlanOdysseyYearIndex;
   y: PlanYearDto;
-  avg: number;
+  rating: PlanRatingSummary;
   className?: string;
   layout?: "stack" | "carousel";
 }) {
   const isCarousel = layout === "carousel";
+  const goalTexts = y.goals.map((g) => g.text);
+  const noteText = y.note?.trim();
+  const showAiLabels =
+    y.aiGuidance != null && !isAiGuidanceOutdated(y.aiGuidance, goalTexts);
+  const primaryGoalText = y.aiGuidance?.sourceGoalTexts[0];
 
   const topBlock = (
     <>
@@ -104,15 +145,35 @@ function YearDetailCard({
         {idx}Y
       </h3>
 
+      {showAiLabels ? (
+        <p className="mt-1 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+          {AI_SUGGESTION_LABEL}
+        </p>
+      ) : null}
+
       {y.goals.length > 0 ? (
         <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-snug text-zinc-700 dark:text-zinc-300 lg:mt-2 lg:pl-4 lg:text-xs">
           {y.goals.map((g) => (
-            <li key={g.id}>{g.text}</li>
+            <li key={g.id}>
+              {showAiLabels ? (
+                <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                  {g.text === primaryGoalText ? "목표 " : "행동 "}
+                </span>
+              ) : null}
+              {g.text}
+            </li>
           ))}
         </ul>
       ) : (
         <p className="mt-3 text-sm text-zinc-500 lg:mt-2 lg:text-xs">목표 없음</p>
       )}
+
+      <PlanYearGuidanceDetails
+        className="mt-3 lg:mt-2"
+        guidance={y.aiGuidance}
+        goalTexts={goalTexts}
+        note={noteText && noteText.length > NOTE_PREVIEW_CHARS ? noteText : undefined}
+      />
     </>
   );
 
@@ -140,16 +201,8 @@ function YearDetailCard({
         </div>
       ) : null}
       <div className="flex items-center justify-between border-t border-black/5 pt-4 text-sm text-zinc-600 dark:border-white/10 dark:text-zinc-400 lg:pt-3 lg:text-xs">
-        <span>평균 거리</span>
-        <span className="tabular-nums text-zinc-900 dark:text-zinc-100">
-          <span className="text-base font-bold tracking-tight lg:text-sm">
-            {formatDistanceOneDecimal(avg)}
-          </span>
-          <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-            {" "}
-            / 5
-          </span>
-        </span>
+        <span>{PLAN_RATING_AVERAGE_LABEL}</span>
+        <RatingValue rating={rating} />
       </div>
     </>
   );
@@ -209,10 +262,13 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
     (y): y is NonNullable<typeof y> => y != null,
   );
 
-  const overall = overallAverageDistance(orderedYears);
-  const categoryAvgs = computeCategoryAverages(orderedYears);
-  const { highest, lowest } = highestAndLowestCategory(categoryAvgs);
-  const bestYearIdx = yearWithHighestAverage(orderedYears);
+  const overall = summarizeOverallRating(orderedYears);
+  const categoryRatings = summarizeCategoryRatings(orderedYears);
+  const comparison = describeCategoryComparison(
+    compareCategoryRatings(categoryRatings),
+  );
+  const unverifiedCount = countUnverifiedScores(orderedYears);
+  const ratedProgress = `${overall.ratedCount} / ${overall.totalCount}`;
 
   const effectiveCarouselIndex =
     slides.length > 0 ? Math.min(carouselIndex, slides.length - 1) : 0;
@@ -249,6 +305,13 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
         </h2>
       </header>
 
+      {unverifiedCount > 0 ? (
+        <p className="rounded-lg bg-zinc-100 px-3 py-2 text-xs leading-relaxed text-zinc-700 dark:bg-white/[0.06] dark:text-zinc-300">
+          {PLAN_UNVERIFIED_SCORES_NOTE} 아래 평균에 해당 점수 {unverifiedCount}개가
+          포함되어 있어요. 수정 화면에서 점수를 확인해 주세요.
+        </p>
+      ) : null}
+
       <section aria-label="년차별 요약">
         {/* Mobile: carousel */}
         <div className="lg:hidden">
@@ -282,7 +345,7 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
                         layout="carousel"
                         idx={s.idx}
                         y={s.y}
-                        avg={yearAverageDistance(s.y.scores)}
+                        rating={summarizeYearRating(s.y.scores)}
                         className="min-h-0 flex-1 rounded-2xl"
                       />
                     </div>
@@ -312,13 +375,17 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
           {PLAN_ODYSSEY_YEAR_INDICES.map((idx) => {
             const y = byYear.get(idx);
             if (!y) return null;
-            const avg = yearAverageDistance(y.scores);
             return (
               <div
                 key={y.id}
                 className="flex h-full min-h-[220px] flex-col overflow-hidden rounded-lg border border-black/10 shadow-sm dark:border-white/10"
               >
-                <YearDetailCard idx={idx} y={y} avg={avg} className="h-full p-3" />
+                <YearDetailCard
+                  idx={idx}
+                  y={y}
+                  rating={summarizeYearRating(y.scores)}
+                  className="h-full p-3"
+                />
               </div>
             );
           })}
@@ -331,7 +398,7 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
             "overflow-hidden rounded-2xl border border-black/10 bg-white shadow-md dark:border-white/10 dark:bg-zinc-950 " +
             "lg:rounded-lg lg:bg-app-canvas/80 lg:shadow-none dark:lg:bg-zinc-950/50"
           }
-          aria-label="전체 평균 거리"
+          aria-label={PLAN_RATING_OVERALL_LABEL}
         >
           {/* Mobile: collapsible chart */}
           <div className="lg:hidden">
@@ -344,29 +411,26 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
             >
               <div className="min-w-0 flex-1">
                 <p className="text-base font-bold text-black dark:text-zinc-50">
-                  전체 평균 거리{" "}
-                  <span className="tabular-nums">
-                    {formatDistanceOneDecimal(overall)}
-                  </span>{" "}
-                  <span className="text-sm font-normal text-zinc-500">/ 5</span>
+                  {PLAN_RATING_OVERALL_LABEL}{" "}
+                  <RatingValue rating={overall} />
                 </p>
                 <ul className="mt-3 list-disc space-y-2 pl-4 text-sm text-zinc-700 dark:text-zinc-300">
                   <li>
                     <span className="text-zinc-500">가장 높은 항목 </span>
                     <span className="font-medium text-black dark:text-zinc-100">
-                      {CATEGORY_LABELS[highest].en}
+                      {comparison.highest}
                     </span>
                   </li>
                   <li>
                     <span className="text-zinc-500">가장 낮은 항목 </span>
                     <span className="font-medium text-black dark:text-zinc-100">
-                      {CATEGORY_LABELS[lowest].en}
+                      {comparison.lowest}
                     </span>
                   </li>
                   <li>
-                    <span className="text-zinc-500">성취 확률 높은 년도 </span>
-                    <span className="font-medium text-black dark:text-zinc-100">
-                      {bestYearIdx != null ? `${bestYearIdx}Y` : "—"}
+                    <span className="text-zinc-500">평가 완료 </span>
+                    <span className="font-medium tabular-nums text-black dark:text-zinc-100">
+                      {ratedProgress}
                     </span>
                   </li>
                 </ul>
@@ -388,18 +452,14 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
                     년도별 평균
                   </p>
                   <div className="mt-3 flex flex-col gap-2.5">
-                    {PLAN_ODYSSEY_YEAR_INDICES.map((idx) => {
-                      const y = byYear.get(idx);
-                      const v = y ? yearAverageDistance(y.scores) : 0;
-                      return (
-                        <YearDistanceBar
-                          key={idx}
-                          yearLabel={`${idx}Y`}
-                          value={v}
-                          highlight={idx === highlightedYearForBars}
-                        />
-                      );
-                    })}
+                    {orderedYears.map((y) => (
+                      <YearRatingBar
+                        key={y.yearIndex}
+                        yearLabel={`${y.yearIndex}Y`}
+                        rating={summarizeYearRating(y.scores)}
+                        highlight={y.yearIndex === highlightedYearForBars}
+                      />
+                    ))}
                   </div>
                 </div>
               </div>
@@ -410,11 +470,10 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
           <div className="hidden flex-col gap-4 p-5 lg:flex">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h3 className="text-sm font-semibold text-black dark:text-zinc-50">
-                전체 평균 거리
+                {PLAN_RATING_OVERALL_LABEL}
               </h3>
-              <p className="text-lg font-semibold tabular-nums text-black dark:text-zinc-50">
-                {formatDistanceOneDecimal(overall)}{" "}
-                <span className="text-sm font-normal text-zinc-500">/ 5</span>
+              <p className="text-lg font-semibold">
+                <RatingValue rating={overall} />
               </p>
             </div>
 
@@ -425,7 +484,7 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
                     가장 높은 항목:{" "}
                   </span>
                   <span className="font-medium text-black dark:text-zinc-100">
-                    {CATEGORY_LABELS[highest].en}
+                    {comparison.highest}
                   </span>
                 </li>
                 <li>
@@ -433,15 +492,15 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
                     가장 낮은 항목:{" "}
                   </span>
                   <span className="font-medium text-black dark:text-zinc-100">
-                    {CATEGORY_LABELS[lowest].en}
+                    {comparison.lowest}
                   </span>
                 </li>
                 <li>
                   <span className="text-zinc-500 dark:text-zinc-400">
-                    성취 확률 높은 년도:{" "}
+                    평가 완료:{" "}
                   </span>
-                  <span className="font-medium text-black dark:text-zinc-100">
-                    {bestYearIdx != null ? `${bestYearIdx}Y` : "—"}
+                  <span className="font-medium tabular-nums text-black dark:text-zinc-100">
+                    {ratedProgress}
                   </span>
                 </li>
               </ul>
@@ -450,17 +509,13 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
                 <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                   년도별 평균
                 </p>
-                {PLAN_ODYSSEY_YEAR_INDICES.map((idx) => {
-                  const y = byYear.get(idx);
-                  const v = y ? yearAverageDistance(y.scores) : 0;
-                  return (
-                    <YearDistanceBar
-                      key={idx}
-                      yearLabel={`${idx}Y`}
-                      value={v}
-                    />
-                  );
-                })}
+                {orderedYears.map((y) => (
+                  <YearRatingBar
+                    key={y.yearIndex}
+                    yearLabel={`${y.yearIndex}Y`}
+                    rating={summarizeYearRating(y.scores)}
+                  />
+                ))}
               </div>
             </div>
           </div>
@@ -474,11 +529,14 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
           aria-label="항목별 평균"
         >
           <h3 className="text-base font-bold text-black dark:text-zinc-50 lg:text-sm lg:font-semibold">
-            항목별 평균
+            항목별 자기평가 평균
           </h3>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            {PLAN_RATING_SCALE_NOTE}
+          </p>
           <ul className="mt-4 flex flex-col divide-y divide-black/5 dark:divide-white/10">
-            {CATEGORY_KEYS.map((key) => {
-              const { en, ko } = CATEGORY_LABELS[key];
+            {PLAN_SCORE_KEYS.map((key) => {
+              const { en, ko } = PLAN_SCORE_LABELS[key];
               return (
                 <li
                   key={key}
@@ -492,14 +550,8 @@ const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
                       {ko}
                     </p>
                   </div>
-                  <p className="shrink-0 tabular-nums text-black dark:text-zinc-50">
-                    <span className="text-base font-bold tracking-tight lg:text-sm lg:font-bold">
-                      {formatDistanceOneDecimal(categoryAvgs[key])}
-                    </span>
-                    <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-                      {" "}
-                      / 5
-                    </span>
+                  <p className="shrink-0 text-right">
+                    <RatingValue rating={categoryRatings[key]} />
                   </p>
                 </li>
               );

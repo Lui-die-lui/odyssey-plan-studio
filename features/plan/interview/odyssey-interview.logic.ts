@@ -1,6 +1,11 @@
-import { getOdysseyChoices } from "./odyssey-interview.flow";
+import {
+  ODYSSEY_INTERVIEW_QUESTIONS,
+  getOdysseyChoices,
+  getOdysseyQuestionById,
+} from "./odyssey-interview.flow";
 import type {
   OdysseyAnswerPayload,
+  OdysseyInterviewAnswerValue,
   OdysseyInterviewAnswers,
   OdysseyInterviewQuestionDef,
 } from "./odyssey-interview.types";
@@ -107,4 +112,42 @@ export function resolveOdysseyNextQuestionId(
   if (q.resolveNextId) return q.resolveNextId(nextAnswers, payload);
   if (q.nextId) return q.nextId;
   return null;
+}
+
+function isAnswerValidForQuestion(
+  q: OdysseyInterviewQuestionDef,
+  answer: OdysseyInterviewAnswerValue,
+  activeAnswers: OdysseyInterviewAnswers,
+): boolean {
+  if (!validateOdysseyPayload(q, answer).ok) return false;
+  const choiceIds = new Set(getOdysseyChoices(q, activeAnswers).map((c) => c.id));
+  return answer.choiceIds.every((id) => choiceIds.has(id));
+}
+
+/**
+ * 현재 답변으로 실제 지나온 질문의 답변만 반환합니다.
+ * 분기가 바뀌어 남은 예전 답변이나, 현재 선택지에 없는 답변은 제외합니다.
+ */
+export function collectActiveOdysseyAnswers(
+  answers: OdysseyInterviewAnswers,
+): OdysseyInterviewAnswers {
+  const active: OdysseyInterviewAnswers = {};
+  const visited = new Set<string>();
+  let questionId: string | null | undefined = ODYSSEY_INTERVIEW_QUESTIONS[0]?.id;
+
+  while (questionId && !visited.has(questionId)) {
+    visited.add(questionId);
+    const q = getOdysseyQuestionById(questionId);
+    if (!q || q.type === "complete") break;
+
+    const answer = answers[q.id];
+    if (answer && isAnswerValidForQuestion(q, answer, active)) {
+      active[q.id] = answer;
+      questionId = resolveOdysseyNextQuestionId(q, active, answer);
+    } else {
+      questionId = q.nextId;
+    }
+  }
+
+  return active;
 }

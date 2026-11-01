@@ -4,6 +4,7 @@ import { getActiveSessionUser } from "@/features/auth/lib/session-user";
 import {
   getPlanByUserId,
   mapPlanToResponse,
+  mapYearPayloadToCreateData,
   planInclude,
 } from "@/features/plan/lib/plan-db.server";
 import { parseSavePlanBody } from "@/features/plan/lib/plan-save.validation";
@@ -86,23 +87,7 @@ export async function POST(req: Request) {
           userId,
           title: title ?? null,
           years: {
-            create: years.map((y) => ({
-              yearIndex: y.yearIndex,
-              note: y.note ?? null,
-              resourcesScore: y.scores.resources,
-              interestScore: y.scores.interest,
-              confidenceScore: y.scores.confidence,
-              coherenceScore: y.scores.coherence,
-              goals: {
-                create: y.goals.map((text, position) => ({ position, text })),
-              },
-              keywords: {
-                create: y.keywords.map((text, position) => ({
-                  position,
-                  text,
-                })),
-              },
-            })),
+            create: years.map(mapYearPayloadToCreateData),
           },
         },
         include: planInclude,
@@ -126,21 +111,7 @@ export async function POST(req: Request) {
 
       for (const y of years) {
         await tx.planYear.create({
-          data: {
-            planId,
-            yearIndex: y.yearIndex,
-            note: y.note ?? null,
-            resourcesScore: y.scores.resources,
-            interestScore: y.scores.interest,
-            confidenceScore: y.scores.confidence,
-            coherenceScore: y.scores.coherence,
-            goals: {
-              create: y.goals.map((text, position) => ({ position, text })),
-            },
-            keywords: {
-              create: y.keywords.map((text, position) => ({ position, text })),
-            },
-          },
+          data: { planId, ...mapYearPayloadToCreateData(y) },
         });
       }
     });

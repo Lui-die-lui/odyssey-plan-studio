@@ -24,6 +24,8 @@ export const PLAN_MAX_LENGTH = {
   /** 키워드 한 줄 최대 글자 수 (UI: "N자 이내") */
   keyword: 7,
   note: 2000,
+  /** AI가 만든 확인 기준·근거 설명·전환 조건 한 항목 */
+  aiGuidanceText: 400,
 } as const;
 
 export const PLAN_DEFAULTS = {

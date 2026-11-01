@@ -143,7 +143,7 @@ const MyPlanPageInner = () => {
           </div>
 
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            연차별 목표와 거리 점수 요약을 확인할 수 있습니다.
+            연차별 목표와 자기평가 요약을 확인할 수 있습니다.
           </p>
         </div>
 

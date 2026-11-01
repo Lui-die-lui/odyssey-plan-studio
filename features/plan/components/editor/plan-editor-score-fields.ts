@@ -1,40 +1,43 @@
-import type { PlanYearScores } from "../../types/plan.types";
+import {
+  PLAN_SCORE_LABELS,
+  type PlanScoreKey,
+} from "../../constants/plan-score.constants";
 
 export type PlanEditorScoreFieldDef = {
-  key: keyof PlanYearScores;
+  key: PlanScoreKey;
   /** Uppercase label (wireframe style) */
   labelEn: string;
   hintKo: string;
+  highMeaning: string;
   scaleLeft: string;
   scaleRight: string;
 };
 
+const labelsFor = (key: PlanScoreKey) => ({
+  key,
+  labelEn: PLAN_SCORE_LABELS[key].en,
+  hintKo: PLAN_SCORE_LABELS[key].ko,
+  highMeaning: PLAN_SCORE_LABELS[key].highMeaning,
+});
+
 export const PLAN_EDITOR_SCORE_FIELDS: PlanEditorScoreFieldDef[] = [
   {
-    key: "resources",
-    labelEn: "RESOURCES",
-    hintKo: "현실 여건과 자원",
+    ...labelsFor("resources"),
     scaleLeft: "부족함",
     scaleRight: "충분함",
   },
   {
-    key: "interest",
-    labelEn: "INTEREST",
-    hintKo: "하고 싶은 마음",
+    ...labelsFor("interest"),
     scaleLeft: "낮음",
     scaleRight: "강함",
   },
   {
-    key: "confidence",
-    labelEn: "CONFIDENCE",
-    hintKo: "해낼 수 있다는 감각",
+    ...labelsFor("confidence"),
     scaleLeft: "불안함",
     scaleRight: "해볼 만함",
   },
   {
-    key: "coherence",
-    labelEn: "COHERENCE",
-    hintKo: "나 다운 방향과의 일치감",
+    ...labelsFor("coherence"),
     scaleLeft: "안 맞음",
     scaleRight: "나답다",
   },

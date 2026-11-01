@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
 import { getActiveSessionUser } from "@/features/auth/lib/session-user";
-import { formatOdysseyAnswersForModel } from "@/features/plan/interview/odyssey-interview.prompt-format";
+import { buildOdysseyModelAnswers } from "@/features/plan/interview/odyssey-interview.prompt-format";
 import type { OdysseyInterviewAnswers } from "@/features/plan/interview/odyssey-interview.types";
 import {
   MONTHLY_AI_DRAFT_LIMIT,
@@ -10,35 +10,16 @@ import {
   getAiDraftMonthKey,
   refundAiDraftQuota,
 } from "@/features/plan/lib/ai-draft-quota";
-import { coerceOdysseyGenerateResponse } from "@/features/plan/lib/odyssey-generate-response.coerce";
+import {
+  ODYSSEY_SYSTEM_INSTRUCTIONS,
+  buildOdysseyGenerateInput,
+} from "@/features/plan/lib/odyssey-generate.prompt";
+import { validateOdysseyGenerateResponse } from "@/features/plan/lib/odyssey-generate-response.validation";
 import { ODYSSEY_GENERATE_RESPONSE_SCHEMA } from "@/features/plan/lib/odyssey-generate.schema";
 import { prisma } from "@/lib/prisma";
 
 /** Upper bound on the formatted answers sent to the model. */
 const MAX_MODEL_INPUT_CHARS = 12_000;
-
-const SYSTEM_INSTRUCTIONS = `당신은 오디세이 플랜 앱의 정리 도우미입니다.
-사용자가 인터뷰에서 선택·입력한 내용만 근거로, 한국어로 JSON 스키마에 맞는 결과를 작성합니다.
-
-[summary]
-- 제공된 질문/답변에 없는 사실·경험·동기는 만들지 마세요.
-- 문단의 호흡이 너무 길지 않도록 조절해주세요.
-- 심리 진단, 과장된 확신, "당신은 ~한 사람" 식의 단정은 피하고, 관찰 가능한 경향 수준으로만 씁니다.
-- sections는 정확히 3개, 각 title 맨 앞에 주제에 어울리는 이모지 1개.
-- avoidNotes·keywords는 답변에 기반해 3~5개.
-
-[planForm]
-- title: 인터뷰 답변을 한 줄로 요약한 플랜 제목.
-- years: yearIndex 1~5가 각각 정확히 한 번씩 포함되어야 합니다.
-- plans: 연도별 목표 문장 배열. 밀도 가이드:
-  - 1년차: 비교적 구체적인 행동·목표 중심 (2~5문장 권장).
-  - 2~3년차: 1년차와 연결되는 확장·심화 방향.
-  - 4~5년차: 달성 상태·방향·균형 등 고수준 표현 위주, 문장 수는 적어도 됨(1~3개).
-- categoryScores: resources, interest, confidence, coherence 각각 1~5 정수. 답변 톤과 모순 없게.
-- keywords: 연도별 최대 5개, 짧은 한국어.
-- note: 해당 연도 메모(짧게). 불필요하면 빈 문자열.
-
-문체는 차분한 인터뷰 후 정리 노트에 가깝게 유지합니다.`;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -138,13 +119,14 @@ export async function POST(req: Request) {
     );
   }
 
-  const userBlock = formatOdysseyAnswersForModel(body.answers);
-  if (!userBlock.trim()) {
+  const modelAnswers = buildOdysseyModelAnswers(body.answers);
+  if (!modelAnswers.length) {
     return NextResponse.json(
       { error: "전송된 답변이 비어 있습니다." },
       { status: 400 },
     );
   }
+  const userBlock = JSON.stringify(modelAnswers, null, 2);
   if (userBlock.length > MAX_MODEL_INPUT_CHARS) {
     return NextResponse.json(
       { error: "답변이 너무 깁니다. 내용을 줄여 다시 시도해 주세요." },
@@ -185,8 +167,8 @@ export async function POST(req: Request) {
     const response = await openai.responses.create({
       model: "gpt-6-luna",
       store: false,
-      instructions: SYSTEM_INSTRUCTIONS,
-      input: `아래는 사용자의 인터뷰 답변입니다. summary와 planForm을 모두 생성하세요.\n\n${userBlock}`,
+      instructions: ODYSSEY_SYSTEM_INSTRUCTIONS,
+      input: buildOdysseyGenerateInput(userBlock),
       text: {
         format: {
           type: "json_schema",
@@ -210,16 +192,20 @@ export async function POST(req: Request) {
       return await failGeneration("MODEL_INVALID_JSON", "모델 JSON 파싱에 실패했습니다.");
     }
 
-    const coerced = coerceOdysseyGenerateResponse(parsed);
-    if (!coerced) {
+    const validated = validateOdysseyGenerateResponse(
+      parsed,
+      new Set(modelAnswers.map((answer) => answer.questionId)),
+    );
+    if (!validated.ok) {
+      console.error("[odyssey/generate] invalid model response:", validated.reason);
       return await failGeneration("MODEL_INVALID_SCHEMA", "모델 응답 형식이 올바르지 않습니다.");
     }
 
     await writeAiRequestLog(true);
 
     return NextResponse.json({
-      summary: coerced.summary,
-      planForm: coerced.planForm,
+      summary: validated.value.summary,
+      planForm: validated.value.planForm,
       remaining,
     });
   } catch (e) {

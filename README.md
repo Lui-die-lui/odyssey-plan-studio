@@ -22,6 +22,7 @@
 - AI 초안 생성
   - `POST /api/odyssey/generate`: OpenAI 호출 전 월간 쿼터/차단/전역 OFF 검증
   - `GET /api/odyssey/quota`: “이번 달 남은 횟수 + 차단 상태”를 프론트에 제공
+  - AI는 연차별 목표·행동·확인 기준·근거·전환 조건을 제안하고, 네 가지 점수는 사용자가 직접 평가
 - 운영/어드민
   - `/admin/dashboard`: 가입자/AI 요청 KPI + 일/주/월 추이(Recharts)
   - `/admin/ai-control`: 전역 AI ON/OFF + 사용자별 `aiBlocked` 제어

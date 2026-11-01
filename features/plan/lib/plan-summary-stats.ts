@@ -1,79 +1,107 @@
-import type { PlanOdysseyYearIndex } from "../constants/plan.constants";
-import type { PlanYearDto, PlanYearScores } from "../types/plan.types";
+import {
+  PLAN_NOT_COMPARABLE_LABEL,
+  PLAN_NO_DIFFERENCE_LABEL,
+  PLAN_SCORE_KEYS,
+  PLAN_SCORE_LABELS,
+  type PlanScoreKey,
+} from "../constants/plan-score.constants";
+import type { PlanDistanceScore, PlanYearDto, PlanYearScores } from "../types/plan.types";
 
-const SCORE_KEYS = [
-  "resources",
-  "interest",
-  "confidence",
-  "coherence",
-] as const satisfies readonly (keyof PlanYearScores)[];
+export type PlanSummaryCategoryKey = PlanScoreKey;
 
-export type PlanSummaryCategoryKey = (typeof SCORE_KEYS)[number];
+/** 미평가를 제외한 평균. `average`가 null이면 평가가 하나도 없습니다. */
+export type PlanRatingSummary = {
+  average: number | null;
+  ratedCount: number;
+  totalCount: number;
+};
 
-export function yearAverageDistance(scores: PlanYearScores): number {
-  const sum = SCORE_KEYS.reduce((acc, k) => acc + scores[k], 0);
-  return sum / SCORE_KEYS.length;
+function summarize(values: (PlanDistanceScore | null)[]): PlanRatingSummary {
+  const rated = values.filter((v): v is PlanDistanceScore => v !== null);
+  return {
+    average: rated.length
+      ? rated.reduce((sum, v) => sum + v, 0) / rated.length
+      : null,
+    ratedCount: rated.length,
+    totalCount: values.length,
+  };
 }
 
-export function formatDistanceOneDecimal(n: number): string {
+export function formatRatingOneDecimal(n: number): string {
   return n.toFixed(1);
 }
 
-export function computeCategoryAverages(
+export function summarizeYearRating(scores: PlanYearScores): PlanRatingSummary {
+  return summarize(PLAN_SCORE_KEYS.map((k) => scores[k]));
+}
+
+export function summarizeOverallRating(years: PlanYearDto[]): PlanRatingSummary {
+  return summarize(years.flatMap((y) => PLAN_SCORE_KEYS.map((k) => y.scores[k])));
+}
+
+export function summarizeCategoryRatings(
   years: PlanYearDto[],
-): Record<PlanSummaryCategoryKey, number> {
-  const acc = {
-    resources: 0,
-    interest: 0,
-    confidence: 0,
-    coherence: 0,
-  };
-  const n = years.length || 1;
-  for (const y of years) {
-    for (const k of SCORE_KEYS) {
-      acc[k] += y.scores[k];
-    }
-  }
+): Record<PlanSummaryCategoryKey, PlanRatingSummary> {
   return {
-    resources: acc.resources / n,
-    interest: acc.interest / n,
-    confidence: acc.confidence / n,
-    coherence: acc.coherence / n,
+    resources: summarize(years.map((y) => y.scores.resources)),
+    interest: summarize(years.map((y) => y.scores.interest)),
+    confidence: summarize(years.map((y) => y.scores.confidence)),
+    coherence: summarize(years.map((y) => y.scores.coherence)),
   };
 }
 
-export function overallAverageDistance(years: PlanYearDto[]): number {
-  if (!years.length) return 0;
-  const sum = years.reduce((s, y) => s + yearAverageDistance(y.scores), 0);
-  return sum / years.length;
+export type PlanCategoryComparison =
+  /** 항목마다 평가 수가 달라 비교할 수 없음 */
+  | { status: "not_comparable" }
+  /** 네 항목의 평균이 모두 같음 */
+  | { status: "no_difference" }
+  /** 동점인 항목은 모두 포함 */
+  | {
+      status: "compared";
+      highest: PlanSummaryCategoryKey[];
+      lowest: PlanSummaryCategoryKey[];
+    };
+
+/** 네 항목이 같은 수만큼 평가되었을 때만 비교합니다. */
+export function compareCategoryRatings(
+  ratings: Record<PlanSummaryCategoryKey, PlanRatingSummary>,
+): PlanCategoryComparison {
+  const [first] = PLAN_SCORE_KEYS.map((k) => ratings[k].ratedCount);
+  const comparable =
+    first > 0 && PLAN_SCORE_KEYS.every((k) => ratings[k].ratedCount === first);
+  if (!comparable) return { status: "not_comparable" };
+
+  const averages = PLAN_SCORE_KEYS.map((k) => ratings[k].average as number);
+  const max = Math.max(...averages);
+  const min = Math.min(...averages);
+  if (max === min) return { status: "no_difference" };
+
+  return {
+    status: "compared",
+    highest: PLAN_SCORE_KEYS.filter((k) => ratings[k].average === max),
+    lowest: PLAN_SCORE_KEYS.filter((k) => ratings[k].average === min),
+  };
 }
 
-export function highestAndLowestCategory(
-  avgs: Record<PlanSummaryCategoryKey, number>,
-): { highest: PlanSummaryCategoryKey; lowest: PlanSummaryCategoryKey } {
-  let highest: PlanSummaryCategoryKey = SCORE_KEYS[0];
-  let lowest: PlanSummaryCategoryKey = SCORE_KEYS[0];
-  for (const k of SCORE_KEYS) {
-    if (avgs[k] > avgs[highest]) highest = k;
-    if (avgs[k] < avgs[lowest]) lowest = k;
+/** Display text for the highest and lowest rows; ties list every tied category. */
+export function describeCategoryComparison(comparison: PlanCategoryComparison): {
+  highest: string;
+  lowest: string;
+} {
+  if (comparison.status === "not_comparable") {
+    return { highest: PLAN_NOT_COMPARABLE_LABEL, lowest: PLAN_NOT_COMPARABLE_LABEL };
   }
-  return { highest, lowest };
+  if (comparison.status === "no_difference") {
+    return { highest: PLAN_NO_DIFFERENCE_LABEL, lowest: PLAN_NO_DIFFERENCE_LABEL };
+  }
+  const labels = (keys: PlanSummaryCategoryKey[]) =>
+    keys.map((k) => PLAN_SCORE_LABELS[k].en).join(", ");
+  return {
+    highest: labels(comparison.highest),
+    lowest: labels(comparison.lowest),
+  };
 }
 
-/** 년도별 평균 거리가 가장 높은 해 (동점이면 더 이른 년차). */
-export function yearWithHighestAverage(
-  years: PlanYearDto[],
-): PlanOdysseyYearIndex | null {
-  if (!years.length) return null;
-  let best = years[0]!;
-  let bestAvg = yearAverageDistance(best.scores);
-  for (let i = 1; i < years.length; i++) {
-    const y = years[i]!;
-    const a = yearAverageDistance(y.scores);
-    if (a > bestAvg) {
-      best = y;
-      bestAvg = a;
-    }
-  }
-  return best.yearIndex;
+export function countUnverifiedScores(years: PlanYearDto[]): number {
+  return years.reduce((n, y) => n + y.unverifiedScoreKeys.length, 0);
 }

@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import type {
+  PlanDistanceScore,
   PlanFormValues,
   PlanGoalLineForm,
-  PlanYearScores,
 } from "../types/plan.types";
 import type { PlanOdysseyYearIndex } from "../constants/plan.constants";
 import type {
@@ -17,7 +17,14 @@ import {
   PLAN_MAX_LENGTH,
   PLAN_ODYSSEY_YEAR_INDICES,
 } from "../constants/plan.constants";
+import {
+  PLAN_RATING_SCALE_NOTE,
+  PLAN_UNVERIFIED_SCORES_NOTE,
+  type PlanScoreKey,
+} from "../constants/plan-score.constants";
+import { AI_SUGGESTION_LABEL } from "../lib/plan-ai-guidance";
 import { PlanDistanceScale } from "./PlanDistanceScale";
+import { PlanYearGuidanceDetails } from "./PlanYearGuidanceDetails";
 import PlanYearGoalsField from "./PlanYearGoalsField";
 import {
   PlanEditorActions,
@@ -152,9 +159,10 @@ export type PlanFormProps = {
   onTitleChange: (title: string) => void;
   onScoreChange: (
     yearIndex: PlanOdysseyYearIndex,
-    key: keyof PlanYearScores,
-    value: number,
+    key: PlanScoreKey,
+    value: PlanDistanceScore | null,
   ) => void;
+  onConfirmUnverifiedScores: (yearIndex: PlanOdysseyYearIndex) => void;
   onYearNoteChange: (yearIndex: PlanOdysseyYearIndex, note: string) => void;
   onGoalChange: (
     yearIndex: PlanOdysseyYearIndex,
@@ -185,6 +193,7 @@ const PlanForm = ({
   actionFootnote,
   onTitleChange,
   onScoreChange,
+  onConfirmUnverifiedScores,
   onYearNoteChange,
   onGoalChange,
   onCommitGoal,
@@ -280,6 +289,17 @@ const PlanForm = ({
           onRemoveGoal={(index) => onRemoveGoal(activeYear, index)}
           onReorderGoals={(next) => onReorderGoals(activeYear, next)}
         />
+        {yearBlock.aiGuidance ? (
+          <div className="mt-4 border-t border-zinc-100 pt-3 dark:border-white/10">
+            <p className="mb-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+              {AI_SUGGESTION_LABEL}
+            </p>
+            <PlanYearGuidanceDetails
+              guidance={yearBlock.aiGuidance}
+              goalTexts={yearBlock.goals.map((goal) => goal.text)}
+            />
+          </div>
+        ) : null}
       </section>
 
       <section
@@ -291,17 +311,34 @@ const PlanForm = ({
             id="plan-distance-keywords-heading"
             className="text-base font-semibold text-zinc-900 dark:text-zinc-50"
           >
-            {activeYear}년차 플랜과 나의 거리
+            {activeYear}년차 자기평가
           </h2>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            네 가지 감각과 키워드로 이 해의 방향을 잡아보세요.
+            네 가지 점수는 직접 매겨 주세요. AI는 점수를 만들지 않고, 비워 둔 항목은
+            미평가로 저장됩니다.
+          </p>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            {PLAN_RATING_SCALE_NOTE}
           </p>
         </div>
+
+        {yearBlock.unverifiedScoreKeys.length > 0 ? (
+          <div className="mb-5 flex flex-col gap-2 rounded-xl bg-zinc-100 px-3 py-2.5 text-xs leading-relaxed text-zinc-700 dark:bg-white/[0.06] dark:text-zinc-300 sm:flex-row sm:items-center sm:justify-between">
+            <p>{PLAN_UNVERIFIED_SCORES_NOTE}</p>
+            <button
+              type="button"
+              onClick={() => onConfirmUnverifiedScores(activeYear)}
+              className="shrink-0 cursor-pointer self-start rounded-full border border-zinc-300 bg-white px-3 py-1.5 font-medium text-zinc-800 transition-colors hover:bg-zinc-50 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 sm:self-auto"
+            >
+              내 평가가 맞아요
+            </button>
+          </div>
+        ) : null}
 
         <div className="flex flex-col gap-8 lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start">
           <div className="flex flex-col gap-4">
             {PLAN_EDITOR_SCORE_FIELDS.map(
-              ({ key, labelEn, hintKo, scaleLeft, scaleRight }) => {
+              ({ key, labelEn, hintKo, highMeaning, scaleLeft, scaleRight }) => {
                 const headingId = `plan-score-y${activeYear}-${key}-heading`;
                 return (
                   <div key={key} className="flex flex-col gap-2">
@@ -310,7 +347,7 @@ const PlanForm = ({
                         {labelEn}
                       </span>
                       <span className="mt-0.5 block text-xs font-normal normal-case text-zinc-500 dark:text-zinc-400">
-                        {hintKo}
+                        {hintKo} · {highMeaning}
                       </span>
                     </div>
                     <PlanDistanceScale

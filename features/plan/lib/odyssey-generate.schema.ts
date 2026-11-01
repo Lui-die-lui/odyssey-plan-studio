@@ -1,3 +1,20 @@
+const evidencedTextSchema = (description: string, questionIdsMinItems: number) => ({
+  type: "object",
+  additionalProperties: false,
+  required: ["text", "questionIds"],
+  description,
+  properties: {
+    text: { type: "string" },
+    questionIds: {
+      type: "array",
+      minItems: questionIdsMinItems,
+      maxItems: 6,
+      items: { type: "string" },
+      description: "입력 JSON에 있는 questionId만 사용.",
+    },
+  },
+});
+
 /**
  * POST /api/odyssey/generate — Responses API `json_schema.strict` 용 루트 스키마
  */
@@ -9,47 +26,58 @@ export const ODYSSEY_GENERATE_RESPONSE_SCHEMA: Record<string, unknown> = {
     summary: {
       type: "object",
       additionalProperties: false,
-      required: ["headline", "summary", "sections", "avoidNotes", "keywords"],
+      required: [
+        "headline",
+        "summary",
+        "facts",
+        "interpretations",
+        "missingInfo",
+        "avoidNotes",
+        "keywords",
+      ],
       properties: {
         headline: {
           type: "string",
-          description:
-            "카드 상단에 들어갈 한 줄 요약. 차분하고 구체적으로. (예: 방향을 제시하는 문장)",
+          description: "초안의 방향을 나타내는 차분한 한 줄.",
         },
         summary: {
           type: "string",
-          description:
-            "페이지 부제 수준의 짧은 안내 문단(2~3문장 이내). 답변에 근거한 사실 위주.",
+          description: "짧은 안내 문단(2~3문장 이내). 답변에 근거한 내용만.",
         },
-        sections: {
+        facts: {
           type: "array",
-          minItems: 3,
+          minItems: 1,
+          maxItems: 6,
+          description: "사용자가 실제로 선택하거나 입력한 내용.",
+          items: evidencedTextSchema("사용자가 말한 사실 한 문장.", 1),
+        },
+        interpretations: {
+          type: "array",
+          minItems: 0,
           maxItems: 3,
-          description:
-            "정확히 3개. 각 title 앞에 주제에 맞는 단일 이모지 하나를 붙일 것 (예: '🤝 …').",
-          items: {
-            type: "object",
-            additionalProperties: false,
-            properties: {
-              title: { type: "string" },
-              description: { type: "string" },
-            },
-            required: ["title", "description"],
-          },
+          description: "여러 답변을 연결한 제한적 판단. 근거가 부족하면 빈 배열.",
+          items: evidencedTextSchema("단정하지 않는 해석 한 문장.", 2),
+        },
+        missingInfo: {
+          type: "array",
+          minItems: 0,
+          maxItems: 4,
+          items: { type: "string" },
+          description: "계획을 구체화하려면 먼저 확인할 정보. 없으면 빈 배열.",
         },
         avoidNotes: {
           type: "array",
-          minItems: 3,
+          minItems: 0,
           maxItems: 5,
-          items: { type: "string" },
-          description: "피하고 싶은 방향 bullet. 답변에 나온 내용만 바탕으로 3~5개.",
+          description: "답변에서 실제로 확인한 피하고 싶은 방향만. 없으면 빈 배열.",
+          items: evidencedTextSchema("피하고 싶은 방향 한 문장.", 1),
         },
         keywords: {
           type: "array",
-          minItems: 3,
+          minItems: 0,
           maxItems: 5,
           items: { type: "string" },
-          description: "짧은 한국어 키워드 3~5개.",
+          description: "답변에서 확인한 짧은 한국어 키워드. 없으면 빈 배열.",
         },
       },
     },
@@ -60,23 +88,24 @@ export const ODYSSEY_GENERATE_RESPONSE_SCHEMA: Record<string, unknown> = {
       properties: {
         title: {
           type: "string",
-          description: "5년 플랜 전체를 대표하는 짧은 제목(한 줄).",
+          description: "5년 플랜 전체를 대표하는 80자 이내의 짧은 제목.",
         },
         years: {
           type: "array",
           minItems: 5,
           maxItems: 5,
-          description:
-            "yearIndex 1~5가 각각 정확히 한 번씩. 1년차는 구체적 실행 목표 위주, 2~3년차는 확장·연결, 4~5년차는 상태·방향 중심으로 plans 밀도를 달리 할 것.",
+          description: "yearIndex 1~5가 각각 정확히 한 번씩.",
           items: {
             type: "object",
             additionalProperties: false,
             required: [
               "yearIndex",
-              "plans",
-              "categoryScores",
+              "goal",
+              "actions",
+              "checkpoint",
+              "evidence",
+              "pivotCondition",
               "keywords",
-              "note",
             ],
             properties: {
               yearIndex: {
@@ -85,36 +114,48 @@ export const ODYSSEY_GENERATE_RESPONSE_SCHEMA: Record<string, unknown> = {
                 maximum: 5,
                 description: "오디세이 연차 1~5 (정수).",
               },
-              plans: {
-                type: "array",
-                items: { type: "string" },
-                maxItems: 5,
-                description:
-                  "해당 연도 목표 문장. 1년차는 2~5개 권장, 후반부는 1~3개 짧게도 가능.",
+              goal: {
+                type: "string",
+                description: "그 시점에 달라져 있을 상태. 200자 이내.",
               },
-              categoryScores: {
+              actions: {
+                type: "array",
+                minItems: 1,
+                maxItems: 2,
+                items: { type: "string" },
+                description: "실행 가능한 핵심 행동 1~2개. 각 200자 이내.",
+              },
+              checkpoint: {
+                type: "string",
+                description: "진행 여부를 확인할 산출물·경험·피드백. 300자 이내.",
+              },
+              evidence: {
                 type: "object",
                 additionalProperties: false,
-                required: ["resources", "interest", "confidence", "coherence"],
+                required: ["questionIds", "explanation"],
                 properties: {
-                  resources: { type: "integer", minimum: 1, maximum: 5 },
-                  interest: { type: "integer", minimum: 1, maximum: 5 },
-                  confidence: { type: "integer", minimum: 1, maximum: 5 },
-                  coherence: { type: "integer", minimum: 1, maximum: 5 },
+                  questionIds: {
+                    type: "array",
+                    minItems: 1,
+                    maxItems: 6,
+                    items: { type: "string" },
+                    description: "입력 JSON에 있는 questionId만 사용.",
+                  },
+                  explanation: {
+                    type: "string",
+                    description: "답변과 이 계획이 연결되는 이유. 300자 이내.",
+                  },
                 },
-                description:
-                  "자원·흥미·자신감·일관성 거리감 1~5. 답변과 논리적으로 맞출 것.",
+              },
+              pivotCondition: {
+                type: "string",
+                description: "어떤 결과면 이후 계획을 어떻게 바꿀지. 300자 이내.",
               },
               keywords: {
                 type: "array",
                 items: { type: "string" },
                 maxItems: 5,
-                description: "해당 연도 키워드 최대 5개.",
-              },
-              note: {
-                type: "string",
-                description:
-                  "그 해 메모(짧게). 거리 점수에 대한 한 줄 맥락 등. 없으면 빈 문자열.",
+                description: "해당 연도 키워드. 띄어쓰기 없는 7자 이내, 최대 5개.",
               },
             },
           },

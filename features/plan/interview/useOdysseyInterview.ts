@@ -97,6 +97,7 @@ export function useOdysseyInterview() {
     const validation = validateOdysseyPayload(q, payload);
     if (!validation.ok) {
       setValidationError(validation.message);
+      submitLockRef.current = false;
       return;
     }
     setValidationError(null);

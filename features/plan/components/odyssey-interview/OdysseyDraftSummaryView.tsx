@@ -3,7 +3,10 @@
 import { useRouter } from "next/navigation";
 
 import type { OdysseyAiPlanFormDraft } from "@/features/plan/interview/odyssey-ai-plan-draft.types";
-import type { OdysseyDraftSummary } from "@/features/plan/interview/odyssey-draft-summary.types";
+import type {
+  OdysseyDraftEvidencedText,
+  OdysseyDraftSummary,
+} from "@/features/plan/interview/odyssey-draft-summary.types";
 import { writeOdysseyAiPlanDraftToSession } from "@/features/plan/lib/odyssey-ai-draft-session";
 
 import {
@@ -18,8 +21,33 @@ type OdysseyDraftSummaryViewProps = {
   onRestartInterview: () => void;
 };
 
+const sectionClass = "border-t border-zinc-100 pt-6 first:border-t-0 first:pt-0 dark:border-white/10";
+const sectionTitleClass = "text-sm font-semibold text-zinc-900 dark:text-zinc-100";
+const listClass =
+  "mt-3 list-inside list-disc space-y-1.5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400";
+
+function EvidencedList({
+  title,
+  items,
+}: {
+  title: string;
+  items: OdysseyDraftEvidencedText[];
+}) {
+  if (!items.length) return null;
+  return (
+    <section className={sectionClass}>
+      <h4 className={sectionTitleClass}>{title}</h4>
+      <ul className={listClass}>
+        {items.map((item, i) => (
+          <li key={i}>{item.text}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 /**
- * 구조화된 초안 JSON만 받아 렌더 (와이어프레임 레이아웃, 이모지는 JSON title·고정 라벨)
+ * 구조화된 초안 JSON만 받아 렌더. 사용자가 말한 사실, 해석, AI 제안을 나눠 보여줍니다.
  */
 export function OdysseyDraftSummaryView({
   data,
@@ -41,9 +69,7 @@ export function OdysseyDraftSummaryView({
           답변을 바탕으로 오디세이 초안을 정리했어요
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-          {data.summary.trim()
-            ? data.summary
-            : "답변을 기반으로 오디세이 플랜에 들어갈 정보를 요약했어요. ‘내 플랜 다듬기’를 누르면 수정 화면으로 넘어갑니다."}
+          {data.summary}
         </p>
       </header>
 
@@ -52,45 +78,55 @@ export function OdysseyDraftSummaryView({
           {data.headline}
         </h3>
 
-        <div className="mt-6 space-y-6">
-          {data.sections.map((s, i) => (
-            <section key={`${i}-${s.title}`}>
-              <h4 className="text-sm font-semibold leading-snug text-zinc-900 dark:text-zinc-100">
-                {s.title}
-              </h4>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-                {s.description}
-              </p>
+        <div className="mt-6 flex flex-col gap-6">
+          <EvidencedList title="내가 답한 내용" items={data.facts} />
+          <EvidencedList title="답변을 연결해 본 해석" items={data.interpretations} />
+          <EvidencedList title="피하고 싶은 방향" items={data.avoidNotes} />
+
+          {data.missingInfo.length ? (
+            <section className={sectionClass}>
+              <h4 className={sectionTitleClass}>먼저 확인해 볼 것</h4>
+              <ul className={listClass}>
+                {data.missingInfo.map((line, i) => (
+                  <li key={i}>{line}</li>
+                ))}
+              </ul>
             </section>
-          ))}
+          ) : null}
+
+          <section className={sectionClass}>
+            <h4 className={sectionTitleClass}>AI 제안: 연차별 목표</h4>
+            <ol className="mt-3 flex flex-col gap-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+              {planForm.years.map((year) => (
+                <li key={year.yearIndex}>
+                  <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                    {year.yearIndex}Y
+                  </span>{" "}
+                  {year.goal}
+                </li>
+              ))}
+            </ol>
+            <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+              다음 화면에서 내용을 고치고, 네 가지 점수를 직접 평가할 수 있어요.
+            </p>
+          </section>
+
+          {data.keywords.length ? (
+            <section className={sectionClass}>
+              <h4 className={sectionTitleClass}>키워드</h4>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {data.keywords.map((k, i) => (
+                  <span
+                    key={`${k}-${i}`}
+                    className="inline-flex rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
+                  >
+                    {k}
+                  </span>
+                ))}
+              </div>
+            </section>
+          ) : null}
         </div>
-
-        <section className="mt-8 border-t border-zinc-100 pt-6 dark:border-white/10">
-          <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            ☠️ 피하고 싶은 방향
-          </h4>
-          <ul className="mt-3 list-inside list-disc space-y-1.5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-            {data.avoidNotes.map((line, i) => (
-              <li key={i}>{line}</li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="mt-8 border-t border-zinc-100 pt-6 dark:border-white/10">
-          <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            ✨ 키워드 (3~5개)
-          </h4>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {data.keywords.map((k, i) => (
-              <span
-                key={`${k}-${i}`}
-                className="inline-flex rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
-              >
-                {k}
-              </span>
-            ))}
-          </div>
-        </section>
       </div>
 
       <div className="flex shrink-0 flex-col gap-2 pb-1 sm:flex-row sm:flex-wrap sm:justify-end">

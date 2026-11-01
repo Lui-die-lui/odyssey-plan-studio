@@ -3,28 +3,32 @@
 import { useEffect, useMemo, type CSSProperties } from "react";
 
 import { PLAN_ODYSSEY_YEAR_INDICES } from "@/features/plan/constants/plan.constants";
-import type { PlanSummaryCategoryKey } from "@/features/plan/lib/plan-summary-stats";
 import {
-  computeCategoryAverages,
-  formatDistanceOneDecimal,
-  highestAndLowestCategory,
-  overallAverageDistance,
-  yearAverageDistance,
-  yearWithHighestAverage,
+  PLAN_RATING_AVERAGE_LABEL,
+  PLAN_RATING_OVERALL_LABEL,
+  PLAN_RATING_SCALE_NOTE,
+  PLAN_SCORE_KEYS,
+  PLAN_SCORE_LABELS,
+  PLAN_UNRATED_LABEL,
+  PLAN_UNVERIFIED_SCORES_NOTE,
+} from "@/features/plan/constants/plan-score.constants";
+import {
+  AI_GUIDANCE_OUTDATED_NOTE,
+  AI_SUGGESTION_LABEL,
+  describeEvidenceQuestions,
+  isAiGuidanceOutdated,
+} from "@/features/plan/lib/plan-ai-guidance";
+import {
+  compareCategoryRatings,
+  countUnverifiedScores,
+  describeCategoryComparison,
+  formatRatingOneDecimal,
+  summarizeCategoryRatings,
+  summarizeOverallRating,
+  summarizeYearRating,
+  type PlanRatingSummary,
 } from "@/features/plan/lib/plan-summary-stats";
 import type { PlanYearDto, SavedPlanResponse } from "@/features/plan/types/plan.types";
-
-const CATEGORY_LABELS: Record<
-  PlanSummaryCategoryKey,
-  { en: string; ko: string }
-> = {
-  resources: { en: "RESOURCES", ko: "현실 여건과 자원" },
-  interest: { en: "INTEREST", ko: "하고 싶은 마음" },
-  confidence: { en: "CONFIDENCE", ko: "해낼 수 있다는 감각" },
-  coherence: { en: "COHERENCE", ko: "나 다운 방향과의 일치감" },
-};
-
-const CATEGORY_KEYS = Object.keys(CATEGORY_LABELS) as PlanSummaryCategoryKey[];
 
 /**
  * A4 landscape printable width: (297mm − 12mm×2 margin) at 96 CSS px/inch,
@@ -269,6 +273,7 @@ const sheet: Record<string, CSSProperties> = {
   },
 
   bottomRow: {
+    breakInside: "avoid",
     display: "grid",
     gridTemplateColumns: "minmax(0, 1.65fr) minmax(0, 1fr)",
     gap: 12,
@@ -449,7 +454,172 @@ const sheet: Record<string, CSSProperties> = {
     fontWeight: 600,
     color: "#a1a1aa",
   },
+  unverifiedNote: {
+    margin: "10px 0 0",
+    padding: "8px 12px",
+    borderRadius: 10,
+    backgroundColor: "#f4f4f5",
+    fontSize: 10,
+    color: "#3f3f46",
+    ...textWrap,
+  },
+  scaleNote: {
+    margin: "6px 0 0",
+    fontSize: 9,
+    color: "#71717a",
+    ...textWrap,
+  },
+  unratedText: {
+    fontSize: 10,
+    fontWeight: 600,
+    color: "#71717a",
+  },
+
+  detailSection: {
+    breakBefore: "page",
+    boxSizing: "border-box",
+    minWidth: 0,
+  },
+  detailHeading: {
+    margin: 0,
+    fontSize: 16,
+    fontWeight: 800,
+    color: "#09090b",
+  },
+  detailCard: {
+    breakInside: "avoid",
+    marginTop: 12,
+    padding: "14px 16px",
+    border: "1px solid #e7e5e4",
+    borderRadius: 14,
+    boxSizing: "border-box",
+    minWidth: 0,
+  },
+  detailTitleRow: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: 8,
+  },
+  detailYear: {
+    margin: 0,
+    fontSize: 14,
+    fontWeight: 800,
+    color: "#09090b",
+  },
+  detailOrigin: {
+    fontSize: 10,
+    fontWeight: 600,
+    color: "#71717a",
+  },
+  detailGrid: {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+    gap: "10px 20px",
+    marginTop: 8,
+    minWidth: 0,
+  },
+  detailLabel: {
+    margin: 0,
+    fontSize: 11,
+    fontWeight: 700,
+    color: "#52525b",
+  },
+  detailText: {
+    margin: "2px 0 0",
+    fontSize: 12,
+    lineHeight: 1.5,
+    color: "#27272a",
+    whiteSpace: "pre-line" as const,
+    ...textWrap,
+  },
+  detailEvidence: {
+    margin: "3px 0 0",
+    fontSize: 11,
+    lineHeight: 1.45,
+    color: "#71717a",
+    ...textWrap,
+  },
+  detailOutdated: {
+    margin: "8px 0 0",
+    padding: "6px 10px",
+    borderRadius: 8,
+    backgroundColor: "#f4f4f5",
+    fontSize: 10,
+    color: "#3f3f46",
+    ...textWrap,
+  },
 };
+
+function RatingScore({ rating }: { rating: PlanRatingSummary }) {
+  if (rating.average === null) {
+    return <span style={sheet.unratedText}>{PLAN_UNRATED_LABEL}</span>;
+  }
+  return (
+    <span style={sheet.footerScoreWrap}>
+      <span style={sheet.footerScoreValue}>
+        {formatRatingOneDecimal(rating.average)}
+      </span>
+      <span style={sheet.footerScoreUnit}>
+        / 5
+        {rating.ratedCount < rating.totalCount
+          ? ` (${rating.ratedCount}/${rating.totalCount})`
+          : ""}
+      </span>
+    </span>
+  );
+}
+
+function DetailItem({ label, text }: { label: string; text: string }) {
+  return (
+    <div>
+      <p style={sheet.detailLabel}>{label}</p>
+      <p style={sheet.detailText}>{text}</p>
+    </div>
+  );
+}
+
+/** Everything the web view keeps collapsed, printed in full for one year. */
+function YearDetailCard({ year }: { year: PlanYearDto }) {
+  const goalTexts = sortedGoals(year).map((goal) => goal.text);
+  const { aiGuidance: guidance } = year;
+  const noteText = year.note?.trim();
+  const outdated = guidance ? isAiGuidanceOutdated(guidance, goalTexts) : false;
+  const scoreText = PLAN_SCORE_KEYS.map(
+    (key) =>
+      `${PLAN_SCORE_LABELS[key].en} ${year.scores[key] ?? PLAN_UNRATED_LABEL}`,
+  ).join(" · ");
+
+  return (
+    <article style={sheet.detailCard}>
+      <div style={sheet.detailTitleRow}>
+        <h3 style={sheet.detailYear}>{year.yearIndex}Y</h3>
+        {guidance && !outdated ? (
+          <span style={sheet.detailOrigin}>{AI_SUGGESTION_LABEL}</span>
+        ) : null}
+      </div>
+      {outdated ? <p style={sheet.detailOutdated}>{AI_GUIDANCE_OUTDATED_NOTE}</p> : null}
+      <div style={sheet.detailGrid}>
+        {guidance ? (
+          <>
+            <DetailItem label="확인 기준" text={guidance.checkpoint} />
+            <DetailItem label="전환 조건" text={guidance.pivotCondition} />
+            <div>
+              <p style={sheet.detailLabel}>제안 근거</p>
+              <p style={sheet.detailText}>{guidance.rationale}</p>
+              {describeEvidenceQuestions(guidance.evidenceQuestionIds).map((question) => (
+                <p key={question} style={sheet.detailEvidence}>
+                  • {question}
+                </p>
+              ))}
+            </div>
+          </>
+        ) : null}
+        {noteText ? <DetailItem label="메모" text={noteText} /> : null}
+        <DetailItem label="내 자기평가" text={scoreText} />
+      </div>
+    </article>
+  );
+}
 
 /** Local calendar date as `YYYY/MM/DD` (zero-padded). */
 function formatGeneratedAt(d: Date): string {
@@ -492,28 +662,27 @@ export function PlanSummaryPdfDocument({
     })();
   }, []);
 
-  const { byYear, overall, categoryAvgs, highest, lowest, bestYearIdx } =
+  const { byYear, detailYears, overall, categoryRatings, comparison, unverifiedCount } =
     useMemo(() => {
       const by = new Map(plan.years.map((y) => [y.yearIndex, y]));
       const ordered = PLAN_ODYSSEY_YEAR_INDICES.map((idx) => by.get(idx)).filter(
         (y): y is PlanYearDto => y != null,
       );
-
-      const avgs = computeCategoryAverages(ordered);
-      const { highest, lowest } = highestAndLowestCategory(avgs);
+      const ratings = summarizeCategoryRatings(ordered);
 
       return {
         byYear: by,
-        overall: overallAverageDistance(ordered),
-        categoryAvgs: avgs,
-        highest,
-        lowest,
-        bestYearIdx: yearWithHighestAverage(ordered),
+        detailYears: ordered.filter((y) => y.aiGuidance || y.note?.trim()),
+        overall: summarizeOverallRating(ordered),
+        categoryRatings: ratings,
+        comparison: describeCategoryComparison(compareCategoryRatings(ratings)),
+        unverifiedCount: countUnverifiedScores(ordered),
       };
     }, [plan]);
 
   return (
     <div data-pdf-root style={sheet.root}>
+      <div data-pdf-summary>
       <header style={sheet.header}>
         <h1 style={sheet.brandRow}>
           <span style={sheet.brandLogo}>MY</span>
@@ -533,10 +702,21 @@ export function PlanSummaryPdfDocument({
         </div>
       </header>
 
-      <section style={sheet.yearGrid} aria-label="연도별 요약">
+      {unverifiedCount > 0 ? (
+        <p style={sheet.unverifiedNote}>
+          {PLAN_UNVERIFIED_SCORES_NOTE} 평균에 해당 점수 {unverifiedCount}개가 포함되어
+          있습니다.
+        </p>
+      ) : null}
+
+      <section data-pdf-year-grid style={sheet.yearGrid} aria-label="연도별 요약">
         {PLAN_ODYSSEY_YEAR_INDICES.map((idx) => {
           const year = byYear.get(idx);
-          const avg = year ? yearAverageDistance(year.scores) : null;
+          const rating = year ? summarizeYearRating(year.scores) : null;
+          const guidance = year?.aiGuidance;
+          const showAiLabels =
+            guidance != null &&
+            !isAiGuidanceOutdated(guidance, sortedGoals(year as PlanYearDto).map((g) => g.text));
           const goals = year ? sortedGoals(year) : [];
           const keywords = year ? sortedKeywords(year) : [];
           const noteText = year?.note?.trim();
@@ -545,6 +725,9 @@ export function PlanSummaryPdfDocument({
             <article key={idx} style={sheet.yearCard}>
               <div style={sheet.yearTop}>
                 <h2 style={sheet.yearLabel}>{idx}Y</h2>
+                {showAiLabels ? (
+                  <p style={sheet.detailOrigin}>{AI_SUGGESTION_LABEL}</p>
+                ) : null}
 
                 {goals.length > 0 ? (
                   <ul style={sheet.goalList}>
@@ -559,7 +742,14 @@ export function PlanSummaryPdfDocument({
                         <span style={sheet.goalListBullet} aria-hidden>
                           •
                         </span>
-                        <span style={sheet.goalListText}>{goal.text}</span>
+                        <span style={sheet.goalListText}>
+                          {showAiLabels ? (
+                            <strong>
+                              {goal.text === guidance?.sourceGoalTexts[0] ? "목표 " : "행동 "}
+                            </strong>
+                          ) : null}
+                          {goal.text}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -587,14 +777,9 @@ export function PlanSummaryPdfDocument({
                 ) : null}
 
                 <div style={sheet.footerRow}>
-                  <span>평균 거리</span>
-                  {avg != null ? (
-                    <span style={sheet.footerScoreWrap}>
-                      <span style={sheet.footerScoreValue}>
-                        {formatDistanceOneDecimal(avg)}
-                      </span>
-                      <span style={sheet.footerScoreUnit}>/ 5</span>
-                    </span>
+                  <span>{PLAN_RATING_AVERAGE_LABEL}</span>
+                  {rating ? (
+                    <RatingScore rating={rating} />
                   ) : (
                     <span style={sheet.footerScoreValue}>—</span>
                   )}
@@ -607,26 +792,32 @@ export function PlanSummaryPdfDocument({
 
       <div style={sheet.bottomRow}>
         <section style={sheet.panel} aria-label="전체 평균">
-          <h3 style={sheet.panelTitle}>전체 평균 거리</h3>
+          <h3 style={sheet.panelTitle}>{PLAN_RATING_OVERALL_LABEL}</h3>
 
           <div style={sheet.scoreRow}>
-            <p style={sheet.bigScore}>{formatDistanceOneDecimal(overall)}</p>
-            <span style={sheet.scoreUnit}>/ 5</span>
+            {overall.average === null ? (
+              <p style={sheet.bigScore}>{PLAN_UNRATED_LABEL}</p>
+            ) : (
+              <>
+                <p style={sheet.bigScore}>{formatRatingOneDecimal(overall.average)}</p>
+                <span style={sheet.scoreUnit}>/ 5</span>
+              </>
+            )}
           </div>
 
           <div style={sheet.statGrid}>
             <div style={sheet.statItem}>
               <p style={sheet.statLabel}>Highest</p>
-              <p style={sheet.statValue}>{CATEGORY_LABELS[highest].en}</p>
+              <p style={sheet.statValue}>{comparison.highest}</p>
             </div>
             <div style={sheet.statItem}>
               <p style={sheet.statLabel}>Lowest</p>
-              <p style={sheet.statValue}>{CATEGORY_LABELS[lowest].en}</p>
+              <p style={sheet.statValue}>{comparison.lowest}</p>
             </div>
             <div style={sheet.statItem}>
-              <p style={sheet.statLabel}>Best Year</p>
+              <p style={sheet.statLabel}>Rated</p>
               <p style={sheet.statValue}>
-                {bestYearIdx != null ? `${bestYearIdx}Y` : "—"}
+                {overall.ratedCount} / {overall.totalCount}
               </p>
             </div>
           </div>
@@ -634,8 +825,9 @@ export function PlanSummaryPdfDocument({
           <p style={sheet.barTitle}>Yearly Average</p>
           {PLAN_ODYSSEY_YEAR_INDICES.map((idx, bi) => {
             const year = byYear.get(idx);
-            const value = year ? yearAverageDistance(year.scores) : 0;
-            const width = `${Math.max(0, Math.min(100, (value / 5) * 100))}%`;
+            const rating = year ? summarizeYearRating(year.scores) : null;
+            const value = rating?.average ?? null;
+            const width = `${Math.max(0, Math.min(100, ((value ?? 0) / 5) * 100))}%`;
             const isLastBar =
               bi === PLAN_ODYSSEY_YEAR_INDICES.length - 1;
 
@@ -652,7 +844,9 @@ export function PlanSummaryPdfDocument({
                   <div style={{ ...sheet.barFill, width }} />
                 </div>
                 <span style={sheet.barValue}>
-                  {formatDistanceOneDecimal(value)}
+                  {value === null
+                    ? PLAN_UNRATED_LABEL
+                    : `${formatRatingOneDecimal(value)} (${rating?.ratedCount}/${rating?.totalCount})`}
                 </span>
               </div>
             );
@@ -663,35 +857,43 @@ export function PlanSummaryPdfDocument({
           style={{ ...sheet.panel, ...sheet.catPanel }}
           aria-label="항목별 평균"
         >
-          <h3 style={sheet.panelTitle}>항목별 평균</h3>
+          <h3 style={sheet.panelTitle}>항목별 자기평가 평균</h3>
+          <p style={sheet.scaleNote}>{PLAN_RATING_SCALE_NOTE}</p>
 
           <div style={sheet.catList}>
-            {CATEGORY_KEYS.map((key, i) => (
+            {PLAN_SCORE_KEYS.map((key, i) => (
               <div
                 key={key}
                 style={{
                   ...sheet.catRow,
-                  ...(i === CATEGORY_KEYS.length - 1
+                  ...(i === PLAN_SCORE_KEYS.length - 1
                     ? { ...sheet.catRowLast, borderBottom: "none" }
                     : {}),
                 }}
               >
                 <div style={sheet.catLeft}>
-                  <p style={sheet.catEn}>{CATEGORY_LABELS[key].en}</p>
-                  <p style={sheet.catKo}>{CATEGORY_LABELS[key].ko}</p>
+                  <p style={sheet.catEn}>{PLAN_SCORE_LABELS[key].en}</p>
+                  <p style={sheet.catKo}>{PLAN_SCORE_LABELS[key].ko}</p>
                 </div>
 
-                <p style={sheet.catScoreWrap}>
-                  <span style={sheet.catScoreValue}>
-                    {formatDistanceOneDecimal(categoryAvgs[key])}
-                  </span>
-                  <span style={sheet.catScoreUnit}>/ 5</span>
-                </p>
+                <div style={sheet.catScoreWrap}>
+                  <RatingScore rating={categoryRatings[key]} />
+                </div>
               </div>
             ))}
           </div>
         </section>
       </div>
+      </div>
+
+      {detailYears.length > 0 ? (
+        <section style={sheet.detailSection} aria-label="연도별 상세">
+          <h2 style={sheet.detailHeading}>연도별 상세</h2>
+          {detailYears.map((year) => (
+            <YearDetailCard key={year.id} year={year} />
+          ))}
+        </section>
+      ) : null}
     </div>
   );
 }

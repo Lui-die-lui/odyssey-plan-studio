@@ -61,16 +61,22 @@ model PlanYear {
   /// Optional memo / summary for the year.
   note String?
 
-  resourcesScore  Int @default(1)
-  interestScore   Int @default(1)
-  confidenceScore Int @default(1)
-  coherenceScore  Int @default(1)
+  /// Self-ratings 1–5; null means not rated yet, which differs from a rating of 1.
+  resourcesScore  Int?
+  interestScore   Int?
+  confidenceScore Int?
+  coherenceScore  Int?
+
+  /// Score keys saved before self-rating existed. Their author cannot be determined,
+  /// so they stay flagged until the user changes or confirms them.
+  unverifiedScoreKeys String[] @default([])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  goals    PlanYearGoal[]
-  keywords PlanYearKeyword[]
+  goals      PlanYearGoal[]
+  keywords   PlanYearKeyword[]
+  aiGuidance PlanYearAiGuidance?
 
   @@unique([planId, yearIndex])
   @@index([planId])
@@ -106,6 +112,23 @@ model PlanYearKeyword {
 
   @@unique([planYearId, position])
   @@index([planYearId])
+}
+
+/// Explanation kept from AI generation; absent for manual plans and plans saved earlier.
+model PlanYearAiGuidance {
+  id         String   @id @default(cuid())
+  planYearId String   @unique
+  planYear   PlanYear @relation(fields: [planYearId], references: [id], onDelete: Cascade)
+
+  /// Generated goal and actions, compared with current goals to detect edits.
+  sourceGoalTexts     String[]
+  checkpoint          String
+  rationale           String
+  evidenceQuestionIds String[]
+  pivotCondition      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model AiDraftUsage {

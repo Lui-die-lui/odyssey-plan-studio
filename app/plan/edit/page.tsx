@@ -39,6 +39,7 @@ const EditPlanPageInner = () => {
     resetForm,
     setTitle,
     setScore,
+    confirmUnverifiedScores,
     setYearNote,
     setGoalLine,
     commitGoal,
@@ -124,7 +125,7 @@ const EditPlanPageInner = () => {
           <>
             <PlanEditorPageHeader
               title="Edit Plan"
-              description="연차별 목표와 거리 점수를 업데이트하세요."
+              description="연차별 목표와 자기평가를 업데이트하세요."
               actions={
                 <Link href="/my-plan" className={backLinkClass}>
                   나가기
@@ -157,6 +158,7 @@ const EditPlanPageInner = () => {
               resetLabel="초기화"
               onTitleChange={setTitle}
               onScoreChange={setScore}
+              onConfirmUnverifiedScores={confirmUnverifiedScores}
               onYearNoteChange={setYearNote}
               onGoalChange={setGoalLine}
               onCommitGoal={commitGoal}

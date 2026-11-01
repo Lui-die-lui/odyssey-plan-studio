@@ -108,13 +108,13 @@
 
 ## 오디세이 플랜 작성(수동)
 
-### 플랜 폼 렌더링(타이틀/연차/목표/키워드/거리 점수)
+### 플랜 폼 렌더링(타이틀/연차/목표/키워드/자기평가)
 - 설명: 5개 연차(yearIndex 1~5) 기준 폼을 제공하고 입력/정렬/검증 가능한 UI를 제공한다.
 - 사용자 역할: 구조화된 형태로 계획을 입력/수정.
 - 관련 파일:
   - `features/plan/components/PlanForm.tsx`: 폼 조합 엔트리.
   - `features/plan/components/PlanYearGoalsField.tsx`: 목표 리스트 편집 + DnD 재정렬.
-  - `features/plan/components/PlanDistanceScale.tsx`: 1~5 점수 UI.
+  - `features/plan/components/PlanDistanceScale.tsx`: 1~5 자기평가 UI(미평가·지우기 지원).
   - `features/plan/components/editor/PlanEditorYearTabs.tsx`: 연차 탭.
   - `features/plan/components/editor/PlanEditorActions.tsx`: 저장/초기화 액션.
   - `features/plan/components/editor/PlanEditorPageHeader.tsx`: 헤더/설명.
@@ -166,7 +166,7 @@
 - 데이터 흐름: 답변 제출 -> 로직에서 next question 계산 -> 메시지 큐 업데이트.
 - 연관 기능: 인터뷰 채팅 UI, AI 초안 생성 API.
 - 구현 상태: 부분 구현
-- 비고: `odyssey-interview.flow.ts`에 더미 플로우 코멘트가 있어 고도화 여지가 있다.
+- 비고: q_goal~q_limits로 목표·경험·시간·제약을 보완한다. 분기에서 벗어난 답변은 `collectActiveOdysseyAnswers`가 제외한다.
 
 ### 인터뷰 채팅 UI 및 생성/요약 전환
 - 설명: 채팅 화면, 생성중 상태, 생성 완료 요약 뷰를 단일 컴포넌트에서 phase로 제어한다.
@@ -183,13 +183,14 @@
 - 비고: summary 단계에서 브라우저 뒤로가기는 `/plan/new`로 강제 라우팅한다.
 
 ### AI 초안 생성 API(OpenAI + 스키마 강제 + 사용량 차감)
-- 설명: 인터뷰 답변을 OpenAI에 보내고 강한 JSON schema로 결과를 받아 planForm/summary를 생성한다.
+- 설명: 인터뷰 답변을 데이터로 분리해 OpenAI에 보내고, JSON schema와 런타임 검증을 통과한 summary/planForm만 반환한다.
 - 사용자 역할: 클릭 1회로 수동 편집 가능한 초안 획득.
 - 관련 파일:
   - `app/api/odyssey/generate/route.ts`: 생성 API 본체(인증/차단/quota/로깅/OpenAI).
   - `features/plan/interview/odyssey-interview.prompt-format.ts`: 모델 입력 텍스트 구성.
   - `features/plan/lib/odyssey-generate.schema.ts`: 응답 스키마.
-  - `features/plan/lib/odyssey-generate-response.coerce.ts`: 응답 강제 파싱.
+  - `features/plan/lib/odyssey-generate.prompt.ts`: 시스템 지시문과 입력 구성.
+  - `features/plan/lib/odyssey-generate-response.validation.ts`: 응답 검증. 값을 고치지 않고 실패 처리한다.
 - 데이터 흐름: 요청 -> auth/user/block/quota 검사 -> OpenAI call -> 응답 파싱 -> 성공/실패 로깅.
 - 연관 기능: quota 조회, admin AI 제어, AI 요청 통계.
 - 구현 상태: 완료
@@ -212,7 +213,7 @@
 ## 플랜 조회/요약/내 페이지
 
 ### 내 플랜 조회 및 요약 렌더
-- 설명: `/my-plan`에서 저장된 플랜과 연차별 요약, 점수 요약 정보를 보여준다.
+- 설명: `/my-plan`에서 저장된 플랜과 연차별 요약, 자기평가 요약을 보여준다. AI 근거·확인 기준·전환 조건은 펼쳐서 본다.
 - 사용자 역할: 현재 플랜 상태 확인, 수정/다운로드/탈퇴 액션 진입.
 - 관련 파일:
   - `app/my-plan/page.tsx`: 조회 화면 + 액션 버튼들.
@@ -429,7 +430,7 @@
 - 데이터 흐름: schema/migration 반영 -> deploy 환경 DB 동기화 -> 앱 런타임 사용.
 - 연관 기능: `/api/my-plan`, admin 통계 등 전 DB 기능.
 - 구현 상태: 완료
-- 비고: `PlanYear` 계열 테이블은 migration 적용 여부가 저장 API 정상동작의 전제.
+- 비고: `PlanYear` 계열 테이블은 migration 적용 여부가 저장 API 정상동작의 전제. 점수는 nullable이고, 자기평가 도입 전 값은 `unverifiedScoreKeys`로 표시해 보존한다.
 
 ### OAuth/도메인/환경변수 운영 설정
 - 설명: 배포 환경별 env, OAuth redirect URI, 서비스 도메인 정합성을 관리한다.
@@ -462,14 +463,11 @@
 - 3) 플랜 작성 시작 분기(수동/AI) + 기존 플랜 교체 확인
 - 4) 5개 연차 기반 수동 플랜 편집(목표 DnD, 점수, 키워드, 메모)
 - 5) `/api/my-plan` 서버 검증 + 트랜잭션 저장
-- 6) AI 인터뷰 기반 초안 생성(OpenAI + JSON schema coercion)
+- 6) AI 인터뷰 기반 초안 생성(OpenAI + JSON schema + 런타임 검증)
 - 7) 월간 AI 사용 제한(quota) + 전역/사용자 차단 정책
 - 8) 플랜 요약 화면 및 PDF 다운로드(서버 렌더 + Puppeteer)
 - 9) 관리자 대시보드(KPI/추이/AI 제어/사용자 관리)
 - 10) 탈퇴 예약(PENDING_DELETION) + 내부 cleanup 하드삭제 API
-
-## 덜 구현된 기능 추정
-- `features/plan/interview/odyssey-interview.flow.ts`: 더미 플로우 주석으로 보아 질문 설계 고도화 여지 존재(부분 구현 추정)
 
 ## 구조상 결합도가 높은 기능들
 - 인증/세션 + 라우팅 가드 + admin 권한 제어(`auth.ts`, `proxy.ts`, `admin-guard.ts`, `admin/layout.tsx`)
@@ -478,6 +476,5 @@
 - PDF 출력(`my-plan` 버튼, summary-pdf API, printable page, puppeteer 렌더)
 
 ## 리팩토링 우선순위 후보
-- 1) AI 인터뷰 플로우 더미 정의를 실제 시나리오로 교체(도메인 품질 향상)
-- 2) 미사용 `YearPlanItem` 테이블 제거 마이그레이션 추가
-- 3) 운영 스크립트(`set-admin-role.js`)를 공식 scripts 체계로 편입 및 안전장치 추가
+- 1) 미사용 `YearPlanItem` 테이블 제거 마이그레이션 추가
+- 2) 운영 스크립트(`set-admin-role.js`)를 공식 scripts 체계로 편입 및 안전장치 추가

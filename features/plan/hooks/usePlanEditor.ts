@@ -3,12 +3,13 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import type {
+  PlanDistanceScore,
   PlanFormValues,
   PlanGoalLineForm,
   PlanYearForm,
-  PlanYearScores,
 } from "../types/plan.types";
 import type { PlanOdysseyYearIndex } from "../constants/plan.constants";
+import type { PlanScoreKey } from "../constants/plan-score.constants";
 import { validatePlanForm } from "../lib/plan.validation";
 import { normalizePlanFormValues } from "../lib/plan.mapper";
 import { newPlanGoalId } from "../lib/plan-goal-id";
@@ -27,6 +28,7 @@ const cloneValues = (v: PlanFormValues): PlanFormValues => ({
   years: v.years.map((y) => ({
     ...y,
     scores: { ...y.scores },
+    unverifiedScoreKeys: [...y.unverifiedScoreKeys],
     goals: y.goals.map((g) => ({ ...g })),
     keywords: [...y.keywords],
   })),
@@ -89,11 +91,24 @@ export const usePlanEditor = (opts?: UsePlanEditorOptions) => {
   );
 
   const setScore = useCallback(
-    (yearIndex: PlanOdysseyYearIndex, key: keyof PlanYearScores, value: number) => {
+    (
+      yearIndex: PlanOdysseyYearIndex,
+      key: PlanScoreKey,
+      value: PlanDistanceScore | null,
+    ) => {
       patchYear(yearIndex, (y) => ({
         ...y,
-        scores: { ...y.scores, [key]: value as PlanYearScores[typeof key] },
+        scores: { ...y.scores, [key]: value },
+        // The user has now decided this score, so it is no longer of unknown origin.
+        unverifiedScoreKeys: y.unverifiedScoreKeys.filter((k) => k !== key),
       }));
+    },
+    [patchYear],
+  );
+
+  const confirmUnverifiedScores = useCallback(
+    (yearIndex: PlanOdysseyYearIndex) => {
+      patchYear(yearIndex, { unverifiedScoreKeys: [] });
     },
     [patchYear],
   );
@@ -177,6 +192,7 @@ export const usePlanEditor = (opts?: UsePlanEditorOptions) => {
     resetForm,
     setTitle,
     setScore,
+    confirmUnverifiedScores,
     setGoalLine,
     commitGoal,
     removeGoalLine,

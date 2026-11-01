@@ -21,8 +21,12 @@ const Q6_UNDECIDED = "q6_undecided";
 const Q8_EXTEND = "q8_extend";
 const Q8_SKIP = "q8_skip";
 
+/** 이 길이 이상 적었다면 q7 답변을 구체적인 목표로 보고 q_goal을 건너뜁니다. */
+const SPECIFIC_DIRECTION_MIN_CHARS = 12;
+
 /**
- * 더미 플로우: 문구·선택지·분기만 데이터로 정의 (UI는 config 소비)
+ * 문구·선택지·분기를 데이터로 정의합니다 (UI는 config 소비).
+ * q_goal~q_limits는 "아직 모름"류 선택지로 넘어갈 수 있고, 예산 같은 세부 정보는 묻지 않습니다.
  */
 export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
   {
@@ -133,7 +137,7 @@ export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
     resolveNextId: (_answers, payload) => {
       const v = payload.choiceIds[0];
       if (v === Q6_YES) return "q7";
-      return "q8";
+      return "q_goal";
     },
   },
   {
@@ -141,6 +145,67 @@ export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
     type: "text",
     prompt: "있다면 어떤 방향인지 간단히 적어주세요.",
     reaction: "",
+    nextId: "q_goal",
+    resolveNextId: (_answers, payload) =>
+      (payload.text?.trim().length ?? 0) >= SPECIFIC_DIRECTION_MIN_CHARS
+        ? "q_assets"
+        : "q_goal",
+  },
+  {
+    id: "q_goal",
+    type: "single_with_other",
+    prompt: "앞으로 구체적으로 탐색하거나 이루고 싶은 것이 있나요?",
+    reaction: "",
+    choices: [
+      { id: "q_goal_compare", label: "몇 가지 방향을 비교해 보고 싶어요" },
+      { id: "q_goal_unknown", label: "아직 모르겠어요" },
+      otherOption,
+    ],
+    nextId: "q_assets",
+  },
+  {
+    id: "q_assets",
+    type: "multi_with_other",
+    prompt:
+      "이미 해본 일이나 활용할 수 있는 경험·자원이 있나요? (복수 선택 가능)",
+    reaction: "",
+    choices: [
+      { id: "q_assets_work", label: "관련된 일이나 공부를 해봤어요" },
+      { id: "q_assets_output", label: "직접 만들어 본 결과물이 있어요" },
+      { id: "q_assets_people", label: "물어볼 사람이나 모임이 있어요" },
+      { id: "q_assets_none", label: "아직 없거나 잘 모르겠어요" },
+      otherOption,
+    ],
+    nextId: "q_time",
+  },
+  {
+    id: "q_time",
+    type: "single_with_other",
+    prompt: "이 계획에 일주일에 현실적으로 얼마나 쓸 수 있나요?",
+    reaction: "",
+    choices: [
+      { id: "q_time_low", label: "2시간 이하" },
+      { id: "q_time_mid", label: "3~5시간" },
+      { id: "q_time_high", label: "6~10시간" },
+      { id: "q_time_full", label: "10시간 넘게" },
+      { id: "q_time_unknown", label: "아직 모르겠어요" },
+      otherOption,
+    ],
+    nextId: "q_limits",
+  },
+  {
+    id: "q_limits",
+    type: "multi_with_other",
+    prompt: "계획을 세울 때 꼭 지켜야 할 조건이 있나요? (복수 선택 가능)",
+    reaction: "덕분에 무리 없는 속도로 맞춰 볼 수 있어요.",
+    choices: [
+      { id: "q_limits_health", label: "건강·회복 시간" },
+      { id: "q_limits_care", label: "가족·돌봄" },
+      { id: "q_limits_schedule", label: "지금 일이나 학업 일정" },
+      { id: "q_limits_income", label: "수입 유지" },
+      { id: "q_limits_none", label: "특별히 없거나 말하고 싶지 않아요" },
+      otherOption,
+    ],
     nextId: "q8",
   },
   {

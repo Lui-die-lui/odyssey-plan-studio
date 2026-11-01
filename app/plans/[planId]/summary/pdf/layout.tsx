@@ -20,6 +20,8 @@ export default function PlanSummaryPdfLayout({
     <div
       className={`${noto.className} flex min-h-screen w-full flex-col items-center justify-center bg-white text-zinc-900`}
     >
+      {/* Pages after the first would otherwise print the app canvas color. */}
+      <style>{"html, body { background: #fff !important; }"}</style>
       {children}
     </div>
   );

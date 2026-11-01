@@ -34,10 +34,23 @@ erDiagram
         string planId FK
         int yearIndex
         string note
-        int resourcesScore
-        int interestScore
-        int confidenceScore
-        int coherenceScore
+        int resourcesScore "nullable, null=미평가"
+        int interestScore "nullable, null=미평가"
+        int confidenceScore "nullable, null=미평가"
+        int coherenceScore "nullable, null=미평가"
+        string[] unverifiedScoreKeys "출처 미확인 점수"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    PLAN_YEAR_AI_GUIDANCE {
+        string id PK
+        string planYearId UK, FK
+        string[] sourceGoalTexts
+        string checkpoint
+        string rationale
+        string[] evidenceQuestionIds
+        string pivotCondition
         datetime createdAt
         datetime updatedAt
     }

@@ -6,7 +6,16 @@ import {
   PLAN_SCORE_MAX,
   PLAN_SCORE_MIN,
 } from "@/features/plan/constants/plan.constants";
-import type { PlanYearScores, SavePlanRequestPayload } from "@/features/plan/types/plan.types";
+import {
+  PLAN_SCORE_KEYS,
+  type PlanScoreKey,
+} from "@/features/plan/constants/plan-score.constants";
+import type {
+  PlanDistanceScore,
+  PlanYearAiGuidance,
+  PlanYearScores,
+  SavePlanRequestPayload,
+} from "@/features/plan/types/plan.types";
 
 export type ParseSavePlanResult =
   | { ok: true; data: SavePlanRequestPayload }
@@ -19,20 +28,84 @@ const normalizeOptionalString = (value?: string): string | undefined => {
   return trimmed && trimmed.length ? trimmed : undefined;
 };
 
-const clampScore = (n: unknown): number => {
+const QUESTION_ID_PATTERN = /^q[a-z0-9_]*$/;
+const MAX_EVIDENCE_QUESTION_IDS = 6;
+
+type ParsedScore = PlanDistanceScore | null | "invalid";
+
+/** `null` stays unrated; it is never turned into a default rating. */
+const parseScore = (n: unknown): ParsedScore => {
+  if (n === null || n === undefined) return null;
   const v = Math.round(Number(n));
-  return Math.min(PLAN_SCORE_MAX, Math.max(PLAN_SCORE_MIN, v));
+  if (!Number.isFinite(v)) return "invalid";
+  return Math.min(PLAN_SCORE_MAX, Math.max(PLAN_SCORE_MIN, v)) as PlanDistanceScore;
 };
 
 const parseScores = (raw: unknown): PlanYearScores | null => {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
-  return {
-    resources: clampScore(o.resources) as PlanYearScores["resources"],
-    interest: clampScore(o.interest) as PlanYearScores["interest"],
-    confidence: clampScore(o.confidence) as PlanYearScores["confidence"],
-    coherence: clampScore(o.coherence) as PlanYearScores["coherence"],
-  };
+  const resources = parseScore(o.resources);
+  const interest = parseScore(o.interest);
+  const confidence = parseScore(o.confidence);
+  const coherence = parseScore(o.coherence);
+  if (
+    resources === "invalid" ||
+    interest === "invalid" ||
+    confidence === "invalid" ||
+    coherence === "invalid"
+  ) {
+    return null;
+  }
+  return { resources, interest, confidence, coherence };
+};
+
+const parseUnverifiedScoreKeys = (
+  raw: unknown,
+  scores: PlanYearScores,
+): PlanScoreKey[] | null => {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw)) return null;
+  const known = PLAN_SCORE_KEYS.filter((key) => raw.includes(key));
+  if (known.length !== raw.length) return null;
+  return known.filter((key) => scores[key] !== null);
+};
+
+const isGuidanceText = (v: unknown): v is string =>
+  typeof v === "string" &&
+  v.trim().length > 0 &&
+  v.length <= PLAN_MAX_LENGTH.aiGuidanceText;
+
+const parseAiGuidance = (raw: unknown): PlanYearAiGuidance | null => {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const { sourceGoalTexts, checkpoint, rationale, evidenceQuestionIds, pivotCondition } = o;
+
+  if (
+    !Array.isArray(sourceGoalTexts) ||
+    sourceGoalTexts.length < 1 ||
+    sourceGoalTexts.length > PLAN_MAX_GOALS_PER_YEAR ||
+    !sourceGoalTexts.every(
+      (t) => typeof t === "string" && t.trim().length > 0 && t.length <= PLAN_MAX_LENGTH.goal,
+    )
+  ) {
+    return null;
+  }
+  if (
+    !Array.isArray(evidenceQuestionIds) ||
+    evidenceQuestionIds.length < 1 ||
+    evidenceQuestionIds.length > MAX_EVIDENCE_QUESTION_IDS ||
+    !evidenceQuestionIds.every((id) => typeof id === "string" && QUESTION_ID_PATTERN.test(id))
+  ) {
+    return null;
+  }
+  if (
+    !isGuidanceText(checkpoint) ||
+    !isGuidanceText(rationale) ||
+    !isGuidanceText(pivotCondition)
+  ) {
+    return null;
+  }
+  return { sourceGoalTexts, checkpoint, rationale, evidenceQuestionIds, pivotCondition };
 };
 
 const parseBoundedStringList = (
@@ -116,6 +189,15 @@ export function parseSavePlanBody(body: unknown): ParseSavePlanResult {
     const scores = parseScores(yr.scores);
     if (!scores) return invalid(`Invalid scores for year ${idx}.`);
 
+    const unverifiedScoreKeys = parseUnverifiedScoreKeys(yr.unverifiedScoreKeys, scores);
+    if (!unverifiedScoreKeys) return invalid(`Invalid score source for year ${idx}.`);
+
+    const aiGuidance =
+      yr.aiGuidance === undefined || yr.aiGuidance === null
+        ? undefined
+        : parseAiGuidance(yr.aiGuidance);
+    if (aiGuidance === null) return invalid(`Invalid AI guidance for year ${idx}.`);
+
     const goalsParsed = parseBoundedStringList(
       yr.goals,
       PLAN_MAX_GOALS_PER_YEAR,
@@ -136,8 +218,10 @@ export function parseSavePlanBody(body: unknown): ParseSavePlanResult {
       yearIndex: idx,
       note,
       scores,
+      unverifiedScoreKeys,
       goals: goalsParsed.values,
       keywords: keywordsParsed.values,
+      aiGuidance,
     });
   }
 

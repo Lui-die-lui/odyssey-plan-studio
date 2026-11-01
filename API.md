@@ -151,8 +151,10 @@ Success `200`:
 {
   "summary": {
     "headline": "string",
-    "sections": [{ "title": "string", "description": "string" }],
-    "avoidNotes": ["string"],
+    "facts": [{ "text": "string", "questionIds": ["q2"] }],
+    "interpretations": [{ "text": "string", "questionIds": ["q4", "q5"] }],
+    "missingInfo": ["string"],
+    "avoidNotes": [{ "text": "string", "questionIds": ["q5"] }],
     "keywords": ["string"]
   },
   "planForm": {
@@ -231,7 +233,15 @@ Request:
     {
       "yearIndex": 1,
       "note": "메모",
-      "scores": { "resources": 3, "interest": 4, "confidence": 3, "coherence": 4 },
+      "scores": { "resources": 3, "interest": 4, "confidence": null, "coherence": null },
+      "unverifiedScoreKeys": [],
+      "aiGuidance": {
+        "sourceGoalTexts": ["string"],
+        "checkpoint": "string",
+        "rationale": "string",
+        "evidenceQuestionIds": ["q_goal", "q_time"],
+        "pivotCondition": "string"
+      },
       "goals": ["목표1", "목표2"],
       "keywords": ["키워드1", "키워드2"]
     }

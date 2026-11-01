@@ -1,4 +1,5 @@
 import type {
+  PlanDistanceScore,
   PlanFormValues,
   PlanGoalLineForm,
   PlanYearDto,
@@ -15,17 +16,17 @@ import {
 } from "../constants/plan.constants";
 import { newPlanGoalId } from "./plan-goal-id";
 
-const clampScore = (n: number): PlanYearScores["resources"] => {
+const normalizeScore = (n: PlanYearScores["resources"] | undefined) => {
+  if (n === null || n === undefined) return null;
   const v = Math.round(Number(n));
-  const x = Math.min(PLAN_SCORE_MAX, Math.max(PLAN_SCORE_MIN, v));
-  return x as PlanYearScores["resources"];
+  return Math.min(PLAN_SCORE_MAX, Math.max(PLAN_SCORE_MIN, v)) as PlanDistanceScore;
 };
 
 const normalizeScores = (s?: Partial<PlanYearScores>): PlanYearScores => ({
-  resources: clampScore(s?.resources ?? PLAN_SCORE_MIN),
-  interest: clampScore(s?.interest ?? PLAN_SCORE_MIN),
-  confidence: clampScore(s?.confidence ?? PLAN_SCORE_MIN),
-  coherence: clampScore(s?.coherence ?? PLAN_SCORE_MIN),
+  resources: normalizeScore(s?.resources),
+  interest: normalizeScore(s?.interest),
+  confidence: normalizeScore(s?.confidence),
+  coherence: normalizeScore(s?.coherence),
 });
 
 export const createEmptyPlanYearForm = (
@@ -34,6 +35,7 @@ export const createEmptyPlanYearForm = (
   yearIndex,
   note: PLAN_DEFAULTS.emptyNote,
   scores: normalizeScores({}),
+  unverifiedScoreKeys: [],
   goals: [],
   keywords: [],
 });
@@ -64,10 +66,12 @@ export const normalizePlanFormValues = (
         yearIndex: idx,
         note: incoming.note ?? "",
         scores: normalizeScores(incoming.scores),
+        unverifiedScoreKeys: incoming.unverifiedScoreKeys ?? [],
         goals,
         keywords: (incoming.keywords ?? []).filter(
           (k) => (k ?? "").trim().length > 0,
         ),
+        aiGuidance: incoming.aiGuidance,
       };
     }),
   };
@@ -77,6 +81,8 @@ export const mapPlanYearDtoToForm = (dto: PlanYearDto): PlanYearForm => ({
   yearIndex: dto.yearIndex,
   note: dto.note ?? "",
   scores: normalizeScores(dto.scores),
+  unverifiedScoreKeys: dto.unverifiedScoreKeys,
+  aiGuidance: dto.aiGuidance,
   goals:
     dto.goals.length > 0
       ? [...dto.goals]
@@ -123,8 +129,10 @@ export const mapPlanFormValuesToSavePayload = (
       yearIndex: y.yearIndex,
       note: y.note?.trim() || undefined,
       scores: normalizeScores(y.scores),
+      unverifiedScoreKeys: y.unverifiedScoreKeys,
       goals: trimGoalTexts(y.goals),
       keywords: trimKeywords(y.keywords),
+      aiGuidance: y.aiGuidance,
     })),
   };
 };
