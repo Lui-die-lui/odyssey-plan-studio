@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { SavedPlanResponse } from "../types/plan.types";
-import { validResponse } from "./__fixtures__/odyssey-generate.fixture";
+import { validResponse, validYear } from "./__fixtures__/odyssey-generate.fixture";
 import { mapOdysseyAiPlanFormToPlanFormValues } from "./odyssey-ai-plan-draft.mapper";
 import {
   parseLegacyStoredDraft,
   parseStoredDraft,
+  parseStoredPathsDraft,
 } from "./odyssey-ai-draft-session";
 import { describeEvidenceQuestions, isAiGuidanceOutdated } from "./plan-ai-guidance";
 import { mapYearPayloadToCreateData, mapYearToDto } from "./plan-db.server";
@@ -17,7 +18,7 @@ import {
 } from "./plan.mapper";
 import { validatePlanForm } from "./plan.validation";
 
-const draft = () => validResponse().planForm;
+const draft = () => ({ title: "병행 계획", years: [1, 2, 3, 4, 5].map((y) => validYear(y)) });
 const unratedScores = { resources: null, interest: null, confidence: null, coherence: null };
 
 describe("AI draft to form", () => {
@@ -31,7 +32,7 @@ describe("AI draft to form", () => {
       sourceGoalTexts: first.goals.map((g) => g.text),
       checkpoint: draft().years[0].checkpoint,
       rationale: draft().years[0].evidence.explanation,
-      evidenceQuestionIds: ["q_goal", "q_time"],
+      evidenceQuestionIds: ["q_path_a", "q_time"],
       pivotCondition: draft().years[0].pivotCondition,
     });
   });
@@ -45,6 +46,12 @@ describe("AI draft to form", () => {
 });
 
 describe("sessionStorage drafts", () => {
+  it("restores the three-path format", () => {
+    const planForm = validResponse().planForm;
+    expect(parseStoredPathsDraft(JSON.stringify({ v: 3, planForm }))?.paths).toHaveLength(3);
+    expect(parseStoredPathsDraft(JSON.stringify({ v: 2, planForm }))).toBeNull();
+  });
+
   it("restores the current format with guidance", () => {
     const restored = parseStoredDraft(JSON.stringify({ v: 2, planForm: draft() }));
     expect(restored?.years[2].aiGuidance?.pivotCondition).toBe(draft().years[2].pivotCondition);
@@ -102,7 +109,7 @@ describe("save validation", () => {
     const input = body();
     input.years[0].scores = { resources: 1, interest: null, confidence: null, coherence: null };
     const result = parseSavePlanBody(input);
-    expect(result.ok && result.data.years[0].scores).toEqual({
+    expect(result.ok && result.data.years?.[0].scores).toEqual({
       resources: 1,
       interest: null,
       confidence: null,
@@ -118,8 +125,8 @@ describe("save validation", () => {
 
   it("carries guidance through unchanged", () => {
     const result = parseSavePlanBody(body());
-    expect(result.ok && result.data.years[1].aiGuidance?.evidenceQuestionIds).toEqual([
-      "q_goal",
+    expect(result.ok && result.data.years?.[1].aiGuidance?.evidenceQuestionIds).toEqual([
+      "q_path_a",
       "q_time",
     ]);
   });
@@ -137,15 +144,15 @@ describe("save validation", () => {
       delete y.unverifiedScoreKeys;
     }
     const result = parseSavePlanBody(input);
-    expect(result.ok && result.data.years[0].aiGuidance).toBeUndefined();
-    expect(result.ok && result.data.years[0].unverifiedScoreKeys).toEqual([]);
+    expect(result.ok && result.data.years?.[0].aiGuidance).toBeUndefined();
+    expect(result.ok && result.data.years?.[0].unverifiedScoreKeys).toEqual([]);
   });
 
   it("does not keep an unverified flag on a score that is now empty", () => {
     const input = body();
     input.years[0].unverifiedScoreKeys = ["resources"];
     const result = parseSavePlanBody(input);
-    expect(result.ok && result.data.years[0].unverifiedScoreKeys).toEqual([]);
+    expect(result.ok && result.data.years?.[0].unverifiedScoreKeys).toEqual([]);
   });
 });
 
@@ -178,6 +185,7 @@ describe("saved plan read back", () => {
   const asResponse = (dto: ReturnType<typeof mapYearToDto>): SavedPlanResponse => ({
     planId: "p1",
     years: [dto],
+    paths: [],
   });
 
   it("keeps existing scores and their unverified flag through an edit save", () => {

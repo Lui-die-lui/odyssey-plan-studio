@@ -2,7 +2,7 @@
 
 프로젝트 기간: 2026-03-20 ~ 2026-03-24
 
-5년 플랜(Year 1~5)을 “인터뷰 기반 초안 생성”으로 만들고, 사용자가 이후 직접 다듬고 편집할 수 있는 서비스입니다.
+서로 다른 세 가지 5년(지금 이어가는 삶, 다른 길의 삶, 제약을 잠시 내려놓은 삶)을 탐색하고 비교하는 오디세이 플랜 서비스입니다. 인터뷰로 초안을 만들거나 직접 작성하고, 작은 실험으로 이어갑니다.
 
 이 프로젝트는 Next.js(App Router) + NextAuth + Prisma(PostgreSQL) 기반이며, AI 초안 생성에는 월간 쿼터/차단 정책과 운영용 어드민 대시보드가 포함됩니다.
 
@@ -16,13 +16,15 @@
 - 플랜 생성 흐름
   - `/plan/new`: 시작 방식 선택(가이드 AI vs 수동)
   - `/plan/new/ai`: “AI와 함께 방향 찾기” 인터뷰 UI
-  - `/plan/new/manual`: 수동 입력/작성 UI
+  - `/plan/new/paths`: 세 경로 초안 다듬기 또는 직접 작성
+  - `/plan/new/manual`: 5년 계획 하나만 직접 작성
   - `/plan/edit`: 편집 UI
   - `/my-plan`: 내 플랜 보기
 - AI 초안 생성
   - `POST /api/odyssey/generate`: OpenAI 호출 전 월간 쿼터/차단/전역 OFF 검증
   - `GET /api/odyssey/quota`: “이번 달 남은 횟수 + 차단 상태”를 프론트에 제공
   - AI는 연차별 목표·행동·확인 기준·근거·전환 조건을 제안하고, 네 가지 점수는 사용자가 직접 평가
+  - 인터뷰 진행 상태와 저장 전 편집 내용은 sessionStorage에 유지되고, 로그아웃하면 지워짐
 - 운영/어드민
   - `/admin/dashboard`: 가입자/AI 요청 KPI + 일/주/월 추이(Recharts)
   - `/admin/ai-control`: 전역 AI ON/OFF + 사용자별 `aiBlocked` 제어

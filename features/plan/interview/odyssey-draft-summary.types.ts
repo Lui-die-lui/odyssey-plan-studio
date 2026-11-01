@@ -19,6 +19,8 @@ export type OdysseyDraftSummary = {
   missingInfo: string[];
   avoidNotes: OdysseyDraftEvidencedText[];
   keywords: string[];
+  /** 세 경로의 차이를 충분히 만들 정보가 없을 때의 한계. 없으면 빈 문자열 */
+  differenceNote: string;
 };
 
 export type OdysseyGenerateRequestBody = {

@@ -15,6 +15,132 @@ const evidencedTextSchema = (description: string, questionIdsMinItems: number) =
   },
 });
 
+const yearSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "yearIndex",
+    "goal",
+    "actions",
+    "checkpoint",
+    "evidence",
+    "pivotCondition",
+    "keywords",
+  ],
+  properties: {
+    yearIndex: {
+      type: "integer",
+      minimum: 1,
+      maximum: 5,
+      description: "오디세이 연차 1~5 (정수).",
+    },
+    goal: {
+      type: "string",
+      description: "그 시점에 달라져 있을 상태. 120자 이내.",
+    },
+    actions: {
+      type: "array",
+      minItems: 1,
+      maxItems: 2,
+      items: { type: "string" },
+      description: "실행 가능한 핵심 행동 1~2개. 각 120자 이내.",
+    },
+    checkpoint: {
+      type: "string",
+      description: "진행 여부를 확인할 산출물·경험·피드백. 120자 이내.",
+    },
+    evidence: {
+      type: "object",
+      additionalProperties: false,
+      required: ["questionIds", "explanation"],
+      properties: {
+        questionIds: {
+          type: "array",
+          minItems: 1,
+          maxItems: 6,
+          items: { type: "string" },
+          description: "입력 JSON에 있는 questionId만 사용.",
+        },
+        explanation: {
+          type: "string",
+          description: "답변과 이 계획이 연결되는 이유. 120자 이내.",
+        },
+      },
+    },
+    pivotCondition: {
+      type: "string",
+      description: "어떤 결과면 이후 계획을 어떻게 바꿀지. 120자 이내.",
+    },
+    keywords: {
+      type: "array",
+      items: { type: "string" },
+      maxItems: 2,
+      description: "해당 연도 키워드. 띄어쓰기 없는 7자 이내.",
+    },
+  },
+};
+
+const pathSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "kind",
+    "title",
+    "overview",
+    "appeal",
+    "requirements",
+    "openQuestions",
+    "experiments",
+    "years",
+  ],
+  properties: {
+    kind: {
+      type: "string",
+      enum: ["continue", "alternative", "unbound"],
+      description: "세 경로 중 하나. 각각 정확히 한 번씩.",
+    },
+    title: { type: "string", description: "수정 가능한 짧은 경로 제목. 40자 이내." },
+    overview: { type: "string", description: "어떤 삶인지 2문장 이내 개요." },
+    appeal: evidencedTextSchema("이 경로가 끌릴 수 있는 이유와 입력 근거.", 1),
+    requirements: {
+      type: "array",
+      minItems: 0,
+      maxItems: 5,
+      items: { type: "string" },
+      description: "필요한 주요 자원과 조건.",
+    },
+    openQuestions: {
+      type: "array",
+      minItems: 1,
+      maxItems: 4,
+      items: { type: "string" },
+      description: "아직 확인하지 못한 핵심 질문.",
+    },
+    experiments: {
+      type: "array",
+      minItems: 1,
+      maxItems: 3,
+      description: "큰 결정 전에 이 삶의 일부를 경험해 보는 작은 행동.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["action", "learning"],
+        properties: {
+          action: { type: "string", description: "할 일." },
+          learning: { type: "string", description: "무엇을 확인할지." },
+        },
+      },
+    },
+    years: {
+      type: "array",
+      minItems: 5,
+      maxItems: 5,
+      description: "yearIndex 1~5가 각각 정확히 한 번씩.",
+      items: yearSchema,
+    },
+  },
+};
+
 /**
  * POST /api/odyssey/generate — Responses API `json_schema.strict` 용 루트 스키마
  */
@@ -34,11 +160,12 @@ export const ODYSSEY_GENERATE_RESPONSE_SCHEMA: Record<string, unknown> = {
         "missingInfo",
         "avoidNotes",
         "keywords",
+        "differenceNote",
       ],
       properties: {
         headline: {
           type: "string",
-          description: "초안의 방향을 나타내는 차분한 한 줄.",
+          description: "세 경로를 함께 보여주는 차분한 한 줄.",
         },
         summary: {
           type: "string",
@@ -79,86 +206,27 @@ export const ODYSSEY_GENERATE_RESPONSE_SCHEMA: Record<string, unknown> = {
           items: { type: "string" },
           description: "답변에서 확인한 짧은 한국어 키워드. 없으면 빈 배열.",
         },
+        differenceNote: {
+          type: "string",
+          description: "세 경로의 차이를 충분히 만들 정보가 없을 때 그 한계. 없으면 빈 문자열.",
+        },
       },
     },
     planForm: {
       type: "object",
       additionalProperties: false,
-      required: ["title", "years"],
+      required: ["title", "paths"],
       properties: {
         title: {
           type: "string",
-          description: "5년 플랜 전체를 대표하는 80자 이내의 짧은 제목.",
+          description: "세 경로 전체를 대표하는 80자 이내의 짧은 제목.",
         },
-        years: {
+        paths: {
           type: "array",
-          minItems: 5,
-          maxItems: 5,
-          description: "yearIndex 1~5가 각각 정확히 한 번씩.",
-          items: {
-            type: "object",
-            additionalProperties: false,
-            required: [
-              "yearIndex",
-              "goal",
-              "actions",
-              "checkpoint",
-              "evidence",
-              "pivotCondition",
-              "keywords",
-            ],
-            properties: {
-              yearIndex: {
-                type: "integer",
-                minimum: 1,
-                maximum: 5,
-                description: "오디세이 연차 1~5 (정수).",
-              },
-              goal: {
-                type: "string",
-                description: "그 시점에 달라져 있을 상태. 200자 이내.",
-              },
-              actions: {
-                type: "array",
-                minItems: 1,
-                maxItems: 2,
-                items: { type: "string" },
-                description: "실행 가능한 핵심 행동 1~2개. 각 200자 이내.",
-              },
-              checkpoint: {
-                type: "string",
-                description: "진행 여부를 확인할 산출물·경험·피드백. 300자 이내.",
-              },
-              evidence: {
-                type: "object",
-                additionalProperties: false,
-                required: ["questionIds", "explanation"],
-                properties: {
-                  questionIds: {
-                    type: "array",
-                    minItems: 1,
-                    maxItems: 6,
-                    items: { type: "string" },
-                    description: "입력 JSON에 있는 questionId만 사용.",
-                  },
-                  explanation: {
-                    type: "string",
-                    description: "답변과 이 계획이 연결되는 이유. 300자 이내.",
-                  },
-                },
-              },
-              pivotCondition: {
-                type: "string",
-                description: "어떤 결과면 이후 계획을 어떻게 바꿀지. 300자 이내.",
-              },
-              keywords: {
-                type: "array",
-                items: { type: "string" },
-                maxItems: 5,
-                description: "해당 연도 키워드. 띄어쓰기 없는 7자 이내, 최대 5개.",
-              },
-            },
-          },
+          minItems: 3,
+          maxItems: 3,
+          description: "continue, alternative, unbound 경로를 각각 정확히 한 번씩.",
+          items: pathSchema,
         },
       },
     },

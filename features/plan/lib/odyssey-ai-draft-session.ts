@@ -14,23 +14,49 @@ import {
   mapOdysseyAiPlanFormToPlanFormValues,
   mapOdysseyLegacyAiPlanFormToPlanFormValues,
 } from "./odyssey-ai-plan-draft.mapper";
-import { validateOdysseyAiPlanForm } from "./odyssey-generate-response.validation";
+import {
+  validateOdysseyAiPlanForm,
+  validateOdysseySinglePlanDraft,
+} from "./odyssey-generate-response.validation";
 
+export const ODYSSEY_AI_PATHS_DRAFT_STORAGE_KEY = "odyssey:ai-plan-form-draft:v3" as const;
 export const ODYSSEY_AI_PLAN_DRAFT_STORAGE_KEY = "odyssey:ai-plan-form-draft:v2" as const;
 export const ODYSSEY_LEGACY_AI_PLAN_DRAFT_STORAGE_KEY = "odyssey:ai-plan-form-draft:v1" as const;
 
 type StoredPayload = {
-  v: 2;
+  v: 3;
   planForm: OdysseyAiPlanFormDraft;
 };
 
 export function writeOdysseyAiPlanDraftToSession(planForm: OdysseyAiPlanFormDraft): void {
   if (typeof window === "undefined") return;
   try {
-    const payload: StoredPayload = { v: 2, planForm };
-    sessionStorage.setItem(ODYSSEY_AI_PLAN_DRAFT_STORAGE_KEY, JSON.stringify(payload));
+    const payload: StoredPayload = { v: 3, planForm };
+    sessionStorage.setItem(ODYSSEY_AI_PATHS_DRAFT_STORAGE_KEY, JSON.stringify(payload));
   } catch {
     /* quota / private mode */
+  }
+}
+
+export function parseStoredPathsDraft(raw: string): OdysseyAiPlanFormDraft | null {
+  try {
+    const data: unknown = JSON.parse(raw);
+    if (!isRecord(data) || data.v !== 3) return null;
+    // 저장된 초안의 근거 ID는 생성 시 검증되었고, 여기서는 구조만 다시 확인합니다.
+    const result = validateOdysseyAiPlanForm(data.planForm, () => true);
+    return result.ok ? result.value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function peekOdysseyAiPathsDraftFromSession(): OdysseyAiPlanFormDraft | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(ODYSSEY_AI_PATHS_DRAFT_STORAGE_KEY);
+    return raw ? parseStoredPathsDraft(raw) : null;
+  } catch {
+    return null;
   }
 }
 
@@ -50,8 +76,7 @@ export function parseStoredDraft(raw: string): PlanFormValues | null {
   try {
     const data: unknown = JSON.parse(raw);
     if (!isRecord(data) || data.v !== 2) return null;
-    // 저장된 초안의 근거 ID는 생성 시 검증되었고, 여기서는 구조만 다시 확인합니다.
-    const result = validateOdysseyAiPlanForm(data.planForm, () => true);
+    const result = validateOdysseySinglePlanDraft(data.planForm);
     return result.ok ? mapOdysseyAiPlanFormToPlanFormValues(result.value) : null;
   } catch {
     return null;
@@ -104,6 +129,7 @@ export function peekOdysseyAiPlanDraftFromSession(): PlanFormValues | null {
 export function clearOdysseyAiPlanDraftFromSession(): void {
   if (typeof window === "undefined") return;
   try {
+    sessionStorage.removeItem(ODYSSEY_AI_PATHS_DRAFT_STORAGE_KEY);
     sessionStorage.removeItem(ODYSSEY_AI_PLAN_DRAFT_STORAGE_KEY);
     sessionStorage.removeItem(ODYSSEY_LEGACY_AI_PLAN_DRAFT_STORAGE_KEY);
   } catch {

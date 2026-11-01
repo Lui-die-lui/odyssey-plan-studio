@@ -2,6 +2,13 @@
 
 import { useRouter } from "next/navigation";
 
+import {
+  buttonClass,
+  helpTextClass,
+  pageTitleClass,
+  sectionTitleClass,
+} from "@/components/common/ui";
+import { PlanPathBadge } from "@/features/plan/components/PlanPathBadge";
 import type { OdysseyAiPlanFormDraft } from "@/features/plan/interview/odyssey-ai-plan-draft.types";
 import type {
   OdysseyDraftEvidencedText,
@@ -9,141 +16,104 @@ import type {
 } from "@/features/plan/interview/odyssey-draft-summary.types";
 import { writeOdysseyAiPlanDraftToSession } from "@/features/plan/lib/odyssey-ai-draft-session";
 
-import {
-  interviewPrimaryBtnClass,
-  interviewSecondaryBtnClass,
-} from "./interview-chat.styles";
-
 type OdysseyDraftSummaryViewProps = {
   data: OdysseyDraftSummary;
   planForm: OdysseyAiPlanFormDraft;
-  manualHref: string;
+  pathsHref: string;
   onRestartInterview: () => void;
+  onEditAnswers: () => void;
 };
 
-const sectionClass = "border-t border-zinc-100 pt-6 first:border-t-0 first:pt-0 dark:border-white/10";
-const sectionTitleClass = "text-sm font-semibold text-zinc-900 dark:text-zinc-100";
-const listClass =
-  "mt-3 list-inside list-disc space-y-1.5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400";
+const listClass = "mt-2 flex list-disc flex-col gap-1.5 pl-5 text-[15px] leading-relaxed text-ink-2";
 
-function EvidencedList({
-  title,
-  items,
-}: {
-  title: string;
-  items: OdysseyDraftEvidencedText[];
-}) {
+function TextList({ title, items }: { title: string; items: string[] }) {
   if (!items.length) return null;
   return (
-    <section className={sectionClass}>
-      <h4 className={sectionTitleClass}>{title}</h4>
+    <section>
+      <h3 className={sectionTitleClass}>{title}</h3>
       <ul className={listClass}>
         {items.map((item, i) => (
-          <li key={i}>{item.text}</li>
+          <li key={i}>{item}</li>
         ))}
       </ul>
     </section>
   );
 }
 
+const texts = (items: OdysseyDraftEvidencedText[]) => items.map((item) => item.text);
+
 /**
- * 구조화된 초안 JSON만 받아 렌더. 사용자가 말한 사실, 해석, AI 제안을 나눠 보여줍니다.
+ * 사용자가 말한 사실, 해석, AI 제안을 나눠 보여줍니다.
+ * 저장 전 단계라는 점과 다음 행동을 먼저 알립니다.
  */
 export function OdysseyDraftSummaryView({
   data,
   planForm,
-  manualHref,
+  pathsHref,
   onRestartInterview,
+  onEditAnswers,
 }: OdysseyDraftSummaryViewProps) {
   const router = useRouter();
 
   const goToManualWithDraft = () => {
     writeOdysseyAiPlanDraftToSession(planForm);
-    router.push(manualHref);
+    router.push(pathsHref);
   };
 
   return (
-    <div className="interview-composer-enter flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto rounded-2xl border border-zinc-200/80 bg-white/60 px-3 py-4 dark:border-white/10 dark:bg-zinc-950/50 sm:px-5 sm:py-6">
-      <header className="shrink-0">
-        <h2 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-2xl">
-          답변을 바탕으로 오디세이 초안을 정리했어요
-        </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-          {data.summary}
-        </p>
+    <div className="flex flex-col gap-8">
+      <header>
+        <p className="text-xs font-medium text-accent">AI 초안 · 아직 저장되지 않았어요</p>
+        <h2 className={`${pageTitleClass} mt-1.5`}>{data.headline}</h2>
+        <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-ink-2">{data.summary}</p>
       </header>
 
-      <div className="min-h-0 rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950 sm:p-7">
-        <h3 className="text-base font-semibold leading-snug text-zinc-900 dark:text-zinc-50 sm:text-lg">
-          {data.headline}
-        </h3>
+      <section>
+        <h3 className={sectionTitleClass}>AI가 제안한 세 가지 5년</h3>
+        <p className={`${helpTextClass} mt-0.5`}>세 경로는 우열이 아니라 함께 살펴볼 가능성이에요.</p>
+        <ul className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+          {planForm.paths.map((path) => (
+            <li key={path.kind} className="rounded-xl border border-line bg-surface p-4">
+              <PlanPathBadge kind={path.kind} />
+              <p className="mt-2 text-base font-semibold leading-snug tracking-tight text-ink">
+                {path.title}
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-ink-2">{path.overview}</p>
+              <p className="mt-2 text-xs text-ink-3">먼저 해볼 작은 실험</p>
+              <p className="text-sm leading-relaxed text-ink-2">{path.experiments[0]?.action}</p>
+            </li>
+          ))}
+        </ul>
+        {data.differenceNote ? (
+          <p className={`${helpTextClass} mt-3`}>{data.differenceNote}</p>
+        ) : null}
+      </section>
 
-        <div className="mt-6 flex flex-col gap-6">
-          <EvidencedList title="내가 답한 내용" items={data.facts} />
-          <EvidencedList title="답변을 연결해 본 해석" items={data.interpretations} />
-          <EvidencedList title="피하고 싶은 방향" items={data.avoidNotes} />
+      <TextList title="내가 답한 내용" items={texts(data.facts)} />
+      <TextList title="답변을 연결해 본 해석" items={texts(data.interpretations)} />
+      <TextList title="피하고 싶은 방향" items={texts(data.avoidNotes)} />
+      <TextList title="먼저 확인해 볼 것" items={data.missingInfo} />
 
-          {data.missingInfo.length ? (
-            <section className={sectionClass}>
-              <h4 className={sectionTitleClass}>먼저 확인해 볼 것</h4>
-              <ul className={listClass}>
-                {data.missingInfo.map((line, i) => (
-                  <li key={i}>{line}</li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
+      {data.keywords.length ? (
+        <p className={helpTextClass}>키워드: {data.keywords.join(" · ")}</p>
+      ) : null}
 
-          <section className={sectionClass}>
-            <h4 className={sectionTitleClass}>AI 제안: 연차별 목표</h4>
-            <ol className="mt-3 flex flex-col gap-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-              {planForm.years.map((year) => (
-                <li key={year.yearIndex}>
-                  <span className="font-medium text-zinc-800 dark:text-zinc-200">
-                    {year.yearIndex}Y
-                  </span>{" "}
-                  {year.goal}
-                </li>
-              ))}
-            </ol>
-            <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
-              다음 화면에서 내용을 고치고, 네 가지 점수를 직접 평가할 수 있어요.
-            </p>
-          </section>
-
-          {data.keywords.length ? (
-            <section className={sectionClass}>
-              <h4 className={sectionTitleClass}>키워드</h4>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {data.keywords.map((k, i) => (
-                  <span
-                    key={`${k}-${i}`}
-                    className="inline-flex rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
-                  >
-                    {k}
-                  </span>
-                ))}
-              </div>
-            </section>
-          ) : null}
+      <div className="flex flex-col gap-3 border-t border-line pt-5">
+        <p className={helpTextClass}>
+          다음 화면에서 경로별 5년과 작은 실험을 고치고, 직접 평가한 뒤 저장할 수 있어요. 다시 만들면
+          이번 달 이용 횟수를 1회 더 사용합니다.
+        </p>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
+          <button type="button" onClick={onRestartInterview} className={buttonClass("quiet")}>
+            처음부터 다시
+          </button>
+          <button type="button" onClick={onEditAnswers} className={buttonClass("secondary", "sm:ml-auto")}>
+            답변 고쳐서 다시 만들기
+          </button>
+          <button type="button" onClick={goToManualWithDraft} className={buttonClass("primary")}>
+            세 경로 다듬기
+          </button>
         </div>
-      </div>
-
-      <div className="flex shrink-0 flex-col gap-2 pb-1 sm:flex-row sm:flex-wrap sm:justify-end">
-        <button
-          type="button"
-          onClick={onRestartInterview}
-          className={interviewSecondaryBtnClass}
-        >
-          처음부터 다시
-        </button>
-        <button
-          type="button"
-          onClick={goToManualWithDraft}
-          className={interviewPrimaryBtnClass}
-        >
-          내 플랜 다듬기
-        </button>
       </div>
     </div>
   );

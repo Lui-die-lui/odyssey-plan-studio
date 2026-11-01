@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useMemo, useState, type FormEvent } from "react";
 
+import { Notice } from "@/components/common/Notice";
+import { buttonClass } from "@/components/common/ui";
 import RequireAuthForPlan from "@/features/auth/components/RequireAuthForPlan";
-import { SubpageGlassVeil } from "@/components/layout/SubpageGlassVeil";
-import { LandingConfetti } from "@/features/landing/components/LandingConfetti";
 import PlanForm from "@/features/plan/components/PlanForm";
-import { PlanContentSkeleton, PlanPageSkeleton } from "@/features/plan/components/PlanSkeletons";
+import { PlanPathsEditor } from "@/features/plan/components/PlanPathsEditor";
+import { PlanPageSkeleton } from "@/features/plan/components/PlanSkeletons";
 import {
   PlanEditorLayout,
   PlanEditorPageHeader,
@@ -19,14 +20,55 @@ import {
   mapPlanFormValuesToSavePayload,
   mapSavedPlanResponseToEditFormValues,
 } from "@/features/plan/lib/plan.mapper";
+import { mapSavedPathsToForms } from "@/features/plan/lib/plan-path.mapper";
 import { saveMyPlan } from "@/features/plan/lib/plan.service";
+import type { SavedPlanResponse } from "@/features/plan/types/plan.types";
 
-const backLinkClass =
-  "inline-flex h-8 shrink-0 items-center justify-center rounded-full border border-zinc-200/90 bg-white px-3 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800";
+const PathsEditPage = ({ plan }: { plan: SavedPlanResponse }) => {
+  const [forms] = useState(() => mapSavedPathsToForms(plan));
+  return (
+    <PlanEditorLayout>
+      <PlanPathsEditor
+        initialForms={forms}
+        autosaveScope={`edit-paths:${plan.planId}`}
+        planTitle={plan.title}
+        isDraft={false}
+        header={
+          <PlanEditorPageHeader
+            title="세 경로 수정"
+            description="경로와 연차를 옮겨 가며 고치세요. 저장 전까지 내 플랜은 바뀌지 않습니다."
+            actions={
+              <Link href="/my-plan" className={buttonClass("quiet")}>
+                나가기
+              </Link>
+            }
+          />
+        }
+      />
+    </PlanEditorLayout>
+  );
+};
 
-const EditPlanPageInner = () => {
-  const router = useRouter();
+const EditPlanRouter = () => {
   const { plan, loading, error, refetch } = useMyPlan({ autoLoad: true });
+  const singleRequested = useSearchParams().get("target") === "single";
+
+  if (!loading && plan?.paths.length && !singleRequested) return <PathsEditPage plan={plan} />;
+  return <EditPlanPageInner plan={plan} loading={loading} error={error} refetch={refetch} />;
+};
+
+const EditPlanPageInner = ({
+  plan,
+  loading,
+  error,
+  refetch,
+}: {
+  plan: SavedPlanResponse | null;
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
+}) => {
+  const router = useRouter();
 
   const initialFormValues = useMemo(
     () => (plan ? mapSavedPlanResponseToEditFormValues(plan) : undefined),
@@ -36,6 +78,9 @@ const EditPlanPageInner = () => {
   const {
     values,
     validation,
+    isDirty,
+    restored,
+    clearAutosave,
     resetForm,
     setTitle,
     setScore,
@@ -49,136 +94,112 @@ const EditPlanPageInner = () => {
     removeKeywordLine,
   } = usePlanEditor({
     initialValues: initialFormValues,
+    autosaveKey: plan ? `edit:${plan.planId}` : undefined,
   });
 
-  const confettiColorVariant =
-    !loading && plan != null ? "colored" : "neutral";
-
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [status, setStatus] = useState<
-    | { type: "success"; message: string }
-    | { type: "error"; message: string }
-    | null
-  >(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setStatus(null);
+    setSaveError(null);
     setIsSubmitting(true);
 
     try {
-      if (!plan?.planId) {
-        throw new Error("저장된 플랜이 없습니다. 먼저 플랜을 만드세요.");
-      }
-
-      const payload = mapPlanFormValuesToSavePayload(values);
-      await saveMyPlan(payload);
-
-      setStatus({
-        type: "success",
-        message: "플랜이 업데이트되었습니다.",
-      });
-      router.push("/my-plan");
+      await saveMyPlan(mapPlanFormValuesToSavePayload(values));
+      clearAutosave();
+      router.push("/my-plan?saved=1");
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "플랜을 업데이트하지 못했습니다.";
-      setStatus({ type: "error", message });
-    } finally {
+      setSaveError(err instanceof Error ? err.message : "저장하지 못했어요.");
       setIsSubmitting(false);
     }
   };
 
+  if (loading) return <PlanPageSkeleton variant="edit" />;
+
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas font-sans dark:bg-app-canvas-dark">
-      <LandingConfetti colorVariant={confettiColorVariant} />
-      <SubpageGlassVeil />
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col">
-        <PlanEditorLayout>
-        {loading ? (
-          <PlanContentSkeleton variant="edit" />
-        ) : error ? (
-          <div
-            role="alert"
-            className="rounded-2xl border border-red-200 bg-red-50/90 p-5 text-sm text-red-700 dark:border-red-400/25 dark:bg-red-950/40 dark:text-red-300"
-          >
-            <p className="font-medium">플랜을 불러오지 못했습니다.</p>
-            <p className="mt-1">{error}</p>
-            <button
-              type="button"
-              onClick={refetch}
-              className="mt-4 inline-flex h-9 items-center justify-center rounded-full border border-red-300/60 bg-white px-4 text-sm font-medium text-red-800 transition-colors hover:bg-red-50 dark:border-red-400/30 dark:bg-zinc-900 dark:text-red-200"
-            >
+    <PlanEditorLayout>
+      {error ? (
+        <Notice
+          tone="error"
+          action={
+            <button type="button" onClick={refetch} className={buttonClass("secondary")}>
               다시 시도
             </button>
-          </div>
-        ) : plan == null ? (
-          <div className="rounded-2xl border border-zinc-200/80 bg-white p-6 text-sm text-zinc-600 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-300">
-            저장된 플랜이 없습니다.{" "}
-            <Link
-              href="/plan/new"
-              className="font-medium text-zinc-900 underline underline-offset-4 dark:text-zinc-100"
-            >
-              새로 만들기
+          }
+        >
+          {error}
+        </Notice>
+      ) : plan == null ? (
+        <>
+          <PlanEditorPageHeader
+            title="수정할 플랜이 없어요"
+            description="플랜을 먼저 만들면 여기에서 고칠 수 있습니다."
+          />
+          <div>
+            <Link href="/plan/new" className={buttonClass("primary")}>
+              플랜 시작하기
             </Link>
           </div>
-        ) : (
-          <>
-            <PlanEditorPageHeader
-              title="Edit Plan"
-              description="연차별 목표와 자기평가를 업데이트하세요."
-              actions={
-                <Link href="/my-plan" className={backLinkClass}>
-                  나가기
-                </Link>
+        </>
+      ) : (
+        <>
+          <PlanEditorPageHeader
+            title="플랜 수정"
+            description="연차를 옮겨 가며 고치세요. 저장 전까지 내 플랜은 바뀌지 않습니다."
+            actions={
+              <Link href="/my-plan" className={buttonClass("quiet")}>
+                나가기
+              </Link>
+            }
+          />
+
+          {restored ? (
+            <Notice
+              className="mb-6"
+              action={
+                <button type="button" onClick={() => resetForm()} className={buttonClass("secondary")}>
+                  복구 취소
+                </button>
               }
-            />
+            >
+              저장하지 않았던 수정 내용을 복구했어요.
+            </Notice>
+          ) : null}
 
-            {status ? (
-              <div
-                role={status.type === "error" ? "alert" : undefined}
-                className={
-                  status.type === "success"
-                    ? "mb-5 rounded-xl border border-zinc-200/80 bg-white px-4 py-3 text-sm text-zinc-800 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-200"
-                    : "mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-400/25 dark:bg-red-950/40 dark:text-red-300"
-                }
-              >
-                {status.message}
-              </div>
-            ) : null}
-
-            <PlanForm
-              mode="edit"
-              values={values}
-              errors={validation.errors}
-              isValid={validation.isValid}
-              isSubmitting={isSubmitting}
-              submitLabel="수정 완료"
-              submittingLabel="업데이트 중…"
-              onReset={() => resetForm()}
-              resetLabel="초기화"
-              onTitleChange={setTitle}
-              onScoreChange={setScore}
-              onConfirmUnverifiedScores={confirmUnverifiedScores}
-              onYearNoteChange={setYearNote}
-              onGoalChange={setGoalLine}
-              onCommitGoal={commitGoal}
-              onRemoveGoal={removeGoalLine}
-              onReorderGoals={reorderGoals}
-              onCommitKeyword={commitKeyword}
-              onRemoveKeyword={removeKeywordLine}
-              onSubmit={handleSubmit}
-            />
-          </>
-        )}
-        </PlanEditorLayout>
-      </div>
-    </div>
+          <PlanForm
+            values={values}
+            errors={validation.errors}
+            isValid={validation.isValid}
+            isSubmitting={isSubmitting}
+            submitLabel="저장하기"
+            statusText={isDirty ? "저장하지 않은 변경이 있어요" : "변경 사항 없음"}
+            hasChanges={isDirty}
+            onReset={isDirty ? () => resetForm() : undefined}
+            saveError={saveError ? <Notice tone="error">{saveError}</Notice> : undefined}
+            onTitleChange={setTitle}
+            onScoreChange={setScore}
+            onConfirmUnverifiedScores={confirmUnverifiedScores}
+            onYearNoteChange={setYearNote}
+            onGoalChange={setGoalLine}
+            onCommitGoal={commitGoal}
+            onRemoveGoal={removeGoalLine}
+            onReorderGoals={reorderGoals}
+            onCommitKeyword={commitKeyword}
+            onRemoveKeyword={removeKeywordLine}
+            onSubmit={handleSubmit}
+          />
+        </>
+      )}
+    </PlanEditorLayout>
   );
 };
 
 const EditPlanPage = () => (
   <RequireAuthForPlan fallback={<PlanPageSkeleton variant="edit" />}>
-    <EditPlanPageInner />
+    <Suspense fallback={<PlanPageSkeleton variant="edit" />}>
+      <EditPlanRouter />
+    </Suspense>
   </RequireAuthForPlan>
 );
 

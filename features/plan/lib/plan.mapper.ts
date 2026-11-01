@@ -6,7 +6,7 @@ import type {
   PlanYearForm,
   PlanYearScores,
   SavedPlanResponse,
-  SavePlanRequestPayload,
+  SingleSavePlanPayload,
 } from "../types/plan.types";
 import {
   PLAN_DEFAULTS,
@@ -122,7 +122,7 @@ const trimKeywords = (keywords: string[]) =>
 
 export const mapPlanFormValuesToSavePayload = (
   values: PlanFormValues,
-): SavePlanRequestPayload => {
+): SingleSavePlanPayload => {
   return {
     title: values.title?.trim() || undefined,
     years: values.years.map((y) => ({

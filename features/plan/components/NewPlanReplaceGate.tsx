@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import ExistingPlanConfirmModal from "@/features/plan/components/ExistingPlanConfirmModal";
 import {
+  NEW_PLAN_EXPAND_QUERY,
   NEW_PLAN_REPLACE_QUERY,
   NEW_PLAN_REPLACE_VALUE,
 } from "@/features/plan/constants/plan.constants";
@@ -23,7 +24,8 @@ function NewPlanReplaceGateInner({ children, fallback }: NewPlanReplaceGateProps
   const { plan, loading } = useMyPlan({ autoLoad: true });
 
   const replaceAcknowledged =
-    searchParams.get(NEW_PLAN_REPLACE_QUERY) === NEW_PLAN_REPLACE_VALUE;
+    searchParams.get(NEW_PLAN_REPLACE_QUERY) === NEW_PLAN_REPLACE_VALUE ||
+    searchParams.get(NEW_PLAN_EXPAND_QUERY) === NEW_PLAN_REPLACE_VALUE;
   const showReplaceGate = !loading && plan !== null && !replaceAcknowledged;
 
   const acknowledgeReplace = () => {

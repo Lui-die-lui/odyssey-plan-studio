@@ -18,6 +18,9 @@ import { validateOdysseyGenerateResponse } from "@/features/plan/lib/odyssey-gen
 import { ODYSSEY_GENERATE_RESPONSE_SCHEMA } from "@/features/plan/lib/odyssey-generate.schema";
 import { prisma } from "@/lib/prisma";
 
+/** Three paths take longer to generate than the old single plan. */
+export const maxDuration = 120;
+
 /** Upper bound on the formatted answers sent to the model. */
 const MAX_MODEL_INPUT_CHARS = 12_000;
 
@@ -179,6 +182,10 @@ export async function POST(req: Request) {
         verbosity: "medium",
       },
     });
+
+    if (response.status === "incomplete") {
+      return await failGeneration("MODEL_INCOMPLETE", "응답이 너무 길어 초안을 완성하지 못했습니다.");
+    }
 
     const raw = response.output_text?.trim();
     if (!raw) {

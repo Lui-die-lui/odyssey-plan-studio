@@ -1,95 +1,50 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useMemo, useState, type KeyboardEvent } from "react";
 
+import { buttonClass, fieldClass } from "@/components/common/ui";
+import { Notice } from "@/components/common/Notice";
 import { getOdysseyChoices } from "@/features/plan/interview/odyssey-interview.flow";
 import type {
   OdysseyAnswerPayload,
+  OdysseyInterviewAnswerValue,
   OdysseyInterviewAnswers,
   OdysseyInterviewQuestionDef,
 } from "@/features/plan/interview/odyssey-interview.types";
 import { ODYSSEY_OTHER_CHOICE_ID } from "@/features/plan/interview/odyssey-interview.types";
 
-import {
-  interviewBranchingButtonClass,
-  interviewChoiceButtonClass,
-  interviewChoiceSelectedClass,
-  interviewDirectInputRowClass,
-  interviewDirectInputTextareaClass,
-  interviewDirectSendBtnClass,
-  interviewOtherTriggerTextClass,
-  interviewPrimaryBtnClass,
-  interviewSecondaryBtnClass,
-  interviewTextExpandTriggerClass,
-  interviewTurnCardClass,
-  interviewTurnSubmitClass,
-} from "./interview-chat.styles";
-import {
-  interviewQuestionPanelExpandAnimate,
-  interviewQuestionPanelExpandInitial,
-  interviewQuestionPanelExit,
-  interviewQuestionPanelExitTransition,
-  interviewQuestionTransition,
-} from "./interview-question-motion";
-
 export type InterviewComposerProps = {
-  question: OdysseyInterviewQuestionDef | undefined;
+  /** Mount with `key={question.id}`: drafts belong to one question. */
+  question: OdysseyInterviewQuestionDef;
   answers: OdysseyInterviewAnswers;
-  /** 사용자 답변 직후, AI 리액션·다음 질문이 순차로 붙는 동안 */
-  awaitingAiFollowUp: boolean;
+  /** Earlier answer, restored when the user comes back to edit. */
+  previousAnswer?: OdysseyInterviewAnswerValue;
   onSubmit: (payload: OdysseyAnswerPayload) => void;
   validationError: string | null;
   onDismissError: () => void;
-  manualHref: string;
-  onRestart: () => void;
-  onGenerateDraft: () => void | Promise<void>;
-  generateDraftError: string | null;
 };
 
-function DirectSendButton({
-  onClick,
-  disabled,
-}: {
-  onClick: () => void;
-  disabled: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={interviewDirectSendBtnClass}
-      aria-label="보내기"
-    >
-      <svg
-        className="h-4 w-4"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-      >
-        <path d="M12 19V5M5 12l7-7 7 7" />
-      </svg>
-    </button>
-  );
-}
+const choiceClass = (selected: boolean) =>
+  "flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-lg border px-3.5 py-2.5 text-left text-[15px] leading-snug transition-colors duration-100 " +
+  (selected
+    ? "border-accent bg-accent-soft font-medium text-ink"
+    : "border-line bg-raised text-ink-2 hover:border-line-strong hover:text-ink");
 
-function MultiChoiceMark({ selected }: { selected: boolean }) {
+function ChoiceMark({ selected, multi }: { selected: boolean; multi: boolean }) {
   return (
-    <span className="flex h-4 w-4 shrink-0 items-center justify-center" aria-hidden>
-      <span
-        className={
-          "rounded-full transition-[transform,background-color,box-shadow] duration-200 " +
-          (selected
-            ? "h-2.5 w-2.5 bg-zinc-700 shadow-[0_0_0_3px_rgba(63,63,70,0.12)] dark:bg-zinc-200 dark:shadow-[0_0_0_3px_rgba(255,255,255,0.08)]"
-            : "h-2 w-2 bg-zinc-300/70 ring-1 ring-zinc-400/25 dark:bg-zinc-600/50 dark:ring-white/12")
-        }
-      />
+    <span
+      aria-hidden
+      className={
+        "flex size-[18px] shrink-0 items-center justify-center border transition-colors duration-100 " +
+        (multi ? "rounded " : "rounded-full ") +
+        (selected ? "border-accent bg-accent text-canvas" : "border-line-strong")
+      }
+    >
+      {selected ? (
+        <svg viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M2.5 6.5 5 9l4.5-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : null}
     </span>
   );
 }
@@ -97,417 +52,128 @@ function MultiChoiceMark({ selected }: { selected: boolean }) {
 export function InterviewComposer({
   question,
   answers,
-  awaitingAiFollowUp,
+  previousAnswer,
   onSubmit,
   validationError,
   onDismissError,
-  manualHref,
-  onRestart,
-  onGenerateDraft,
-  generateDraftError,
 }: InterviewComposerProps) {
-  const reduceMotion = useReducedMotion();
-  const [selectedSingle, setSelectedSingle] = useState<string | null>(null);
-  const [selectedMulti, setSelectedMulti] = useState<Set<string>>(() => new Set());
-  const [otherDraft, setOtherDraft] = useState("");
-  const [textEntryOpen, setTextEntryOpen] = useState(false);
-  const otherExpandedTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const textTypeTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const isMulti = question.type === "multi" || question.type === "multi_with_other";
+  const isText = question.type === "text";
 
-  const choices = useMemo(
-    () => (question ? getOdysseyChoices(question, answers) : []),
-    [question, answers],
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(previousAnswer?.choiceIds ?? []),
   );
+  const [text, setText] = useState(previousAnswer?.text ?? "");
 
-  const regularChoices = useMemo(
-    () => choices.filter((c) => c.id !== ODYSSEY_OTHER_CHOICE_ID),
-    [choices],
-  );
-  const otherChoice = useMemo(
-    () => choices.find((c) => c.id === ODYSSEY_OTHER_CHOICE_ID),
-    [choices],
-  );
+  const choices = useMemo(() => getOdysseyChoices(question, answers), [question, answers]);
+  const otherChoice = choices.find((c) => c.id === ODYSSEY_OTHER_CHOICE_ID);
+  const otherSelected = selected.has(ODYSSEY_OTHER_CHOICE_ID);
+  const needsText = isText || otherSelected;
 
-  // Reset drafts during render when the question changes, avoiding a stale frame.
-  const [draftQuestionId, setDraftQuestionId] = useState(question?.id);
-  if (draftQuestionId !== question?.id) {
-    setDraftQuestionId(question?.id);
-    setSelectedSingle(null);
-    setSelectedMulti(new Set());
-    setOtherDraft("");
-    setTextEntryOpen(false);
-  }
+  const canSubmit = isText
+    ? text.trim().length > 0
+    : selected.size > 0 && (!otherSelected || text.trim().length > 0);
 
-  const otherSelectedSingle = selectedSingle === ODYSSEY_OTHER_CHOICE_ID;
-  const otherSelectedMulti = selectedMulti.has(ODYSSEY_OTHER_CHOICE_ID);
-
-  useEffect(() => {
-    if (!otherSelectedSingle && !otherSelectedMulti) return;
-    const id = requestAnimationFrame(() => {
-      otherExpandedTextareaRef.current?.focus();
+  const submit = () => {
+    if (!canSubmit) return;
+    onSubmit({
+      choiceIds: [...selected],
+      text: needsText ? text : undefined,
     });
-    return () => cancelAnimationFrame(id);
-  }, [otherSelectedSingle, otherSelectedMulti, question?.id]);
+  };
 
-  useEffect(() => {
-    if (question?.type !== "text" || !textEntryOpen) return;
-    const id = requestAnimationFrame(() => {
-      textTypeTextareaRef.current?.focus();
-    });
-    return () => cancelAnimationFrame(id);
-  }, [question?.type, textEntryOpen, question?.id]);
-
-  if (!question) return null;
-
-  const panelTransition = reduceMotion
-    ? { duration: 0.01 }
-    : { ...interviewQuestionTransition, delay: 0.025 };
-
-  const panelExit = reduceMotion
-    ? { opacity: 0, transition: { duration: 0.01 } }
-    : {
-        ...interviewQuestionPanelExit,
-        transition: interviewQuestionPanelExitTransition,
-      };
-
-  const completePanel = (
-    <div className="space-y-3 rounded-2xl bg-zinc-100/50 p-4 text-center ring-1 ring-inset ring-zinc-200/55 dark:bg-white/[0.04] dark:ring-white/[0.08]">
-      <p className="text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
-        인터뷰를 마쳤어요. 초안을 만들면 답변을 바탕으로 정리 화면이 열립니다.
-      </p>
-      {generateDraftError ? (
-        <p
-          role="alert"
-          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-400/25 dark:bg-red-950/40 dark:text-red-300"
-        >
-          {generateDraftError}
-        </p>
-      ) : null}
-      <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:flex-wrap sm:justify-center">
-        <button
-          type="button"
-          onClick={() => void onGenerateDraft()}
-          className={interviewPrimaryBtnClass}
-        >
-          초안 만들기
-        </button>
-        <Link href={manualHref} className={interviewSecondaryBtnClass}>
-          플랜 직접 작성하기
-        </Link>
-        <button type="button" onClick={onRestart} className={interviewSecondaryBtnClass}>
-          처음부터 다시
-        </button>
-      </div>
-    </div>
-  );
-
-  const pickSingle = (id: string) => {
+  const pick = (id: string) => {
     onDismissError();
-    if (id === ODYSSEY_OTHER_CHOICE_ID) {
-      setSelectedSingle(id);
+    if (isMulti) {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
       return;
     }
-    setSelectedSingle(id);
-    setOtherDraft("");
-    onSubmit({ choiceIds: [id] });
+    setSelected(new Set([id]));
+    // A plain single choice needs nothing else, so moving on is the feedback.
+    if (id !== ODYSSEY_OTHER_CHOICE_ID) onSubmit({ choiceIds: [id] });
   };
 
-  const toggleMulti = (id: string) => {
-    onDismissError();
-    setSelectedMulti((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const onTextKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      submit();
+    }
   };
 
-  const submitMulti = () => {
-    onSubmit({
-      choiceIds: [...selectedMulti],
-      text: otherDraft || undefined,
-    });
-  };
-
-  const submitSingleWithOther = () => {
-    if (!selectedSingle) return;
-    onSubmit({
-      choiceIds: [selectedSingle],
-      text: otherDraft || undefined,
-    });
-  };
-
-  const submitText = () => {
-    onSubmit({ choiceIds: [], text: otherDraft });
-  };
-
-  const canSubmitMulti =
-    selectedMulti.size > 0 && (!otherSelectedMulti || otherDraft.trim().length > 0);
-
-  const expandedShortText =
-    (question.type === "single_with_other" && otherSelectedSingle) ||
-    (question.type === "multi_with_other" && otherSelectedMulti);
-
-  const composerShellMinClass =
-    question.type === "text" && textEntryOpen
-      ? "min-h-[3.5rem]"
-      : expandedShortText
-        ? "min-h-[4.25rem]"
-        : "";
-
-  const interactivePanel = (
-    <div
-      className={[interviewTurnCardClass, composerShellMinClass].filter(Boolean).join(" ")}
-    >
-      {validationError ? (
-        <p
-          role="alert"
-          className="mb-2 rounded-lg border border-red-200/80 bg-red-50/90 px-2.5 py-1.5 text-xs text-red-700 dark:border-red-400/20 dark:bg-red-950/35 dark:text-red-300"
-        >
-          {validationError}
-        </p>
-      ) : null}
-
-      <div className="space-y-1.5">
-        {question.type === "text" ? (
-          textEntryOpen ? (
-            <div className={interviewDirectInputRowClass}>
-              <label className="sr-only" htmlFor="odyssey-text-answer">
-                답변 입력
-              </label>
-              <textarea
-                ref={textTypeTextareaRef}
-                id="odyssey-text-answer"
-                value={otherDraft}
-                onChange={(e) => {
-                  onDismissError();
-                  setOtherDraft(e.target.value);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (otherDraft.trim()) submitText();
-                  }
-                }}
-                rows={2}
-                placeholder="답변을 입력해 주세요"
-                className={interviewDirectInputTextareaClass}
-              />
-              <DirectSendButton onClick={submitText} disabled={!otherDraft.trim()} />
-            </div>
-          ) : (
-            <button
-              type="button"
-              className={interviewTextExpandTriggerClass}
-              onClick={() => {
-                onDismissError();
-                setTextEntryOpen(true);
-              }}
-            >
-              직접 입력하기
-            </button>
-          )
-        ) : null}
-
-        {question.type === "branching_confirm" && choices.length ? (
-          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {choices.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => pickSingle(c.id)}
-                className={interviewBranchingButtonClass}
-              >
-                {c.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        {(question.type === "single" || question.type === "single_with_other") &&
-        choices.length ? (
-          <div className="flex flex-col gap-1.5">
-            {regularChoices.map((c) => {
-              const selected = selectedSingle === c.id;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => pickSingle(c.id)}
-                  className={
-                    interviewChoiceButtonClass +
-                    (selected ? ` ${interviewChoiceSelectedClass}` : "")
-                  }
-                >
-                  {c.label}
-                </button>
-              );
-            })}
-            {otherChoice ? (
-              <div
-                className={
-                  "mt-0.5 w-full overflow-hidden rounded-xl transition-colors " +
-                  (otherSelectedSingle
-                    ? "bg-zinc-50/55 px-1 py-0.5 dark:bg-white/[0.04]"
-                    : "")
-                }
-              >
-                {!otherSelectedSingle ? (
-                  <button
-                    type="button"
-                    onClick={() => pickSingle(otherChoice.id)}
-                    className={interviewTextExpandTriggerClass}
-                  >
-                    <span className={interviewOtherTriggerTextClass}>{otherChoice.label}</span>
-                  </button>
-                ) : (
-                  <div className={interviewDirectInputRowClass}>
-                    <label className="sr-only" htmlFor="odyssey-other-single">
-                      직접 입력
-                    </label>
-                    <textarea
-                      ref={otherExpandedTextareaRef}
-                      id="odyssey-other-single"
-                      value={otherDraft}
-                      onChange={(e) => {
-                        onDismissError();
-                        setOtherDraft(e.target.value);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          if (otherDraft.trim()) submitSingleWithOther();
-                        }
-                      }}
-                      rows={2}
-                      placeholder="내용을 입력해 주세요"
-                      className={interviewDirectInputTextareaClass}
-                    />
-                    <DirectSendButton
-                      onClick={submitSingleWithOther}
-                      disabled={!otherDraft.trim()}
-                    />
-                  </div>
-                )}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-
-        {(question.type === "multi" || question.type === "multi_with_other") &&
-        choices.length ? (
-          <div className="flex flex-col gap-1.5">
-            {regularChoices.map((c) => {
-              const selected = selectedMulti.has(c.id);
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => toggleMulti(c.id)}
-                  className={
-                    "flex items-center gap-2.5 " +
-                    interviewChoiceButtonClass +
-                    (selected ? ` ${interviewChoiceSelectedClass}` : "")
-                  }
-                >
-                  <MultiChoiceMark selected={selected} />
-                  <span className="min-w-0 flex-1 text-left">{c.label}</span>
-                </button>
-              );
-            })}
-            {otherChoice ? (
-              <div
-                className={
-                  "mt-0.5 w-full overflow-hidden rounded-xl transition-colors " +
-                  (otherSelectedMulti ? "bg-zinc-50/55 p-1.5 dark:bg-white/[0.04]" : "")
-                }
-              >
-                <button
-                  type="button"
-                  onClick={() => toggleMulti(otherChoice.id)}
-                  className={
-                    "flex w-full items-center gap-2.5 " +
-                    interviewChoiceButtonClass +
-                    (otherSelectedMulti ? ` ${interviewChoiceSelectedClass}` : "")
-                  }
-                >
-                  <MultiChoiceMark selected={otherSelectedMulti} />
-                  <span className="min-w-0 flex-1 text-left text-sm text-zinc-700 dark:text-zinc-200">
-                    {otherChoice.label}
-                  </span>
-                </button>
-                {question.type === "multi_with_other" && otherSelectedMulti ? (
-                  <div className="mt-1.5">
-                    <label className="sr-only" htmlFor="odyssey-other-multi">
-                      직접 입력
-                    </label>
-                    <div className={interviewDirectInputRowClass}>
-                      <textarea
-                        ref={otherExpandedTextareaRef}
-                        id="odyssey-other-multi"
-                        value={otherDraft}
-                        onChange={(e) => {
-                          onDismissError();
-                          setOtherDraft(e.target.value);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            if (canSubmitMulti) submitMulti();
-                          }
-                        }}
-                        rows={2}
-                        placeholder="내용을 입력해 주세요"
-                        className={interviewDirectInputTextareaClass}
-                      />
-                      <DirectSendButton
-                        onClick={submitMulti}
-                        disabled={!canSubmitMulti}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-            <button
-              type="button"
-              onClick={submitMulti}
-              disabled={!canSubmitMulti}
-              className={interviewTurnSubmitClass}
-            >
-              선택한 내용 보내기
-            </button>
-          </div>
-        ) : null}
-      </div>
+  const textField = (
+    <div>
+      <label htmlFor="odyssey-answer-text" className="sr-only">
+        답변 입력
+      </label>
+      <textarea
+        id="odyssey-answer-text"
+        // The user just chose to type here, or this question only takes text.
+        autoFocus
+        value={text}
+        rows={3}
+        onChange={(e) => {
+          onDismissError();
+          setText(e.target.value);
+        }}
+        onKeyDown={onTextKeyDown}
+        placeholder="생각나는 대로 적어 주세요"
+        className={`${fieldClass} resize-none`}
+      />
+      <p className="mt-1 text-xs text-ink-3">Enter로 다음, Shift+Enter로 줄바꿈</p>
     </div>
   );
 
   return (
-    <AnimatePresence initial={false} mode="wait">
-      {awaitingAiFollowUp ? (
-        <motion.div
-          key="awaiting-next-question"
-          className="w-full min-w-0"
-          initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
-          transition={panelTransition}
+    <div className="flex flex-col gap-2">
+      {validationError ? <Notice tone="error">{validationError}</Notice> : null}
+
+      {choices.length ? (
+        <div
+          role="group"
+          aria-label="답변 선택"
+          className={
+            question.type === "branching_confirm"
+              ? "grid grid-cols-1 gap-2 sm:grid-cols-2"
+              : "flex flex-col gap-2"
+          }
         >
-          <div className="h-2" aria-hidden />
-        </motion.div>
-      ) : (
-        <motion.div
-          key={question.id}
-          className="w-full min-w-0"
-          initial={reduceMotion ? false : interviewQuestionPanelExpandInitial}
-          animate={interviewQuestionPanelExpandAnimate}
-          exit={panelExit}
-          transition={panelTransition}
-        >
-          {question.type === "complete" ? completePanel : interactivePanel}
-        </motion.div>
-      )}
-    </AnimatePresence>
+          {choices.map((choice) => {
+            const isSelected = selected.has(choice.id);
+            return (
+              <button
+                key={choice.id}
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => pick(choice.id)}
+                className={choiceClass(isSelected)}
+              >
+                <ChoiceMark selected={isSelected} multi={isMulti} />
+                <span className="min-w-0 flex-1">{choice.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {isText || (otherChoice && otherSelected) ? textField : null}
+
+      {isMulti || needsText ? (
+        <div className="mt-1 flex justify-end">
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!canSubmit}
+            className={buttonClass("primary", "w-full sm:w-auto")}
+          >
+            다음
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }

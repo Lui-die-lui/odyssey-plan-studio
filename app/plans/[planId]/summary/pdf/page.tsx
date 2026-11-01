@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import { getActiveSessionUser } from "@/features/auth/lib/session-user";
+import { PlanPathsPdfDocument } from "@/features/plan/components/PlanPathsPdfDocument";
 import { PlanSummaryPdfDocument } from "@/features/plan/components/PlanSummaryPdfDocument";
 import {
   getPlanByIdForUser,
@@ -26,10 +27,12 @@ export default async function PlanSummaryPdfPage({ params }: PageProps) {
   const row = await getPlanByIdForUser(planId, user.id);
   if (!row) notFound();
 
-  return (
-    <PlanSummaryPdfDocument
-      plan={mapPlanToResponse(row)}
-      generatedAt={new Date()}
-    />
+  const plan = mapPlanToResponse(row);
+  const generatedAt = new Date();
+
+  return plan.paths.length ? (
+    <PlanPathsPdfDocument plan={plan} generatedAt={generatedAt} />
+  ) : (
+    <PlanSummaryPdfDocument plan={plan} generatedAt={generatedAt} />
   );
 }

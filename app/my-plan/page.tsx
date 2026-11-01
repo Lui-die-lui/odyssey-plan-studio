@@ -1,43 +1,55 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
-import { ModalShell } from "@/components/common/ModalShell";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
+import { ModalShell } from "@/components/common/ModalShell";
+import { Notice } from "@/components/common/Notice";
+import { buttonClass, eyebrowClass, helpTextClass, pageTitleClass } from "@/components/common/ui";
 import RequireAuthForPlan from "@/features/auth/components/RequireAuthForPlan";
-import { SubpageGlassVeil } from "@/components/layout/SubpageGlassVeil";
-import { LandingConfetti } from "@/features/landing/components/LandingConfetti";
+import { bloomField } from "@/features/field/future-field-store";
 import { useMyPlan } from "@/features/plan/hooks/useMyPlan";
 import PlanSummary from "@/features/plan/components/PlanSummary";
+import { LegacyPlanNotice, PlanPathsView } from "@/features/plan/components/PlanPathsView";
 import {
   MyPlanActionsSkeleton,
   MyPlanPageSkeleton,
   PlanSummarySkeleton,
 } from "@/features/plan/components/PlanSkeletons";
 
-/** 본문 CTA와 구분되는 작은 텍스트 링크 (GitHub·이메일 등 확장용) */
-const myPlanFooterLinkClass =
-  "text-[11px] font-normal leading-normal text-zinc-500 decoration-zinc-400/0 underline-offset-2 transition-[color,text-decoration-color] duration-200 " +
-  "hover:text-zinc-700 hover:decoration-zinc-500/50 hover:underline " +
-  "focus-visible:rounded-sm focus-visible:text-zinc-700 focus-visible:underline focus-visible:decoration-zinc-500/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-400/40 " +
-  "dark:text-zinc-500 dark:hover:text-zinc-400 dark:hover:decoration-zinc-500/35 dark:focus-visible:text-zinc-300 dark:focus-visible:ring-zinc-500/35";
+const formatSavedDate = (iso?: string) => {
+  if (!iso) return null;
+  const date = new Date(iso);
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
+};
 
 const MyPlanPageInner = () => {
   const [pdfExporting, setPdfExporting] = useState(false);
+  const [pdfError, setPdfError] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Shown once after saving; the URL is cleaned so a refresh does not repeat it.
+  const [justSaved, setJustSaved] = useState(searchParams.get("saved") === "1");
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawBusy, setWithdrawBusy] = useState(false);
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
   const { plan, loading, error, refetch } = useMyPlan({ autoLoad: true });
 
-  const confettiColorVariant =
-    !loading && plan != null ? "colored" : "neutral";
+  useEffect(() => {
+    if (justSaved) window.history.replaceState(null, "", "/my-plan");
+  }, [justSaved]);
+
+  const savedPlanLoaded = justSaved && plan != null;
+  useEffect(() => {
+    if (savedPlanLoaded) bloomField();
+  }, [savedPlanLoaded]);
 
   const handleDownloadPdf = async () => {
     if (!plan) return;
     setPdfExporting(true);
+    setPdfError(false);
     try {
       const res = await fetch(`/api/plans/${plan.planId}/summary-pdf`, {
         credentials: "include",
@@ -58,6 +70,7 @@ const MyPlanPageInner = () => {
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error(e);
+      setPdfError(true);
     } finally {
       setPdfExporting(false);
     }
@@ -100,159 +113,157 @@ const MyPlanPageInner = () => {
     }
   };
 
+  const savedDate = formatSavedDate(plan?.updatedAt);
+
   return (
-    <div className="relative flex flex-col flex-1 overflow-hidden bg-app-canvas font-sans dark:bg-app-canvas-dark">
-      <LandingConfetti colorVariant={confettiColorVariant} />
-      <SubpageGlassVeil />
-      <main className="relative z-10 mx-auto w-full max-w-6xl px-4 pt-10 pb-0 sm:px-6">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <h1 className="font-semibold text-2xl font-normal tracking-tight text-black dark:text-zinc-50">
-              My Plan
-            </h1>
+    <main className="field-calm mx-auto w-full max-w-5xl flex-1 px-4 pt-8 sm:px-6 sm:pt-10">
+      {justSaved ? (
+        <Notice
+          tone="success"
+          className="mb-6"
+          action={
+            <button type="button" onClick={() => setJustSaved(false)} className={buttonClass("quiet")}>
+              닫기
+            </button>
+          }
+        >
+          저장했어요. 이제 경로와 연차를 살펴보거나 PDF로 내보낼 수 있습니다.
+        </Notice>
+      ) : null}
 
-            <div className="flex flex-wrap items-center gap-3">
-              {loading ? (
-                <MyPlanActionsSkeleton />
-              ) : plan ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => void handleDownloadPdf()}
-                    disabled={pdfExporting}
-                    className="inline-flex h-10 cursor-pointer items-center justify-center rounded-full border border-zinc-300/90 bg-white/80 px-4 text-sm font-medium text-zinc-800 shadow-sm transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-100 dark:hover:bg-zinc-800/80"
-                  >
-                    {pdfExporting ? "PDF 생성 중…" : "PDF 저장"}
-                  </button>
-                  <Link
-                    href="/plan/edit"
-                    className="inline-flex h-10 items-center justify-center rounded-full bg-black px-4 text-sm font-medium text-white transition-colors hover:bg-black/90 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200"
-                  >
-                    수정하기
-                  </Link>
-                </>
-              ) : (
-                <Link
-                  href="/plan/new"
-                  className="inline-flex h-10 items-center justify-center rounded-full bg-black px-4 text-sm font-medium text-white transition-colors hover:bg-black/90 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200"
-                >
-                  플랜 생성
-                </Link>
-              )}
-            </div>
-          </div>
-
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            연차별 목표와 자기평가 요약을 확인할 수 있습니다.
+      <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <p className={eyebrowClass}>
+            내 플랜{savedDate ? ` · ${savedDate} 저장` : ""}
           </p>
+          <h1 className={`${pageTitleClass} mt-1.5`}>
+            {loading ? "\u00a0" : plan ? (plan.title ?? "나의 5년 계획") : "내 플랜"}
+          </h1>
         </div>
 
-        <div className="mt-6">
-          {loading ? (
-            <PlanSummarySkeleton />
-          ) : error ? (
-            <div
-              role="alert"
-              className="rounded-md border border-red-400/30 bg-red-50 p-4 text-sm text-red-700 dark:bg-black/20 dark:text-red-300"
+        {loading ? (
+          <MyPlanActionsSkeleton />
+        ) : plan ? (
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void handleDownloadPdf()}
+              disabled={pdfExporting}
+              className={buttonClass("secondary", "flex-1 md:flex-none")}
             >
-              <p className="font-medium">플랜을 찾을 수 없습니다.</p>
-              <p className="mt-1">{error}</p>
-              <button
-                type="button"
-                onClick={refetch}
-                className="mt-3 inline-flex h-9 items-center justify-center rounded-full border border-red-400/30 bg-white px-3 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 dark:border-red-400/20 dark:bg-black dark:text-red-200 dark:hover:bg-black"
-              >
-                Retry
-              </button>
-            </div>
-          ) : (
-            <PlanSummary
-              plan={plan}
-              emptyStateMessage="저장된 플랜이 없습니다. 새 플랜을 만들어 보세요."
-            />
-          )}
+              {pdfExporting ? "PDF 만드는 중…" : "PDF 저장"}
+            </button>
+            <Link href="/plan/edit" className={buttonClass("primary", "flex-1 md:flex-none")}>
+              수정하기
+            </Link>
+          </div>
+        ) : null}
+      </header>
+
+      {pdfError ? (
+        <Notice tone="error" className="mb-6">
+          PDF를 만들지 못했어요. 잠시 후 다시 시도해 주세요.
+        </Notice>
+      ) : null}
+
+      {loading ? (
+        <PlanSummarySkeleton />
+      ) : error ? (
+        <Notice
+          tone="error"
+          action={
+            <button type="button" onClick={refetch} className={buttonClass("secondary")}>
+              다시 시도
+            </button>
+          }
+        >
+          {error}
+        </Notice>
+      ) : plan?.paths.length ? (
+        <PlanPathsView plan={plan} />
+      ) : plan ? (
+        <div className="flex flex-col gap-6">
+          <LegacyPlanNotice />
+          <PlanSummary plan={plan} />
         </div>
-
-        <nav
-          aria-label="페이지 정보"
-          className="mt-16 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-10 text-center sm:mt-20 sm:pb-[max(3rem,env(safe-area-inset-bottom))] sm:pt-12"
-        >
-          <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5">
-            {/* 추후: GitHub, 이메일 등 동일 스타일 <li>로 나란히 추가 */}
-            <li className="flex flex-col items-center gap-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setWithdrawError(null);
-                  setWithdrawOpen(true);
-                }}
-                className={myPlanFooterLinkClass}
-                aria-describedby="my-plan-withdraw-hint"
-              >
-                회원 탈퇴
-              </button>
-              <span
-                id="my-plan-withdraw-hint"
-                className="text-[10px] font-normal leading-snug text-zinc-400 dark:text-zinc-500"
-              >
-                (삭제 후 복구 불가)
-              </span>
-            </li>
-          </ul>
-        </nav>
-
-        <ModalShell
-          open={withdrawOpen}
-          onClose={() => setWithdrawOpen(false)}
-          titleId="withdraw-confirm-title"
-          showCloseButton
-        >
-          <h2
-            id="withdraw-confirm-title"
-            className="pr-8 text-xl font-semibold tracking-tight text-black dark:text-zinc-50"
-          >
-            정말 탈퇴 하시겠습니까?
+      ) : (
+        <section className="max-w-md">
+          <h2 className="text-lg font-semibold tracking-tight text-ink">
+            아직 저장된 플랜이 없어요
           </h2>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-            탈퇴 시 모든 정보가 사라지며 1주일 뒤 재가입 가능합니다.
+          <p className={`${helpTextClass} mt-1`}>
+            질문에 답해 초안을 만들거나, 직접 작성해 시작할 수 있습니다.
           </p>
-          <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
-            유예 기간 동안은 로그인/서비스 이용이 제한됩니다.
-          </p>
+          <Link href="/plan/new" className={buttonClass("primary", "mt-4")}>
+            플랜 시작하기
+          </Link>
+        </section>
+      )}
 
-          {withdrawError ? (
-            <p className="mt-4 rounded-md border border-red-200/70 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-400/20 dark:bg-red-950/30 dark:text-red-300">
-              {withdrawError}
-            </p>
-          ) : null}
+      <footer className="mt-16 border-t border-line py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        <button
+          type="button"
+          onClick={() => {
+            setWithdrawError(null);
+            setWithdrawOpen(true);
+          }}
+          className="min-h-11 cursor-pointer rounded-lg text-sm text-ink-3 underline-offset-4 transition-colors hover:text-ink hover:underline"
+        >
+          회원 탈퇴
+        </button>
+      </footer>
 
-          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              onClick={() => setWithdrawOpen(false)}
-              disabled={withdrawBusy}
-              className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-medium text-black transition-colors hover:bg-black/[.03] disabled:opacity-50 dark:border-white/10 dark:bg-black dark:text-zinc-50 dark:hover:bg-white/[.05]"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleConfirmWithdraw()}
-              disabled={withdrawBusy}
-              className="inline-flex h-11 items-center justify-center rounded-full bg-black px-4 text-sm font-medium text-white transition-colors hover:bg-black/90 disabled:opacity-50 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200"
-            >
-              {withdrawBusy ? "처리 중…" : "탈퇴 요청"}
-            </button>
-          </div>
-        </ModalShell>
-      </main>
-    </div>
+      <ModalShell
+        open={withdrawOpen}
+        onClose={() => setWithdrawOpen(false)}
+        titleId="withdraw-confirm-title"
+        showCloseButton
+      >
+        <h2
+          id="withdraw-confirm-title"
+          className="pr-12 text-lg font-semibold tracking-tight text-ink"
+        >
+          정말 탈퇴하시겠습니까?
+        </h2>
+        <p className={`${helpTextClass} mt-2`}>
+          7일 뒤 플랜을 포함한 모든 정보가 삭제되며 복구할 수 없습니다. 그동안 로그인과 서비스
+          이용이 제한되고, 이후 재가입할 수 있습니다.
+        </p>
+
+        {withdrawError ? (
+          <Notice tone="error" className="mt-4">
+            {withdrawError}
+          </Notice>
+        ) : null}
+
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={() => setWithdrawOpen(false)}
+            disabled={withdrawBusy}
+            className={buttonClass("secondary")}
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleConfirmWithdraw()}
+            disabled={withdrawBusy}
+            className={buttonClass("danger")}
+          >
+            {withdrawBusy ? "처리 중…" : "탈퇴 요청"}
+          </button>
+        </div>
+      </ModalShell>
+    </main>
   );
 };
 
 const MyPlanPage = () => (
   <RequireAuthForPlan fallback={<MyPlanPageSkeleton />}>
-    <MyPlanPageInner />
+    <Suspense fallback={<MyPlanPageSkeleton />}>
+      <MyPlanPageInner />
+    </Suspense>
   </RequireAuthForPlan>
 );
 

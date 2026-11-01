@@ -68,7 +68,7 @@ describe("POST /api/odyssey/generate", () => {
 
     expect(res.status).toBe(200);
     expect(body.remaining).toBe(1);
-    expect(body.planForm.years[0].checkpoint).toBeTruthy();
+    expect(body.planForm.paths).toHaveLength(3);
     expect(mocks.refund).not.toHaveBeenCalled();
     expect(loggedReason()).toMatchObject({ success: true });
   });
@@ -80,6 +80,12 @@ describe("POST /api/odyssey/generate", () => {
     expect(params.store).toBe(false);
     expect(params.input).toContain("<user_answers>");
     expect(params.input).toContain('"questionId": "q_time"');
+  });
+
+  it("charges one quota for all three paths", async () => {
+    await POST(request());
+    expect(mocks.consume).toHaveBeenCalledTimes(1);
+    expect(mocks.createResponse).toHaveBeenCalledTimes(1);
   });
 
   it("does not send stale answers from an inactive branch", async () => {
@@ -105,6 +111,7 @@ describe("POST /api/odyssey/generate", () => {
     ["empty output", { output_text: "" }, "MODEL_EMPTY_RESPONSE"],
     ["broken JSON", { output_text: "{" }, "MODEL_INVALID_JSON"],
     ["wrong shape", { output_text: "{}" }, "MODEL_INVALID_SCHEMA"],
+    ["output cut off", { status: "incomplete", output_text: "{" }, "MODEL_INCOMPLETE"],
   ])("refunds on %s", async (_name, output, reason) => {
     mocks.createResponse.mockResolvedValue(output);
 
@@ -118,7 +125,7 @@ describe("POST /api/odyssey/generate", () => {
 
   it("treats evidence for an unsubmitted answer as a refunded failure", async () => {
     const response = validResponse();
-    response.planForm.years[0].evidence.questionIds = ["q9"];
+    response.planForm.paths[0]!.years[0]!.evidence.questionIds = ["q9"];
     mocks.createResponse.mockResolvedValue({ output_text: JSON.stringify(response) });
 
     const res = await POST(request());
@@ -129,14 +136,14 @@ describe("POST /api/odyssey/generate", () => {
 
   it("logs only a reason code when validation fails", async () => {
     const response = validResponse();
-    response.planForm.years[0].evidence.questionIds = ["q9"];
+    response.planForm.paths[0]!.years[0]!.evidence.questionIds = ["q9"];
     mocks.createResponse.mockResolvedValue({ output_text: JSON.stringify(response) });
 
     await POST(request());
 
     expect(console.error).toHaveBeenCalledWith(
       "[odyssey/generate] invalid model response:",
-      "year1_evidence_ids",
+      "continue_year1_evidence_ids",
     );
   });
 

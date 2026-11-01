@@ -1,6 +1,8 @@
 /** Query flag: user acknowledged replacing an existing plan (new-plan flow under `/plan/new/*`). */
 export const NEW_PLAN_REPLACE_QUERY = "replace" as const;
 export const NEW_PLAN_REPLACE_VALUE = "1" as const;
+/** Query flag: adding paths next to an existing single plan, which stays untouched. */
+export const NEW_PLAN_EXPAND_QUERY = "expand" as const;
 
 export const getNewPlanPath = (acknowledgedReplace: boolean) =>
   acknowledgedReplace

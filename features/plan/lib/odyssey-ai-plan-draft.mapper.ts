@@ -1,7 +1,7 @@
 import type { PlanFormValues, PlanYearForm } from "../types/plan.types";
 import { PLAN_ODYSSEY_YEAR_INDICES } from "../constants/plan.constants";
 import type {
-  OdysseyAiPlanFormDraft,
+  OdysseyAiSinglePlanDraft,
   OdysseyLegacyAiPlanFormDraft,
 } from "../interview/odyssey-ai-plan-draft.types";
 import { createEmptyPlanYearForm, normalizePlanFormValues } from "./plan.mapper";
@@ -16,7 +16,7 @@ const toGoalLines = (texts: string[]) =>
  * 이후 사용자가 바꿨는지 비교합니다. 점수는 사용자가 평가할 때까지 미평가입니다.
  */
 export function mapOdysseyAiPlanFormToPlanFormValues(
-  draft: OdysseyAiPlanFormDraft,
+  draft: OdysseyAiSinglePlanDraft,
 ): PlanFormValues {
   const byIndex = new Map(draft.years.map((y) => [y.yearIndex, y]));
 

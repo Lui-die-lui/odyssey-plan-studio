@@ -7,12 +7,21 @@ import {
   PLAN_SCORE_MIN,
 } from "@/features/plan/constants/plan.constants";
 import {
+  PLAN_PATH_KINDS,
+  PLAN_PATH_LIMITS,
+  PLAN_PATH_MARKS,
+  type PlanPathKind,
+} from "@/features/plan/constants/plan-path.constants";
+import {
   PLAN_SCORE_KEYS,
   type PlanScoreKey,
 } from "@/features/plan/constants/plan-score.constants";
 import type {
   PlanDistanceScore,
+  PlanPathExperiment,
+  PlanPathSavePayload,
   PlanYearAiGuidance,
+  PlanYearSavePayload,
   PlanYearScores,
   SavePlanRequestPayload,
 } from "@/features/plan/types/plan.types";
@@ -137,20 +146,11 @@ const parseBoundedStringList = (
   return { ok: true, values: out };
 };
 
-export function parseSavePlanBody(body: unknown): ParseSavePlanResult {
-  if (!body || typeof body !== "object") return invalid("Invalid JSON body.");
+type ParsedList<T> = { ok: true; values: T } | { ok: false; message: string };
 
-  const o = body as Record<string, unknown>;
-  const title =
-    o.title === undefined || o.title === null
-      ? undefined
-      : typeof o.title === "string"
-        ? normalizeOptionalString(o.title)
-        : null;
-  if (title === null) return invalid("Invalid title.");
-  if (title && title.length > PLAN_MAX_LENGTH.title) return invalid("Title too long.");
-
-  if (!Array.isArray(o.years)) return invalid("years must be an array.");
+function parseYearList(rawYears: unknown[]): ParsedList<PlanYearSavePayload[]> {
+  const invalid = (message: string): ParsedList<PlanYearSavePayload[]> => ({ ok: false, message });
+  const o = { years: rawYears };
 
   const byIndex = new Map<number, (typeof o.years)[number]>();
   for (const row of o.years) {
@@ -225,8 +225,150 @@ export function parseSavePlanBody(body: unknown): ParseSavePlanResult {
     });
   }
 
-  const totalGoals = years.reduce((n, y) => n + y.goals.length, 0);
-  if (totalGoals === 0) return invalid("At least one goal is required.");
+  return { ok: true, values: years };
+}
 
-  return { ok: true, data: { title, years } };
+const isBoundedText = (v: unknown, max: number): v is string =>
+  typeof v === "string" && v.length <= max;
+
+const isTextList = (v: unknown): v is string[] =>
+  Array.isArray(v) &&
+  v.length <= PLAN_PATH_LIMITS.listItems &&
+  v.every(
+    (item) =>
+      typeof item === "string" &&
+      item.trim().length > 0 &&
+      item.length <= PLAN_PATH_LIMITS.listItemLength,
+  );
+
+const parseExperiments = (raw: unknown): PlanPathExperiment[] | null => {
+  if (!Array.isArray(raw) || raw.length > PLAN_PATH_LIMITS.experiments) return null;
+  const experiments: PlanPathExperiment[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") return null;
+    const { action, learning, nextUp } = item as Record<string, unknown>;
+    if (
+      !isBoundedText(action, PLAN_PATH_LIMITS.listItemLength) ||
+      !action.trim() ||
+      !isBoundedText(learning, PLAN_PATH_LIMITS.listItemLength) ||
+      !learning.trim()
+    ) {
+      return null;
+    }
+    experiments.push({ action, learning, nextUp: nextUp === true });
+  }
+  return experiments;
+};
+
+function parsePath(raw: unknown): ParsedList<PlanPathSavePayload> {
+  const invalid = (message: string): ParsedList<PlanPathSavePayload> => ({ ok: false, message });
+  if (!raw || typeof raw !== "object") return invalid("Invalid path.");
+  const p = raw as Record<string, unknown>;
+
+  if (!PLAN_PATH_KINDS.includes(p.kind as PlanPathKind)) return invalid("Invalid path kind.");
+  const kind = p.kind as PlanPathKind;
+
+  if (
+    !isBoundedText(p.title, PLAN_PATH_LIMITS.title) ||
+    !p.title.trim() ||
+    !isBoundedText(p.overview, PLAN_PATH_LIMITS.text) ||
+    !isBoundedText(p.appeal, PLAN_PATH_LIMITS.text)
+  ) {
+    return invalid(`Invalid text for path ${kind}.`);
+  }
+
+  const ids = p.appealQuestionIds;
+  if (
+    !Array.isArray(ids) ||
+    ids.length > PLAN_PATH_LIMITS.evidenceIds ||
+    !ids.every((id) => typeof id === "string" && QUESTION_ID_PATTERN.test(id))
+  ) {
+    return invalid(`Invalid evidence for path ${kind}.`);
+  }
+  if (!isTextList(p.requirements) || !isTextList(p.openQuestions)) {
+    return invalid(`Invalid lists for path ${kind}.`);
+  }
+
+  const experiments = parseExperiments(p.experiments);
+  if (!experiments) return invalid(`Invalid experiments for path ${kind}.`);
+
+  const scores = parseScores(p.scores);
+  if (!scores) return invalid(`Invalid scores for path ${kind}.`);
+
+  if (
+    !Array.isArray(p.marks) ||
+    !p.marks.every((m) => PLAN_PATH_MARKS.includes(m as (typeof PLAN_PATH_MARKS)[number]))
+  ) {
+    return invalid(`Invalid marks for path ${kind}.`);
+  }
+
+  if (!Array.isArray(p.years)) return invalid(`Invalid years for path ${kind}.`);
+  const years = parseYearList(p.years);
+  if (!years.ok) return invalid(`${years.message} (path ${kind})`);
+
+  return {
+    ok: true,
+    values: {
+      kind,
+      title: p.title,
+      overview: p.overview,
+      appeal: p.appeal,
+      appealQuestionIds: ids as string[],
+      requirements: p.requirements,
+      openQuestions: p.openQuestions,
+      experiments,
+      scores,
+      marks: p.marks as PlanPathSavePayload["marks"],
+      years: years.values,
+    },
+  };
+}
+
+export function parseSavePlanBody(body: unknown): ParseSavePlanResult {
+  if (!body || typeof body !== "object") return invalid("Invalid JSON body.");
+
+  const o = body as Record<string, unknown>;
+  const title =
+    o.title === undefined || o.title === null
+      ? undefined
+      : typeof o.title === "string"
+        ? normalizeOptionalString(o.title)
+        : null;
+  if (title === null) return invalid("Invalid title.");
+  if (title && title.length > PLAN_MAX_LENGTH.title) return invalid("Title too long.");
+
+  if (o.years === undefined && o.paths === undefined) {
+    return invalid("years must be an array.");
+  }
+
+  let years: PlanYearSavePayload[] | undefined;
+  if (o.years !== undefined) {
+    if (!Array.isArray(o.years)) return invalid("years must be an array.");
+    const parsedYears = parseYearList(o.years);
+    if (!parsedYears.ok) return invalid(parsedYears.message);
+    years = parsedYears.values;
+  }
+
+  let paths: PlanPathSavePayload[] | undefined;
+  if (o.paths !== undefined) {
+    if (!Array.isArray(o.paths) || o.paths.length !== PLAN_PATH_KINDS.length) {
+      return invalid("paths must include all three paths.");
+    }
+    paths = [];
+    for (const raw of o.paths) {
+      const parsedPath = parsePath(raw);
+      if (!parsedPath.ok) return invalid(parsedPath.message);
+      paths.push(parsedPath.values);
+    }
+    if (new Set(paths.map((p) => p.kind)).size !== PLAN_PATH_KINDS.length) {
+      return invalid("Duplicate path kind.");
+    }
+  }
+
+  const allYears = [...(years ?? []), ...(paths ?? []).flatMap((p) => p.years)];
+  if (allYears.every((y) => y.goals.length === 0)) {
+    return invalid("At least one goal is required.");
+  }
+
+  return { ok: true, data: { title, years, paths } };
 }

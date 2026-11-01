@@ -28,6 +28,32 @@ export function describeEvidenceQuestions(questionIds: string[]): string[] {
   return questionIds.flatMap((id) => getOdysseyQuestionById(id)?.prompt ?? []);
 }
 
+export type PlanYearGoalLine = {
+  id: string;
+  text: string;
+  role: "goal" | "action" | "plain";
+};
+
+/** Goal lines in reading order: the AI goal, then its actions; edited plans stay plain. */
+export function getYearGoalLines(
+  guidance: PlanYearAiGuidance | undefined,
+  goals: { id: string; text: string }[],
+): PlanYearGoalLine[] {
+  const labelled =
+    guidance != null &&
+    !isAiGuidanceOutdated(
+      guidance,
+      goals.map((g) => g.text),
+    );
+  if (!labelled) return goals.map((g) => ({ ...g, role: "plain" }));
+
+  const primary = guidance.sourceGoalTexts[0];
+  return [
+    ...goals.filter((g) => g.text === primary).map((g) => ({ ...g, role: "goal" as const })),
+    ...goals.filter((g) => g.text !== primary).map((g) => ({ ...g, role: "action" as const })),
+  ];
+}
+
 export const AI_GUIDANCE_OUTDATED_NOTE =
   "목표를 편집한 뒤로 이 설명은 편집 전 내용을 기준으로 합니다. AI가 다시 확인한 내용이 아닙니다.";
 export const AI_SUGGESTION_LABEL = "AI 제안";

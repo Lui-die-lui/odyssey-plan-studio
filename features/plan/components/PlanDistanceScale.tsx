@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef, type KeyboardEvent } from "react";
+
 import { PLAN_UNRATED_LABEL } from "../constants/plan-score.constants";
 import type { PlanDistanceScore } from "../types/plan.types";
 
@@ -17,7 +19,8 @@ export type PlanDistanceScaleProps = {
 };
 
 /**
- * Five-step segmented scale (1–5) that starts unrated and can be cleared.
+ * Five-step scale (1–5) that starts unrated and can be cleared. A radio group:
+ * one tab stop, and arrow keys move between levels.
  */
 export function PlanDistanceScale({
   value,
@@ -27,37 +30,50 @@ export function PlanDistanceScale({
   ariaLabelledBy,
   className = "",
 }: PlanDistanceScaleProps) {
+  const buttons = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const onKeyDown = (e: KeyboardEvent, level: PlanDistanceScore) => {
+    const delta = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[e.key];
+    if (!delta) return;
+    e.preventDefault();
+    const next = Math.min(5, Math.max(1, level + delta)) as PlanDistanceScore;
+    onChange(next);
+    buttons.current[next - 1]?.focus();
+  };
+
   return (
-    <div
-      className={`flex w-full max-w-full flex-col gap-1 ${className}`}
-      role="radiogroup"
-      aria-labelledby={ariaLabelledBy}
-    >
-      <div className="flex gap-1">
+    <div className={`flex w-full max-w-full flex-col gap-1 ${className}`}>
+      <div className="flex gap-1" role="radiogroup" aria-labelledby={ariaLabelledBy}>
         {LEVELS.map((level) => {
-          const selected = value !== null && level <= value;
+          const filled = value !== null && level <= value;
           return (
             <button
               key={level}
+              ref={(el) => {
+                buttons.current[level - 1] = el;
+              }}
               type="button"
               role="radio"
               aria-checked={value === level}
               aria-label={`${level}점`}
+              tabIndex={value === level || (value === null && level === 1) ? 0 : -1}
               onClick={() => onChange(level)}
-              className="group flex min-h-10 min-w-0 flex-1 items-center px-0.5 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 focus-visible:ring-offset-1 sm:min-h-9 dark:focus-visible:ring-zinc-500 dark:focus-visible:ring-offset-zinc-950"
+              onKeyDown={(e) => onKeyDown(e, level)}
+              className="group flex min-h-11 min-w-0 flex-1 cursor-pointer items-center rounded px-0.5"
             >
               <span
                 className={
-                  selected
-                    ? "block h-[10px] w-full rounded-full bg-zinc-900 transition-colors group-hover:bg-zinc-800 dark:bg-zinc-200 dark:group-hover:bg-zinc-300"
-                    : "block h-[10px] w-full rounded-full border border-zinc-200/90 bg-white transition-colors group-hover:border-zinc-300 group-hover:bg-zinc-50/90 dark:border-zinc-500 dark:bg-transparent dark:group-hover:border-zinc-400"
+                  "block h-2 w-full rounded-full transition-colors duration-100 " +
+                  (filled
+                    ? "bg-accent"
+                    : "border border-line-strong bg-raised group-hover:border-ink-3")
                 }
               />
             </button>
           );
         })}
       </div>
-      <div className="flex items-baseline justify-between gap-2 px-0.5 text-[11px] font-normal leading-tight text-zinc-400 dark:text-zinc-500">
+      <div className="flex min-h-11 items-center justify-between gap-2 px-0.5 text-xs text-ink-3">
         <span>{leftLabel}</span>
         {value === null ? (
           <span>{PLAN_UNRATED_LABEL}</span>
@@ -65,7 +81,7 @@ export function PlanDistanceScale({
           <button
             type="button"
             onClick={() => onChange(null)}
-            className="cursor-pointer tabular-nums underline-offset-2 hover:text-zinc-700 hover:underline dark:hover:text-zinc-300"
+            className="min-h-11 cursor-pointer rounded px-1 tabular-nums text-ink-2 underline-offset-2 hover:text-ink hover:underline"
             aria-label={`${value}점 선택 해제`}
           >
             {value}점 · 지우기

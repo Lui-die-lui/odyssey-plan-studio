@@ -1,7 +1,7 @@
 /**
  * Entry choices for `/plan/new` (시작 방식). Add entries here when new flows ship.
  */
-export type PlanCreateStartOptionId = "guided" | "manual";
+export type PlanCreateStartOptionId = "guided" | "paths" | "manual";
 
 export type PlanCreateStartOption = {
   id: PlanCreateStartOptionId;
@@ -14,16 +14,23 @@ export type PlanCreateStartOption = {
 export const PLAN_CREATE_START_OPTIONS: readonly PlanCreateStartOption[] = [
   {
     id: "guided",
-    title: "가이드를 받으며 시작할래요",
+    title: "질문에 답하고 세 경로 초안 받기",
     description:
-      "몇 가지 질문에 답하고, AI 초안을 바탕으로 방향을 정리해요.",
+      "내 상황을 답하면 서로 다른 세 가지 5년을 제안해 드려요. 방향이 아직 흐릿해도 괜찮아요.",
     pathSegment: "ai",
   },
   {
-    id: "manual",
-    title: "내가 직접 시작할래요",
+    id: "paths",
+    title: "세 경로 직접 작성하기",
     description:
-      "생각해둔 계획이 있다면, 바로 직접 작성할 수 있어요.",
+      "지금 이어가는 삶, 다른 길의 삶, 제약을 내려놓은 삶을 직접 적어 비교해요.",
+    pathSegment: "paths",
+  },
+  {
+    id: "manual",
+    title: "5년 계획 하나만 작성하기",
+    description:
+      "이미 정한 방향이 있다면 연차별로 바로 적을 수 있어요.",
     pathSegment: "manual",
   },
 ];

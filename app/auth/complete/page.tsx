@@ -37,7 +37,7 @@ function AuthCompletePageContent() {
   }, [status, data?.user?.role, returnTo, router]);
 
   return (
-    <div className="flex min-h-[50vh] items-center justify-center text-sm text-zinc-600 dark:text-zinc-400">
+    <div className="flex min-h-[50vh] items-center justify-center text-sm text-ink-2">
       로그인 정보를 확인하는 중…
     </div>
   );
@@ -47,7 +47,7 @@ export default function AuthCompletePage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-[50vh] items-center justify-center text-sm text-zinc-600 dark:text-zinc-400">
+        <div className="flex min-h-[50vh] items-center justify-center text-sm text-ink-2">
           로그인 정보를 확인하는 중…
         </div>
       }

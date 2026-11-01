@@ -3,6 +3,7 @@
 import { useEffect, useMemo, type CSSProperties } from "react";
 
 import { PLAN_ODYSSEY_YEAR_INDICES } from "@/features/plan/constants/plan.constants";
+import { PLAN_YEAR_HORIZON } from "@/features/plan/constants/plan-horizon.constants";
 import {
   PLAN_RATING_AVERAGE_LABEL,
   PLAN_RATING_OVERALL_LABEL,
@@ -16,6 +17,7 @@ import {
   AI_GUIDANCE_OUTDATED_NOTE,
   AI_SUGGESTION_LABEL,
   describeEvidenceQuestions,
+  getYearGoalLines,
   isAiGuidanceOutdated,
 } from "@/features/plan/lib/plan-ai-guidance";
 import {
@@ -35,6 +37,9 @@ import type { PlanYearDto, SavedPlanResponse } from "@/features/plan/types/plan.
  * so the captured layout matches jsPDF’s usable width and fills the page.
  */
 const PDF_W = Math.round(((297 - 24) / 25.4) * 96);
+
+/** Longer detail cards may split across pages; keeping them whole would leave a blank page. */
+const DETAIL_CARD_KEEP_WHOLE_CHARS = 1400;
 
 const textWrap: CSSProperties = {
   wordBreak: "keep-all" as const,
@@ -121,8 +126,8 @@ const sheet: Record<string, CSSProperties> = {
   /** Matches `YearDetailCard` on My Plan: min height + column flex. */
   yearCard: {
     backgroundColor: "#ffffff",
-    border: "1px solid #e7e5e4",
-    borderRadius: 16,
+    border: "1px solid #dedcd5",
+    borderRadius: 10,
     padding: "14px 12px 14px",
     minWidth: 0,
     minHeight: 220,
@@ -212,14 +217,6 @@ const sheet: Record<string, CSSProperties> = {
     minWidth: 0,
     width: "100%",
   },
-  yearNote: {
-    margin: 0,
-    fontSize: 10,
-    lineHeight: 1.45,
-    color: "#71717a",
-    width: "100%",
-    ...textWrap,
-  },
   chipRow: {
     display: "flex",
     flexWrap: "wrap",
@@ -229,12 +226,12 @@ const sheet: Record<string, CSSProperties> = {
     width: "100%",
   },
   chip: {
-    backgroundColor: "#27272a",
-    color: "#fafaf9",
+    backgroundColor: "#f4f4f2",
+    color: "#52524c",
     fontSize: 10,
-    fontWeight: 600,
-    borderRadius: 999,
-    padding: "4px 10px",
+    fontWeight: 500,
+    borderRadius: 4,
+    padding: "2px 6px",
     lineHeight: 1.35,
     maxWidth: "100%",
     boxSizing: "border-box",
@@ -262,8 +259,8 @@ const sheet: Record<string, CSSProperties> = {
     fontVariantNumeric: "tabular-nums",
   },
   footerScoreValue: {
-    fontSize: 13,
-    fontWeight: 800,
+    fontSize: 12,
+    fontWeight: 600,
     color: "#09090b",
   },
   footerScoreUnit: {
@@ -283,8 +280,8 @@ const sheet: Record<string, CSSProperties> = {
   },
   panel: {
     backgroundColor: "#ffffff",
-    border: "1px solid #e7e5e4",
-    borderRadius: 18,
+    border: "1px solid #dedcd5",
+    borderRadius: 10,
     padding: "16px 18px 16px",
     boxSizing: "border-box",
     minWidth: 0,
@@ -304,8 +301,8 @@ const sheet: Record<string, CSSProperties> = {
   },
   bigScore: {
     margin: 0,
-    fontSize: 26,
-    fontWeight: 800,
+    fontSize: 18,
+    fontWeight: 600,
     color: "#09090b",
     fontVariantNumeric: "tabular-nums",
   },
@@ -378,7 +375,7 @@ const sheet: Record<string, CSSProperties> = {
   },
   barFill: {
     height: "100%",
-    backgroundColor: "#3f3f46",
+    backgroundColor: "#2e3f66",
     borderRadius: 999,
   },
   barValue: {
@@ -481,17 +478,17 @@ const sheet: Record<string, CSSProperties> = {
     minWidth: 0,
   },
   detailHeading: {
+    breakAfter: "avoid",
     margin: 0,
     fontSize: 16,
     fontWeight: 800,
     color: "#09090b",
   },
   detailCard: {
-    breakInside: "avoid",
     marginTop: 12,
     padding: "14px 16px",
-    border: "1px solid #e7e5e4",
-    borderRadius: 14,
+    border: "1px solid #dedcd5",
+    borderRadius: 10,
     boxSizing: "border-box",
     minWidth: 0,
   },
@@ -509,6 +506,37 @@ const sheet: Record<string, CSSProperties> = {
   detailOrigin: {
     fontSize: 10,
     fontWeight: 600,
+    color: "#71717a",
+  },
+  detailGoal: {
+    margin: "6px 0 0",
+    fontSize: 14,
+    fontWeight: 700,
+    lineHeight: 1.45,
+    color: "#18181b",
+    ...textWrap,
+  },
+  detailAction: {
+    margin: "4px 0 0",
+    fontSize: 12,
+    lineHeight: 1.5,
+    color: "#27272a",
+    ...textWrap,
+  },
+  yearDot: {
+    display: "inline-block",
+    width: 8,
+    height: 8,
+    marginRight: 5,
+    borderRadius: 999,
+    border: "1.5px solid",
+    verticalAlign: "1px",
+    boxSizing: "border-box",
+  },
+  yearHorizon: {
+    margin: "1px 0 0",
+    fontSize: 9,
+    fontWeight: 500,
     color: "#71717a",
   },
   detailGrid: {
@@ -579,24 +607,51 @@ function DetailItem({ label, text }: { label: string; text: string }) {
 }
 
 /** Everything the web view keeps collapsed, printed in full for one year. */
-function YearDetailCard({ year }: { year: PlanYearDto }) {
+export function PdfYearDetailCard({
+  year,
+  showRatings = true,
+}: {
+  year: PlanYearDto;
+  showRatings?: boolean;
+}) {
   const goalTexts = sortedGoals(year).map((goal) => goal.text);
   const { aiGuidance: guidance } = year;
   const noteText = year.note?.trim();
   const outdated = guidance ? isAiGuidanceOutdated(guidance, goalTexts) : false;
+  const lines = getYearGoalLines(guidance, sortedGoals(year));
   const scoreText = PLAN_SCORE_KEYS.map(
     (key) =>
       `${PLAN_SCORE_LABELS[key].en} ${year.scores[key] ?? PLAN_UNRATED_LABEL}`,
   ).join(" · ");
 
+  const contentLength = goalTexts.join("").length + (noteText?.length ?? 0);
+
   return (
-    <article style={sheet.detailCard}>
+    <article
+      style={{
+        ...sheet.detailCard,
+        breakInside: contentLength <= DETAIL_CARD_KEEP_WHOLE_CHARS ? "avoid" : "auto",
+      }}
+    >
       <div style={sheet.detailTitleRow}>
-        <h3 style={sheet.detailYear}>{year.yearIndex}Y</h3>
-        {guidance && !outdated ? (
-          <span style={sheet.detailOrigin}>{AI_SUGGESTION_LABEL}</span>
-        ) : null}
+        <h3 style={sheet.detailYear}>{year.yearIndex}년차</h3>
+        <span style={sheet.detailOrigin}>
+          {PLAN_YEAR_HORIZON[year.yearIndex].label}
+          {guidance ? (outdated ? " · AI 초안을 내가 수정" : ` · ${AI_SUGGESTION_LABEL}`) : ""}
+        </span>
       </div>
+      {lines.map((line) =>
+        line.role === "goal" ? (
+          <p key={line.id} style={sheet.detailGoal}>
+            {line.text}
+          </p>
+        ) : (
+          <p key={line.id} style={sheet.detailAction}>
+            {line.role === "action" ? <strong>행동 </strong> : null}
+            {line.text}
+          </p>
+        ),
+      )}
       {outdated ? <p style={sheet.detailOutdated}>{AI_GUIDANCE_OUTDATED_NOTE}</p> : null}
       <div style={sheet.detailGrid}>
         {guidance ? (
@@ -615,7 +670,7 @@ function YearDetailCard({ year }: { year: PlanYearDto }) {
           </>
         ) : null}
         {noteText ? <DetailItem label="메모" text={noteText} /> : null}
-        <DetailItem label="내 자기평가" text={scoreText} />
+        {showRatings ? <DetailItem label="내 자기평가" text={scoreText} /> : null}
       </div>
     </article>
   );
@@ -713,21 +768,35 @@ export function PlanSummaryPdfDocument({
         {PLAN_ODYSSEY_YEAR_INDICES.map((idx) => {
           const year = byYear.get(idx);
           const rating = year ? summarizeYearRating(year.scores) : null;
+          const goals = year ? sortedGoals(year) : [];
           const guidance = year?.aiGuidance;
           const showAiLabels =
             guidance != null &&
-            !isAiGuidanceOutdated(guidance, sortedGoals(year as PlanYearDto).map((g) => g.text));
-          const goals = year ? sortedGoals(year) : [];
+            !isAiGuidanceOutdated(guidance, goals.map((g) => g.text));
+          const firm = PLAN_YEAR_HORIZON[idx].firm;
           const keywords = year ? sortedKeywords(year) : [];
-          const noteText = year?.note?.trim();
 
           return (
-            <article key={idx} style={sheet.yearCard}>
+            <article
+              key={idx}
+              style={{ ...sheet.yearCard, borderStyle: firm ? "solid" : "dashed" }}
+            >
               <div style={sheet.yearTop}>
-                <h2 style={sheet.yearLabel}>{idx}Y</h2>
-                {showAiLabels ? (
-                  <p style={sheet.detailOrigin}>{AI_SUGGESTION_LABEL}</p>
-                ) : null}
+                <h2 style={sheet.yearLabel}>
+                  <span
+                    aria-hidden
+                    style={{
+                      ...sheet.yearDot,
+                      backgroundColor: goals.length ? PLAN_YEAR_HORIZON[idx].color : "transparent",
+                      borderColor: goals.length ? PLAN_YEAR_HORIZON[idx].color : "#a1a1aa",
+                    }}
+                  />
+                  {idx}년차
+                </h2>
+                <p style={sheet.yearHorizon}>
+                  {PLAN_YEAR_HORIZON[idx].label}
+                  {showAiLabels ? ` · ${AI_SUGGESTION_LABEL}` : ""}
+                </p>
 
                 {goals.length > 0 ? (
                   <ul style={sheet.goalList}>
@@ -759,20 +828,15 @@ export function PlanSummaryPdfDocument({
               </div>
 
               <div style={sheet.yearBottom}>
-                {keywords.length > 0 || noteText ? (
+                {keywords.length > 0 ? (
                   <div style={sheet.keywordsNoteWrap}>
-                    {keywords.length > 0 ? (
-                      <div style={sheet.chipRow}>
-                        {keywords.map((keyword) => (
-                          <span key={keyword.id} style={sheet.chip}>
-                            {keyword.text}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                    {noteText ? (
-                      <p style={sheet.yearNote}>{noteText}</p>
-                    ) : null}
+                    <div style={sheet.chipRow}>
+                      {keywords.map((keyword) => (
+                        <span key={keyword.id} style={sheet.chip}>
+                          {keyword.text}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 ) : null}
 
@@ -890,7 +954,7 @@ export function PlanSummaryPdfDocument({
         <section style={sheet.detailSection} aria-label="연도별 상세">
           <h2 style={sheet.detailHeading}>연도별 상세</h2>
           {detailYears.map((year) => (
-            <YearDetailCard key={year.id} year={year} />
+            <PdfYearDetailCard key={year.id} year={year} />
           ))}
         </section>
       ) : null}

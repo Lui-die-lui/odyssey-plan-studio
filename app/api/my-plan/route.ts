@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getActiveSessionUser } from "@/features/auth/lib/session-user";
 import {
   getPlanByUserId,
+  mapPathPayloadToCreateData,
   mapPlanToResponse,
   mapYearPayloadToCreateData,
   planInclude,
@@ -74,7 +75,20 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    const { title, years } = parsed.data;
+    const { title, years, paths } = parsed.data;
+
+    const writePaths = async (tx: PrismaTransactionClient, planId: string) => {
+      for (const path of paths ?? []) {
+        const { id: pathId } = await tx.planPath.create({
+          data: { planId, ...mapPathPayloadToCreateData(path) },
+        });
+        for (const year of path.years) {
+          await tx.planYear.create({
+            data: { planId, pathId, ...mapYearPayloadToCreateData(year) },
+          });
+        }
+      }
+    };
 
     const existingPlan = await prisma.plan.findUnique({
       where: { userId },
@@ -82,14 +96,20 @@ export async function POST(req: Request) {
     });
 
     if (!existingPlan) {
-      const created = await prisma.plan.create({
-        data: {
-          userId,
-          title: title ?? null,
-          years: {
-            create: years.map(mapYearPayloadToCreateData),
+      const createdId = await prisma.$transaction(async (tx: PrismaTransactionClient) => {
+        const { id } = await tx.plan.create({
+          data: {
+            userId,
+            title: title ?? null,
+            years: { create: (years ?? []).map(mapYearPayloadToCreateData) },
           },
-        },
+        });
+        await writePaths(tx, id);
+        return id;
+      });
+
+      const created = await prisma.plan.findUniqueOrThrow({
+        where: { id: createdId },
         include: planInclude,
       });
 
@@ -102,17 +122,26 @@ export async function POST(req: Request) {
     const planId = existingPlan.id;
 
     await prisma.$transaction(async (tx: PrismaTransactionClient) => {
-      await tx.planYear.deleteMany({ where: { planId } });
-
-      await tx.plan.update({
-        where: { id: planId },
-        data: { title: title ?? null },
-      });
-
-      for (const y of years) {
-        await tx.planYear.create({
-          data: { planId, ...mapYearPayloadToCreateData(y) },
+      // Only what the request carries is replaced; the other part stays as saved.
+      if (years) {
+        await tx.planYear.deleteMany({ where: { planId, pathId: null } });
+        await tx.plan.update({
+          where: { id: planId },
+          data: { title: title ?? null },
         });
+        for (const y of years) {
+          await tx.planYear.create({
+            data: { planId, ...mapYearPayloadToCreateData(y) },
+          });
+        }
+      }
+
+      if (paths) {
+        await tx.planPath.deleteMany({ where: { planId } });
+        await writePaths(tx, planId);
+        if (title !== undefined && !years) {
+          await tx.plan.update({ where: { id: planId }, data: { title } });
+        }
       }
     });
 

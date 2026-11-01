@@ -39,7 +39,7 @@ const validateScoreField = (
 ): string | undefined => {
   if (value === null) return undefined;
   if (!Number.isInteger(value) || value < PLAN_SCORE_MIN || value > PLAN_SCORE_MAX) {
-    return `${label} must be between ${PLAN_SCORE_MIN} and ${PLAN_SCORE_MAX}.`;
+    return `${label} 점수는 ${PLAN_SCORE_MIN}~${PLAN_SCORE_MAX} 사이여야 합니다.`;
   }
   return undefined;
 };
@@ -54,7 +54,7 @@ const validateTextList = (opts: {
   const used = nonEmpty.filter(Boolean);
   if (used.length > opts.maxItems) {
     return {
-      listError: `At most ${opts.maxItems} ${opts.label} allowed.`,
+      listError: `${opts.label}은 최대 ${opts.maxItems}개까지 입력할 수 있어요.`,
     };
   }
   const lineErrors: StringListItemError[] = [];
@@ -63,7 +63,7 @@ const validateTextList = (opts: {
     if (line.length > opts.maxLen) {
       lineErrors.push({
         index,
-        message: `Must be at most ${opts.maxLen} characters.`,
+        message: `${opts.maxLen}자 이내로 입력해 주세요.`,
       });
     }
   });
@@ -75,17 +75,17 @@ const validateYear = (y: PlanYearForm): PlanYearFormValidationErrors => {
 
   const note = y.note?.trim() ?? "";
   if (note.length > PLAN_MAX_LENGTH.note) {
-    errors.note = `Note must be at most ${PLAN_MAX_LENGTH.note} characters.`;
+    errors.note = `메모는 ${PLAN_MAX_LENGTH.note}자 이내로 입력해 주세요.`;
   }
 
   const scoreErrors: PlanYearFormValidationErrors["scores"] = {};
   const s = y.scores;
   (
     [
-      ["resources", s.resources, "Resources"],
-      ["interest", s.interest, "Interest"],
-      ["confidence", s.confidence, "Confidence"],
-      ["coherence", s.coherence, "Coherence"],
+      ["resources", s.resources, "RESOURCES"],
+      ["interest", s.interest, "INTEREST"],
+      ["confidence", s.confidence, "CONFIDENCE"],
+      ["coherence", s.coherence, "COHERENCE"],
     ] as const
   ).forEach(([key, val, label]) => {
     const err = validateScoreField(val, label);
@@ -97,7 +97,7 @@ const validateYear = (y: PlanYearForm): PlanYearFormValidationErrors => {
     items: y.goals.map((g) => g.text),
     maxItems: PLAN_MAX_GOALS_PER_YEAR,
     maxLen: PLAN_MAX_LENGTH.goal,
-    label: "goals",
+    label: "목표",
   });
   if (goalCheck.listError) errors.goals = goalCheck.listError;
   if (goalCheck.lineErrors) errors.goalLines = goalCheck.lineErrors;
@@ -106,7 +106,7 @@ const validateYear = (y: PlanYearForm): PlanYearFormValidationErrors => {
     items: y.keywords,
     maxItems: PLAN_MAX_KEYWORDS_PER_YEAR,
     maxLen: PLAN_MAX_LENGTH.keyword,
-    label: "keywords",
+    label: "키워드",
   });
   if (kwCheck.listError) errors.keywords = kwCheck.listError;
   if (kwCheck.lineErrors) errors.keywordLines = kwCheck.lineErrors;
@@ -136,18 +136,18 @@ export const validatePlanForm = (
 
   const title = values.title?.trim() ?? "";
   if (title.length > PLAN_MAX_LENGTH.title) {
-    errors.title = `Title must be at most ${PLAN_MAX_LENGTH.title} characters.`;
+    errors.title = `제목은 ${PLAN_MAX_LENGTH.title}자 이내로 입력해 주세요.`;
   }
 
   const years = values.years ?? [];
   if (years.length !== PLAN_ODYSSEY_YEAR_INDICES.length) {
-    errors.form = "Plan must include all five odyssey years (1–5).";
+    errors.form = "5개 연차가 모두 필요합니다.";
   }
 
   errors.years = PLAN_ODYSSEY_YEAR_INDICES.map((idx) => {
     const block = years.find((y) => y.yearIndex === idx);
     if (!block) {
-      return { goals: "Missing year data." };
+      return { goals: "연차 정보가 없습니다." };
     }
     return validateYear(block);
   });

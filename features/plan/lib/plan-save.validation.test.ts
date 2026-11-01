@@ -15,13 +15,73 @@ const validBody = () => ({
   })),
 });
 
+describe("parseSavePlanBody with paths", () => {
+  const path = (kind: string) => ({
+    kind,
+    title: "경로",
+    overview: "",
+    appeal: "",
+    appealQuestionIds: [],
+    requirements: [],
+    openQuestions: [],
+    experiments: [],
+    scores: { resources: null, interest: null, confidence: null, coherence: null },
+    marks: [],
+    years: validBody().years,
+  });
+  const paths = () => ["continue", "alternative", "unbound"].map(path);
+
+  it("accepts three paths with no single plan", () => {
+    const result = parseSavePlanBody({ paths: paths() });
+    expect(result.ok && result.data.years).toBeUndefined();
+    expect(result.ok && result.data.paths).toHaveLength(3);
+  });
+
+  it("keeps a whole-path rating separate and unrated by default", () => {
+    const body = paths();
+    body[0]!.scores.resources = 1 as never;
+    const result = parseSavePlanBody({ paths: body });
+    expect(result.ok && result.data.paths?.[0]?.scores.resources).toBe(1);
+    expect(result.ok && result.data.paths?.[1]?.scores.resources).toBeNull();
+  });
+
+  it("rejects missing or repeated paths", () => {
+    expect(parseSavePlanBody({ paths: paths().slice(0, 2) }).ok).toBe(false);
+    expect(parseSavePlanBody({ paths: ["continue", "continue", "unbound"].map(path) }).ok).toBe(false);
+    expect(parseSavePlanBody({ paths: ["continue", "alternative", "x"].map(path) }).ok).toBe(false);
+  });
+
+  it("rejects an experiment that lacks what it tests", () => {
+    const body = paths();
+    body[0]!.experiments = [{ action: "대화하기", learning: "" }] as never;
+    expect(parseSavePlanBody({ paths: body }).ok).toBe(false);
+  });
+
+  it("rejects unknown marks", () => {
+    const body = paths();
+    body[0]!.marks = ["best"] as never;
+    expect(parseSavePlanBody({ paths: body }).ok).toBe(false);
+  });
+
+  it("requires a goal somewhere across the paths", () => {
+    const body = paths().map((p) => ({
+      ...p,
+      years: p.years.map((y) => ({ ...y, goals: [] })),
+    }));
+    expect(parseSavePlanBody({ paths: body })).toEqual({
+      ok: false,
+      message: "At least one goal is required.",
+    });
+  });
+});
+
 describe("parseSavePlanBody", () => {
   it("accepts a complete plan and trims the title", () => {
     const result = parseSavePlanBody(validBody());
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.data.title).toBe("내 플랜");
-      expect(result.data.years.map((y) => y.yearIndex)).toEqual([1, 2, 3, 4, 5]);
+      expect(result.data.years?.map((y) => y.yearIndex)).toEqual([1, 2, 3, 4, 5]);
     }
   });
 
@@ -65,7 +125,7 @@ describe("parseSavePlanBody", () => {
     const body = validBody();
     body.years[0].scores = { resources: 99, interest: -3, confidence: 2.6, coherence: 3 };
     const result = parseSavePlanBody(body);
-    expect(result.ok && result.data.years[0].scores).toEqual({
+    expect(result.ok && result.data.years?.[0].scores).toEqual({
       resources: 5,
       interest: 1,
       confidence: 3,

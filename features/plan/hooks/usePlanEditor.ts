@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   PlanDistanceScore,
@@ -11,7 +11,15 @@ import type {
 import type { PlanOdysseyYearIndex } from "../constants/plan.constants";
 import type { PlanScoreKey } from "../constants/plan-score.constants";
 import { validatePlanForm } from "../lib/plan.validation";
-import { normalizePlanFormValues } from "../lib/plan.mapper";
+import {
+  mapPlanFormValuesToSavePayload,
+  normalizePlanFormValues,
+} from "../lib/plan.mapper";
+import {
+  clearPlanFormAutosave,
+  readPlanFormAutosave,
+  writePlanFormAutosave,
+} from "../lib/plan-form-autosave";
 import { newPlanGoalId } from "../lib/plan-goal-id";
 import {
   PLAN_MAX_GOALS_PER_YEAR,
@@ -21,7 +29,12 @@ import {
 
 type UsePlanEditorOptions = {
   initialValues?: PlanFormValues;
+  /** Keeps unsaved edits in this tab; omit until the plan being edited is known. */
+  autosaveKey?: string;
 };
+
+const fingerprint = (values: PlanFormValues) =>
+  JSON.stringify(mapPlanFormValuesToSavePayload(values));
 
 const cloneValues = (v: PlanFormValues): PlanFormValues => ({
   title: v.title,
@@ -35,26 +48,52 @@ const cloneValues = (v: PlanFormValues): PlanFormValues => ({
 });
 
 export const usePlanEditor = (opts?: UsePlanEditorOptions) => {
+  const autosaveKey = opts?.autosaveKey;
   const resolvedInitialValues = useMemo(
     () => normalizePlanFormValues(opts?.initialValues),
     [opts?.initialValues],
   );
 
-  const [values, setValues] = useState<PlanFormValues>(resolvedInitialValues);
+  const [values, setValues] = useState<PlanFormValues>(
+    () => (autosaveKey && readPlanFormAutosave(autosaveKey)) || resolvedInitialValues,
+  );
+  const [restored, setRestored] = useState(
+    () => autosaveKey != null && readPlanFormAutosave(autosaveKey) != null,
+  );
 
   /** When `initialValues` prop identity changes, reset form (avoids setState inside useEffect). */
   const initialPropRef = useRef(opts?.initialValues);
   if (opts?.initialValues !== initialPropRef.current) {
     initialPropRef.current = opts?.initialValues;
     if (opts?.initialValues != null) {
-      setValues(cloneValues(normalizePlanFormValues(opts.initialValues)));
+      const saved = autosaveKey ? readPlanFormAutosave(autosaveKey) : null;
+      setValues(saved ?? cloneValues(normalizePlanFormValues(opts.initialValues)));
+      setRestored(saved != null);
     }
   }
 
   const validation = useMemo(() => validatePlanForm(values), [values]);
+  const isDirty = useMemo(
+    () => fingerprint(values) !== fingerprint(resolvedInitialValues),
+    [values, resolvedInitialValues],
+  );
+
+  useEffect(() => {
+    if (!autosaveKey) return;
+    if (isDirty) writePlanFormAutosave(autosaveKey, values);
+    else clearPlanFormAutosave(autosaveKey);
+  }, [autosaveKey, isDirty, values]);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isDirty]);
 
   const resetForm = useCallback(
     (nextValues?: PlanFormValues) => {
+      setRestored(false);
       setValues(
         cloneValues(
           nextValues
@@ -65,6 +104,10 @@ export const usePlanEditor = (opts?: UsePlanEditorOptions) => {
     },
     [resolvedInitialValues],
   );
+
+  const clearAutosave = useCallback(() => {
+    if (autosaveKey) clearPlanFormAutosave(autosaveKey);
+  }, [autosaveKey]);
 
   const setTitle = useCallback((title: string) => {
     setValues((prev) => ({ ...prev, title }));
@@ -189,6 +232,9 @@ export const usePlanEditor = (opts?: UsePlanEditorOptions) => {
   return {
     values,
     validation,
+    isDirty,
+    restored,
+    clearAutosave,
     resetForm,
     setTitle,
     setScore,

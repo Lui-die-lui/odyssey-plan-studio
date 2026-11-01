@@ -1,10 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { motion, useReducedMotion, type PanInfo } from "framer-motion";
+
+import { Notice } from "@/components/common/Notice";
+import { buttonClass, helpTextClass, sectionTitleClass } from "@/components/common/ui";
+import { computePlanFill } from "@/features/field/future-field-core";
+import { setFieldFill } from "@/features/field/future-field-store";
 
 import type { PlanYearDto, SavedPlanResponse } from "../types/plan.types";
-import type { PlanOdysseyYearIndex } from "../constants/plan.constants";
-import { PLAN_ODYSSEY_YEAR_INDICES } from "../constants/plan.constants";
+import {
+  PLAN_ODYSSEY_YEAR_INDICES,
+  type PlanOdysseyYearIndex,
+} from "../constants/plan.constants";
+import { PLAN_YEAR_HORIZON } from "../constants/plan-horizon.constants";
 import {
   PLAN_RATING_AVERAGE_LABEL,
   PLAN_RATING_OVERALL_LABEL,
@@ -16,6 +25,7 @@ import {
 } from "../constants/plan-score.constants";
 import {
   AI_SUGGESTION_LABEL,
+  getYearGoalLines,
   isAiGuidanceOutdated,
 } from "../lib/plan-ai-guidance";
 import type { PlanRatingSummary } from "../lib/plan-summary-stats";
@@ -29,536 +39,309 @@ import {
   summarizeYearRating,
 } from "../lib/plan-summary-stats";
 import { PlanYearGuidanceDetails } from "./PlanYearGuidanceDetails";
+import { YearTimeline, yearPanelId, yearTabId } from "./YearTimeline";
 
 export type PlanSummaryProps = {
-  plan: SavedPlanResponse | null;
-  emptyStateMessage?: string;
+  plan: SavedPlanResponse;
+  /** Three-path plans compare whole paths, so yearly rating sections stay hidden. */
+  showRatingSummary?: boolean;
+  showYearRatings?: boolean;
+  /** Off when a parent reports the fill for several paths together. */
+  reportFill?: boolean;
 };
 
-/** Beyond this length the clamped note preview may cut text, so offer the full memo. */
-const NOTE_PREVIEW_CHARS = 60;
+const TIMELINE_ID = "plan-summary-years";
+const SWIPE_DISTANCE_PX = 56;
 
-/** Average with its rated count; partial ratings show how many items it covers. */
-function RatingValue({ rating }: { rating: PlanRatingSummary }) {
-  if (rating.average === null) {
-    return (
-      <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-        {PLAN_UNRATED_LABEL}
-      </span>
-    );
-  }
-  return (
-    <span className="tabular-nums text-zinc-900 dark:text-zinc-100">
-      <span className="text-base font-bold tracking-tight lg:text-sm">
-        {formatRatingOneDecimal(rating.average)}
-      </span>
-      <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-        {" "}
-        / 5
-        {rating.ratedCount < rating.totalCount
-          ? ` (${rating.ratedCount}/${rating.totalCount}개 평가)`
-          : ""}
-      </span>
-    </span>
-  );
+function ratingText(rating: PlanRatingSummary): string {
+  if (rating.average === null) return PLAN_UNRATED_LABEL;
+  const partial =
+    rating.ratedCount < rating.totalCount
+      ? ` (${rating.ratedCount}/${rating.totalCount}개 평가)`
+      : "";
+  return `${formatRatingOneDecimal(rating.average)} / 5${partial}`;
 }
 
-/** Points down when collapsed; rotates to point up when expanded. */
-function CollapseChevron({ expanded }: { expanded: boolean }) {
-  return (
-    <svg
-      className={`mt-0.5 h-5 w-5 shrink-0 text-zinc-400 transition-transform duration-300 ease-out motion-reduce:transition-none dark:text-zinc-500 ${expanded ? "rotate-180" : "rotate-0"}`}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  );
+function yearOriginLabel(year: PlanYearDto): string {
+  if (!year.aiGuidance) return "직접 작성";
+  return isAiGuidanceOutdated(
+    year.aiGuidance,
+    year.goals.map((g) => g.text),
+  )
+    ? "AI 초안을 내가 수정"
+    : AI_SUGGESTION_LABEL;
 }
 
-function YearRatingBar({
-  yearLabel,
-  rating,
-  highlight,
-}: {
-  yearLabel: string;
-  rating: PlanRatingSummary;
-  highlight?: boolean;
-}) {
-  const pct =
-    rating.average === null
-      ? 0
-      : Math.min(100, Math.max(0, (rating.average / 5) * 100));
-  const fill =
-    highlight
-      ? "bg-[#2E3F66] dark:bg-[#8FA8C9]"
-      : "bg-[#CEDAE9] dark:bg-zinc-200";
+function YearPanelBody({ year, showRatings }: { year: PlanYearDto; showRatings: boolean }) {
+  const lines = getYearGoalLines(year.aiGuidance, year.goals);
+  const goal = lines.find((line) => line.role === "goal");
+  const actions = lines.filter((line) => line.role === "action");
+  const plainLines = lines.filter((line) => line.role === "plain");
+  const horizon = PLAN_YEAR_HORIZON[year.yearIndex];
+  const note = year.note?.trim();
+  const rating = summarizeYearRating(year.scores);
+
   return (
-    <div className="flex items-center gap-2">
-      <span className="w-9 shrink-0 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-        {yearLabel}
-      </span>
-      <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-        <div
-          className={`h-full rounded-full ${fill}`}
-          style={{ width: `${pct}%` }}
+    <div>
+      <p className="text-xs text-ink-3">
+        {year.yearIndex}년차 · {horizon.label} · {yearOriginLabel(year)}
+      </p>
+
+      {goal ? (
+        <p className="mt-2 text-lg font-semibold leading-snug tracking-tight text-ink sm:text-xl">
+          {goal.text}
+        </p>
+      ) : null}
+
+      {actions.length ? (
+        <section className="mt-5">
+          <h3 className="text-sm font-medium text-ink-3">행동</h3>
+          <ul className="mt-1.5 flex flex-col gap-1.5">
+            {actions.map((action) => (
+              <li key={action.id} className="text-[15px] leading-relaxed text-ink">
+                {action.text}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {plainLines.length ? (
+        <ul className="mt-3 flex flex-col gap-2">
+          {plainLines.map((line) => (
+            <li key={line.id} className="text-[15px] leading-relaxed text-ink">
+              {line.text}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {!lines.length ? (
+        <p className={`${helpTextClass} mt-3`}>
+          이 해에는 아직 목표가 없어요. 수정 화면에서 추가할 수 있습니다.
+        </p>
+      ) : null}
+
+      {year.aiGuidance ? (
+        <section className="mt-5 border-l-2 border-line-strong pl-3">
+          <h3 className="text-sm font-medium text-ink-3">확인 기준</h3>
+          <p className="mt-1 text-[15px] leading-relaxed text-ink-2">
+            {year.aiGuidance.checkpoint}
+          </p>
+        </section>
+      ) : null}
+
+      {year.aiGuidance ? (
+        <PlanYearGuidanceDetails
+          className="mt-4"
+          guidance={year.aiGuidance}
+          goalTexts={year.goals.map((g) => g.text)}
+          hideCheckpoint
         />
-      </div>
-      <span className="w-16 shrink-0 text-right text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
-        {rating.average === null
-          ? PLAN_UNRATED_LABEL
-          : `${formatRatingOneDecimal(rating.average)} (${rating.ratedCount}/${rating.totalCount})`}
-      </span>
+      ) : null}
+
+      {note ? (
+        <section className="mt-4">
+          <h3 className="text-sm font-medium text-ink-3">메모</h3>
+          <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-ink-2">{note}</p>
+        </section>
+      ) : null}
+
+      {year.keywords.length ? (
+        <p className="mt-4 text-sm text-ink-3">
+          키워드: {year.keywords.map((k) => k.text).join(" · ")}
+        </p>
+      ) : null}
+
+      {showRatings ? (
+      <section className="mt-5 border-t border-line pt-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h3 className="text-sm font-medium text-ink-3">내 자기평가</h3>
+          <p className="text-sm tabular-nums text-ink-2">
+            {PLAN_RATING_AVERAGE_LABEL} {ratingText(rating)}
+          </p>
+        </div>
+        <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
+          {PLAN_SCORE_KEYS.map((key) => (
+            <div key={key}>
+              <dt className="text-xs text-ink-3">{PLAN_SCORE_LABELS[key].ko}</dt>
+              <dd className="text-sm tabular-nums text-ink-2">
+                {year.scores[key] ?? PLAN_UNRATED_LABEL}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+      ) : null}
     </div>
   );
 }
 
-function YearDetailCard({
-  idx,
-  y,
-  rating,
-  className = "",
-  /** 모바일 캐러셀: 행 높이 = 가장 긴 슬라이드, 본문만 스크롤·하단 고정 */
-  layout = "stack",
-}: {
-  idx: PlanOdysseyYearIndex;
-  y: PlanYearDto;
-  rating: PlanRatingSummary;
-  className?: string;
-  layout?: "stack" | "carousel";
-}) {
-  const isCarousel = layout === "carousel";
-  const goalTexts = y.goals.map((g) => g.text);
-  const noteText = y.note?.trim();
-  const showAiLabels =
-    y.aiGuidance != null && !isAiGuidanceOutdated(y.aiGuidance, goalTexts);
-  const primaryGoalText = y.aiGuidance?.sourceGoalTexts[0];
-
-  const topBlock = (
-    <>
-      <h3 className="text-xl font-bold tracking-tight text-black dark:text-zinc-50 lg:text-sm">
-        {idx}Y
-      </h3>
-
-      {showAiLabels ? (
-        <p className="mt-1 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-          {AI_SUGGESTION_LABEL}
-        </p>
-      ) : null}
-
-      {y.goals.length > 0 ? (
-        <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-snug text-zinc-700 dark:text-zinc-300 lg:mt-2 lg:pl-4 lg:text-xs">
-          {y.goals.map((g) => (
-            <li key={g.id}>
-              {showAiLabels ? (
-                <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                  {g.text === primaryGoalText ? "목표 " : "행동 "}
-                </span>
-              ) : null}
-              {g.text}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-3 text-sm text-zinc-500 lg:mt-2 lg:text-xs">목표 없음</p>
-      )}
-
-      <PlanYearGuidanceDetails
-        className="mt-3 lg:mt-2"
-        guidance={y.aiGuidance}
-        goalTexts={goalTexts}
-        note={noteText && noteText.length > NOTE_PREVIEW_CHARS ? noteText : undefined}
-      />
-    </>
-  );
-
-  const footerBlock = (
-    <>
-      {y.keywords.length > 0 || y.note ? (
-        <div className="mb-3 mt-3 flex flex-col gap-2 lg:mb-2 lg:mt-2 lg:gap-1.5">
-          {y.keywords.length > 0 ? (
-            <div className="flex flex-wrap gap-2 lg:gap-1.5">
-              {y.keywords.map((k) => (
-                <span
-                  key={k.id}
-                  className="rounded-full bg-zinc-800 px-3 py-1 text-xs text-white dark:bg-zinc-700 lg:px-2.5 lg:py-0.5 lg:text-[11px]"
-                >
-                  {k.text}
-                </span>
-              ))}
-            </div>
-          ) : null}
-          {y.note ? (
-            <p className="line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400 lg:text-[11px]">
-              {y.note}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-      <div className="flex items-center justify-between border-t border-black/5 pt-4 text-sm text-zinc-600 dark:border-white/10 dark:text-zinc-400 lg:pt-3 lg:text-xs">
-        <span>{PLAN_RATING_AVERAGE_LABEL}</span>
-        <RatingValue rating={rating} />
-      </div>
-    </>
-  );
+function RatingSummarySection({ years }: { years: PlanYearDto[] }) {
+  const overall = summarizeOverallRating(years);
+  const categoryRatings = summarizeCategoryRatings(years);
+  const comparison = describeCategoryComparison(compareCategoryRatings(categoryRatings));
 
   return (
-    <article
-      className={
-        (isCarousel
-          ? "flex h-full min-h-0 w-full flex-col bg-white p-4 dark:bg-zinc-950 "
-          : "flex h-full min-h-[220px] flex-col bg-white p-4 dark:bg-zinc-950 ") + className
-      }
-    >
-      {isCarousel ? (
-        <div className="min-h-0 flex-1 overflow-y-auto">{topBlock}</div>
-      ) : (
-        <div className="min-h-0 shrink-0">{topBlock}</div>
-      )}
+    <section aria-labelledby="plan-rating-summary" className="border-t border-line pt-6">
+      <h2 id="plan-rating-summary" className={sectionTitleClass}>
+        자기평가 요약
+      </h2>
+      <p className={`${helpTextClass} mt-0.5`}>{PLAN_RATING_SCALE_NOTE}</p>
 
-      <div
-        className={
-          isCarousel ? "flex shrink-0 flex-col" : "mt-auto flex min-h-0 flex-col"
-        }
-      >
-        {footerBlock}
+      <div className="mt-4 grid grid-cols-1 gap-x-10 gap-y-5 md:grid-cols-2">
+        <dl className="flex flex-col text-sm">
+          {[
+            [PLAN_RATING_OVERALL_LABEL, ratingText(overall)],
+            ["평가 완료", `${overall.ratedCount} / ${overall.totalCount}`],
+            ["가장 높은 항목", comparison.highest],
+            ["가장 낮은 항목", comparison.lowest],
+          ].map(([label, value]) => (
+            <div key={label} className="flex justify-between gap-4 border-b border-line py-2">
+              <dt className="text-ink-3">{label}</dt>
+              <dd className="text-right tabular-nums text-ink-2">{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <dl className="flex flex-col text-sm">
+          {PLAN_SCORE_KEYS.map((key) => (
+            <div key={key} className="flex justify-between gap-4 border-b border-line py-2">
+              <dt className="min-w-0">
+                <span className="text-ink-2">{PLAN_SCORE_LABELS[key].ko}</span>
+                <span className="ml-1.5 text-xs text-ink-3">{PLAN_SCORE_LABELS[key].en}</span>
+              </dt>
+              <dd className="shrink-0 tabular-nums text-ink-2">
+                {ratingText(categoryRatings[key])}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </div>
-    </article>
+    </section>
   );
 }
 
-const PlanSummary = ({ plan, emptyStateMessage }: PlanSummaryProps) => {
-  const [carouselIndex, setCarouselIndex] = useState(0);
-  const [mobileChartsOpen, setMobileChartsOpen] = useState(true);
-
-  const slides = useMemo(() => {
-    if (!plan?.years?.length) return [];
-    const by = new Map(plan.years.map((y) => [y.yearIndex, y]));
-    return PLAN_ODYSSEY_YEAR_INDICES.map((idx) => {
-      const y = by.get(idx);
-      return y ? { idx, y } : null;
-    }).filter(
-      (s): s is { idx: PlanOdysseyYearIndex; y: PlanYearDto } => s != null,
-    );
-  }, [plan]);
-
-  if (!plan) {
-    return (
-      <div className="w-full rounded-md border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-black">
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          {emptyStateMessage ?? "No plan saved yet."}
-        </p>
-      </div>
-    );
-  }
+/**
+ * Five years on one timeline. Larger screens compare every year's goal in the
+ * tabs themselves; the panel below always belongs to the selected year.
+ */
+const PlanSummary = ({
+  plan,
+  showRatingSummary = true,
+  showYearRatings = true,
+  reportFill = true,
+}: PlanSummaryProps) => {
+  const reduceMotion = useReducedMotion();
+  const [activeYear, setActiveYear] = useState<PlanOdysseyYearIndex>(1);
+  const [direction, setDirection] = useState(1);
+  // Dragging with a mouse would get in the way of selecting text.
+  const [swipeEnabled] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches,
+  );
 
   const byYear = new Map(plan.years.map((y) => [y.yearIndex, y]));
-  const orderedYears = PLAN_ODYSSEY_YEAR_INDICES.map((idx) => byYear.get(idx)).filter(
-    (y): y is NonNullable<typeof y> => y != null,
-  );
-
-  const overall = summarizeOverallRating(orderedYears);
-  const categoryRatings = summarizeCategoryRatings(orderedYears);
-  const comparison = describeCategoryComparison(
-    compareCategoryRatings(categoryRatings),
-  );
+  const orderedYears = PLAN_ODYSSEY_YEAR_INDICES.flatMap((idx) => byYear.get(idx) ?? []);
+  const year = byYear.get(activeYear);
+  const yearPosition = PLAN_ODYSSEY_YEAR_INDICES.indexOf(activeYear);
+  const previousYear = PLAN_ODYSSEY_YEAR_INDICES[yearPosition - 1];
+  const nextYear = PLAN_ODYSSEY_YEAR_INDICES[yearPosition + 1];
   const unverifiedCount = countUnverifiedScores(orderedYears);
-  const ratedProgress = `${overall.ratedCount} / ${overall.totalCount}`;
 
-  const effectiveCarouselIndex =
-    slides.length > 0 ? Math.min(carouselIndex, slides.length - 1) : 0;
-  const currentSlide = slides[effectiveCarouselIndex];
-  const highlightedYearForBars = currentSlide?.idx;
+  useEffect(() => {
+    if (reportFill) setFieldFill(computePlanFill(plan.years));
+  }, [reportFill, plan.years]);
 
-  const goPrev = () => {
-    if (!slides.length) return;
-    setCarouselIndex((prev) => {
-      const i = Math.min(prev, slides.length - 1);
-      return (i - 1 + slides.length) % slides.length;
-    });
+  const goTo = (target: PlanOdysseyYearIndex) => {
+    setDirection(target >= activeYear ? 1 : -1);
+    setActiveYear(target);
   };
 
-  const goNext = () => {
-    if (!slides.length) return;
-    setCarouselIndex((prev) => {
-      const i = Math.min(prev, slides.length - 1);
-      return (i + 1) % slides.length;
-    });
+  const onDragEnd = (_: unknown, info: PanInfo) => {
+    if (info.offset.x <= -SWIPE_DISTANCE_PX && nextYear) goTo(nextYear);
+    if (info.offset.x >= SWIPE_DISTANCE_PX && previousYear) goTo(previousYear);
   };
 
   return (
-    <div
-      className={
-        "flex w-full flex-col gap-6 lg:gap-8 " +
-        "lg:rounded-md lg:border lg:border-black/10 lg:bg-white lg:p-6 lg:shadow-sm " +
-        "dark:lg:border-white/10 dark:lg:bg-black"
-      }
-    >
-      <header className="flex flex-col gap-1 border-b border-black/10 pb-4 dark:border-white/10 lg:border-0 lg:pb-0">
-        <h2 className="text-xl font-semibold tracking-tight text-black dark:text-zinc-50 lg:text-lg">
-          {plan.title ?? "My Odyssey Plan"}
-        </h2>
-      </header>
-
+    <div className="flex w-full flex-col gap-8">
       {unverifiedCount > 0 ? (
-        <p className="rounded-lg bg-zinc-100 px-3 py-2 text-xs leading-relaxed text-zinc-700 dark:bg-white/[0.06] dark:text-zinc-300">
-          {PLAN_UNVERIFIED_SCORES_NOTE} 아래 평균에 해당 점수 {unverifiedCount}개가
-          포함되어 있어요. 수정 화면에서 점수를 확인해 주세요.
-        </p>
+        <Notice>
+          {PLAN_UNVERIFIED_SCORES_NOTE} 평균에 해당 점수 {unverifiedCount}개가 포함되어 있어요.
+          수정 화면에서 확인할 수 있습니다.
+        </Notice>
       ) : null}
 
-      <section aria-label="년차별 요약">
-        {/* Mobile: carousel */}
-        <div className="lg:hidden">
-          {slides.length > 0 ? (
-            <div className="flex items-center gap-2 sm:gap-3">
-              <button
-                type="button"
-                onClick={goPrev}
-                disabled={slides.length < 2}
-                className="flex size-11 shrink-0 items-center justify-center rounded-full border border-black/10 bg-white text-xl leading-none text-zinc-600 shadow-sm transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-30 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                aria-label="이전 년차"
-              >
-                ‹
-              </button>
-              <div className="flex min-h-[220px] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-black/10 bg-white shadow-md dark:border-white/10 dark:bg-zinc-950">
-                <div
-                  className="grid w-full min-h-[220px] items-stretch transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
-                  style={{
-                    width: `${slides.length * 100}%`,
-                    gridAutoFlow: "column",
-                    gridAutoColumns: `${100 / slides.length}%`,
-                    transform: `translateX(-${(100 / slides.length) * effectiveCarouselIndex}%)`,
-                  }}
-                >
-                  {slides.map((s) => (
-                    <div
-                      key={s.y.id}
-                      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
-                    >
-                      <YearDetailCard
-                        layout="carousel"
-                        idx={s.idx}
-                        y={s.y}
-                        rating={summarizeYearRating(s.y.scores)}
-                        className="min-h-0 flex-1 rounded-2xl"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={goNext}
-                disabled={slides.length < 2}
-                className="flex size-11 shrink-0 items-center justify-center rounded-full border border-black/10 bg-white text-xl leading-none text-zinc-600 shadow-sm transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-30 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                aria-label="다음 년차"
-              >
-                ›
-              </button>
-            </div>
-          ) : null}
-          {slides.length > 1 ? (
-            <p className="mt-2 text-center text-xs text-zinc-500">
-              {effectiveCarouselIndex + 1} / {slides.length}
-            </p>
-          ) : null}
-        </div>
-
-        {/* Desktop: 5-column grid */}
-        <div className="hidden gap-3 lg:grid lg:grid-cols-2 xl:grid-cols-5">
-          {PLAN_ODYSSEY_YEAR_INDICES.map((idx) => {
-            const y = byYear.get(idx);
-            if (!y) return null;
+      <div>
+        <YearTimeline
+          idPrefix={TIMELINE_ID}
+          label="연차 선택"
+          activeYear={activeYear}
+          onChange={goTo}
+          isYearFilled={(idx) => (byYear.get(idx)?.goals.length ?? 0) > 0}
+          renderYearDetail={(idx) => {
+            const goals = byYear.get(idx)?.goals;
+            const preview = goals?.length
+              ? getYearGoalLines(byYear.get(idx)?.aiGuidance, goals)[0]?.text
+              : "아직 비어 있음";
             return (
-              <div
-                key={y.id}
-                className="flex h-full min-h-[220px] flex-col overflow-hidden rounded-lg border border-black/10 shadow-sm dark:border-white/10"
+              <span
+                className={
+                  "mt-2 hidden overflow-hidden text-sm leading-snug [-webkit-box-orient:vertical] [-webkit-line-clamp:4] lg:[display:-webkit-box] " +
+                  (idx === activeYear ? "text-ink" : "text-ink-3")
+                }
               >
-                <YearDetailCard
-                  idx={idx}
-                  y={y}
-                  rating={summarizeYearRating(y.scores)}
-                  className="h-full p-3"
-                />
-              </div>
+                {preview}
+              </span>
             );
-          })}
+          }}
+        />
+
+        <div className="mt-4 overflow-hidden rounded-xl border border-line bg-surface">
+          <motion.div
+            key={activeYear}
+            id={yearPanelId(TIMELINE_ID)}
+            role="tabpanel"
+            tabIndex={0}
+            aria-labelledby={yearTabId(TIMELINE_ID, activeYear)}
+            initial={reduceMotion ? false : { opacity: 0, x: 18 * direction }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            drag={swipeEnabled && !reduceMotion ? "x" : false}
+            dragDirectionLock
+            dragSnapToOrigin
+            dragElastic={0.08}
+            dragConstraints={{ left: 0, right: 0 }}
+            onDragEnd={onDragEnd}
+            className="touch-pan-y p-5 outline-offset-[-2px] sm:p-7"
+          >
+            {year ? (
+              <YearPanelBody year={year} showRatings={showYearRatings} />
+            ) : (
+              <p className={helpTextClass}>이 해에는 아직 내용이 없어요.</p>
+            )}
+          </motion.div>
         </div>
-      </section>
 
-      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-6">
-        <section
-          className={
-            "overflow-hidden rounded-2xl border border-black/10 bg-white shadow-md dark:border-white/10 dark:bg-zinc-950 " +
-            "lg:rounded-lg lg:bg-app-canvas/80 lg:shadow-none dark:lg:bg-zinc-950/50"
-          }
-          aria-label={PLAN_RATING_OVERALL_LABEL}
-        >
-          {/* Mobile: collapsible chart */}
-          <div className="lg:hidden">
-            <button
-              type="button"
-              onClick={() => setMobileChartsOpen((o) => !o)}
-              className="flex w-full items-start gap-3 p-4 text-left"
-              aria-expanded={mobileChartsOpen}
-              aria-controls="plan-summary-year-bars"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="text-base font-bold text-black dark:text-zinc-50">
-                  {PLAN_RATING_OVERALL_LABEL}{" "}
-                  <RatingValue rating={overall} />
-                </p>
-                <ul className="mt-3 list-disc space-y-2 pl-4 text-sm text-zinc-700 dark:text-zinc-300">
-                  <li>
-                    <span className="text-zinc-500">가장 높은 항목 </span>
-                    <span className="font-medium text-black dark:text-zinc-100">
-                      {comparison.highest}
-                    </span>
-                  </li>
-                  <li>
-                    <span className="text-zinc-500">가장 낮은 항목 </span>
-                    <span className="font-medium text-black dark:text-zinc-100">
-                      {comparison.lowest}
-                    </span>
-                  </li>
-                  <li>
-                    <span className="text-zinc-500">평가 완료 </span>
-                    <span className="font-medium tabular-nums text-black dark:text-zinc-100">
-                      {ratedProgress}
-                    </span>
-                  </li>
-                </ul>
-              </div>
-              <CollapseChevron expanded={mobileChartsOpen} />
-            </button>
-            <div
-              id="plan-summary-year-bars"
-              className={`grid transition-[grid-template-rows] duration-300 ease-in-out motion-reduce:transition-none ${
-                mobileChartsOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-              }`}
-            >
-              <div
-                className="min-h-0 overflow-hidden"
-                aria-hidden={!mobileChartsOpen}
-              >
-                <div className="border-t border-black/5 px-4 pb-4 pt-3 dark:border-white/10">
-                  <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                    년도별 평균
-                  </p>
-                  <div className="mt-3 flex flex-col gap-2.5">
-                    {orderedYears.map((y) => (
-                      <YearRatingBar
-                        key={y.yearIndex}
-                        yearLabel={`${y.yearIndex}Y`}
-                        rating={summarizeYearRating(y.scores)}
-                        highlight={y.yearIndex === highlightedYearForBars}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Desktop */}
-          <div className="hidden flex-col gap-4 p-5 lg:flex">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h3 className="text-sm font-semibold text-black dark:text-zinc-50">
-                {PLAN_RATING_OVERALL_LABEL}
-              </h3>
-              <p className="text-lg font-semibold">
-                <RatingValue rating={overall} />
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-5 lg:flex-row lg:gap-8">
-              <ul className="list-disc space-y-2 pl-4 text-sm text-zinc-700 dark:text-zinc-300 lg:min-w-[220px] lg:flex-1">
-                <li>
-                  <span className="text-zinc-500 dark:text-zinc-400">
-                    가장 높은 항목:{" "}
-                  </span>
-                  <span className="font-medium text-black dark:text-zinc-100">
-                    {comparison.highest}
-                  </span>
-                </li>
-                <li>
-                  <span className="text-zinc-500 dark:text-zinc-400">
-                    가장 낮은 항목:{" "}
-                  </span>
-                  <span className="font-medium text-black dark:text-zinc-100">
-                    {comparison.lowest}
-                  </span>
-                </li>
-                <li>
-                  <span className="text-zinc-500 dark:text-zinc-400">
-                    평가 완료:{" "}
-                  </span>
-                  <span className="font-medium tabular-nums text-black dark:text-zinc-100">
-                    {ratedProgress}
-                  </span>
-                </li>
-              </ul>
-
-              <div className="flex min-w-0 flex-1 flex-col gap-2.5 lg:max-w-md">
-                <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  년도별 평균
-                </p>
-                {orderedYears.map((y) => (
-                  <YearRatingBar
-                    key={y.yearIndex}
-                    yearLabel={`${y.yearIndex}Y`}
-                    rating={summarizeYearRating(y.scores)}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section
-          className={
-            "overflow-hidden rounded-2xl border border-black/10 bg-white p-4 shadow-md dark:border-white/10 dark:bg-zinc-950 sm:p-5 " +
-            "lg:rounded-lg lg:bg-app-canvas/80 lg:shadow-none dark:lg:bg-zinc-950/50"
-          }
-          aria-label="항목별 평균"
-        >
-          <h3 className="text-base font-bold text-black dark:text-zinc-50 lg:text-sm lg:font-semibold">
-            항목별 자기평가 평균
-          </h3>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            {PLAN_RATING_SCALE_NOTE}
-          </p>
-          <ul className="mt-4 flex flex-col divide-y divide-black/5 dark:divide-white/10">
-            {PLAN_SCORE_KEYS.map((key) => {
-              const { en, ko } = PLAN_SCORE_LABELS[key];
-              return (
-                <li
-                  key={key}
-                  className="flex items-start justify-between gap-4 py-3 first:pt-0"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-black dark:text-zinc-50">
-                      {en}
-                    </p>
-                    <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                      {ko}
-                    </p>
-                  </div>
-                  <p className="shrink-0 text-right">
-                    <RatingValue rating={categoryRatings[key]} />
-                  </p>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+        <div className="mt-3 flex justify-between gap-2">
+          <button
+            type="button"
+            disabled={!previousYear}
+            onClick={() => previousYear && goTo(previousYear)}
+            className={buttonClass("secondary", "flex-1 sm:flex-none")}
+          >
+            {previousYear ? `${previousYear}년차` : "첫 해"}
+          </button>
+          <button
+            type="button"
+            disabled={!nextYear}
+            onClick={() => nextYear && goTo(nextYear)}
+            className={buttonClass("secondary", "flex-1 sm:flex-none")}
+          >
+            {nextYear ? `${nextYear}년차` : "마지막 해"}
+          </button>
+        </div>
       </div>
+
+      {showRatingSummary ? <RatingSummarySection years={orderedYears} /> : null}
     </div>
   );
 };

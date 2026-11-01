@@ -154,6 +154,7 @@ Success `200`:
     "facts": [{ "text": "string", "questionIds": ["q2"] }],
     "interpretations": [{ "text": "string", "questionIds": ["q4", "q5"] }],
     "missingInfo": ["string"],
+    "differenceNote": "세 경로의 차이를 만들 정보가 부족할 때의 한계, 없으면 빈 문자열",
     "avoidNotes": [{ "text": "string", "questionIds": ["q5"] }],
     "keywords": ["string"]
   },

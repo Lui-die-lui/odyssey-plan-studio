@@ -1,6 +1,7 @@
 "use client";
 
 import { ModalShell } from "@/components/common/ModalShell";
+import { buttonClass, helpTextClass } from "@/components/common/ui";
 
 type ExistingPlanConfirmModalProps = {
   open: boolean;
@@ -20,10 +21,10 @@ const ExistingPlanConfirmModal = ({
   open,
   onCancel,
   onConfirm,
-  title = "기존 플랜이 있습니다",
-  description = "현재 저장된 플랜이 있습니다. 새로 만들면 기존 플랜이 덮어쓰기됩니다. 계속하시겠습니까?",
+  title = "저장된 플랜이 있어요",
+  description = "새 플랜을 저장하면 지금 플랜을 대체합니다. 저장하기 전까지 기존 플랜은 그대로 유지돼요.",
   cancelLabel = "취소",
-  confirmLabel = "새로 만들기",
+  confirmLabel = "새 플랜 만들기",
   confirmBusy = false,
 }: ExistingPlanConfirmModalProps) => {
   return (
@@ -35,20 +36,20 @@ const ExistingPlanConfirmModal = ({
     >
       <h2
         id="existing-plan-confirm-title"
-        className="pr-8 text-xl font-semibold tracking-tight text-black dark:text-zinc-50"
+        className="pr-12 text-lg font-semibold tracking-tight text-ink"
       >
         {title}
       </h2>
-      <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+      <p className={`${helpTextClass} mt-2`}>
         {description}
       </p>
 
-      <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+      <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <button
           type="button"
           onClick={onCancel}
           disabled={confirmBusy}
-          className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-medium text-black transition-colors hover:bg-black/[.03] disabled:opacity-50 dark:border-white/10 dark:bg-black dark:text-zinc-50 dark:hover:bg-white/[.05]"
+          className={buttonClass("secondary")}
         >
           {cancelLabel}
         </button>
@@ -56,7 +57,7 @@ const ExistingPlanConfirmModal = ({
           type="button"
           onClick={onConfirm}
           disabled={confirmBusy}
-          className="inline-flex h-11 items-center justify-center rounded-full bg-black px-4 text-sm font-medium text-white transition-colors hover:bg-black/90 disabled:opacity-50 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200"
+          className={buttonClass("primary")}
         >
           {confirmBusy ? "처리 중…" : confirmLabel}
         </button>

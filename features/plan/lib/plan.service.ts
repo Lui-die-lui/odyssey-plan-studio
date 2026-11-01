@@ -17,6 +17,16 @@ const extractResponseData = (json: unknown): unknown => {
   return json;
 };
 
+/** Carries the status so callers can word the message for people. */
+class PlanRequestError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 const requestJson = async <T>(
   path: string,
   init: RequestInit,
@@ -32,20 +42,7 @@ const requestJson = async <T>(
   });
 
   if (!res.ok) {
-    const json = await safeReadJson(res);
-    const message =
-      typeof json === "object" &&
-      json !== null &&
-      "message" in json &&
-      typeof (json as Record<string, unknown>).message === "string"
-        ? ((json as Record<string, unknown>).message as string)
-        : undefined;
-
-    throw new Error(
-      `Request failed (${res.status} ${res.statusText})${
-        message ? `: ${message}` : ""
-      }`,
-    );
+    throw new PlanRequestError(res.status, `Request failed (${res.status})`);
   }
 
   const json = await safeReadJson(res);
@@ -58,11 +55,21 @@ export const getMyPlan = async (): Promise<SavedPlanResponse | null> => {
       method: "GET",
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("(401")) return null;
-    if (message.includes("(404")) return null;
-    throw err;
+    if (err instanceof PlanRequestError) {
+      if (err.status === 401 || err.status === 404) return null;
+      throw new Error("플랜을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+    }
+    throw new Error("네트워크 연결을 확인한 뒤 다시 시도해 주세요.");
   }
+};
+
+const describeSaveFailure = (err: unknown): string => {
+  if (!(err instanceof PlanRequestError)) {
+    return "네트워크 연결을 확인한 뒤 다시 시도해 주세요.";
+  }
+  if (err.status === 401) return "로그인이 만료됐어요. 다시 로그인한 뒤 저장해 주세요.";
+  if (err.status === 400) return "입력 내용을 저장할 수 없어요. 표시된 항목을 확인해 주세요.";
+  return "저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
 };
 
 /**
@@ -72,11 +79,15 @@ export const getMyPlan = async (): Promise<SavedPlanResponse | null> => {
 export const saveMyPlan = async (
   payload: SavePlanRequestPayload,
 ): Promise<SavedPlanResponse> => {
-  return await requestJson<SavedPlanResponse>(API_PATH, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  try {
+    return await requestJson<SavedPlanResponse>(API_PATH, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    throw new Error(describeSaveFailure(err));
+  }
 };

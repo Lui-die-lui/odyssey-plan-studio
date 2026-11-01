@@ -37,9 +37,9 @@ export type OdysseyInterviewAnswers = Record<string, OdysseyInterviewAnswerValue
 export type OdysseyInterviewQuestionDef = {
   id: string;
   type: OdysseyQuestionType;
-  /** AI 질문 말풍선 본문 */
+  /** 질문 문구 */
   prompt: string;
-  /** 답변 직후 짧은 AI 리액션 말풍선 */
+  /** 답변 직후 함께 보여줄 짧은 문구 */
   reaction: string;
   choices?: OdysseyChoiceOption[];
   resolveChoices?: (answers: OdysseyInterviewAnswers) => OdysseyChoiceOption[];
@@ -48,15 +48,6 @@ export type OdysseyInterviewQuestionDef = {
     answers: OdysseyInterviewAnswers,
     payload: OdysseyAnswerPayload,
   ) => string | null;
-};
-
-export type OdysseyChatRole = "ai" | "user";
-
-export type OdysseyChatMessage = {
-  id: string;
-  role: OdysseyChatRole;
-  content: string;
-  variant?: "question" | "reaction";
 };
 
 export const ODYSSEY_OTHER_CHOICE_ID = "__other__" as const;

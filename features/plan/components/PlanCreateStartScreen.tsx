@@ -4,51 +4,23 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Skeleton } from "@/components/common/Skeleton";
+import { clearOdysseyAiPlanDraftFromSession } from "@/features/plan/lib/odyssey-ai-draft-session";
 import {
   PLAN_CREATE_START_OPTIONS,
   planCreateStepPath,
 } from "@/features/plan/constants/plan-create-start";
 
 const cardClass =
-  "group relative flex min-h-[138px] flex-col rounded-2xl border border-zinc-200/90 bg-white p-6 text-left shadow-sm transition-[border-color,box-shadow,background-color,transform] duration-200 ease-out " +
-  "hover:-translate-y-0.5 hover:border-zinc-300 hover:bg-zinc-50/90 hover:shadow-md motion-reduce:hover:translate-y-0 " +
-  "active:translate-y-0 active:scale-[0.99] active:shadow-sm motion-reduce:active:scale-100 " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/90 focus-visible:ring-offset-2 focus-visible:ring-offset-app-canvas " +
-  "dark:border-white/10 dark:bg-zinc-950 dark:hover:border-white/20 dark:hover:bg-white/[0.05] dark:hover:shadow-lg dark:hover:shadow-black/20 " +
-  "dark:focus-visible:ring-zinc-500 dark:focus-visible:ring-offset-app-canvas-dark " +
-  "sm:min-h-[148px] sm:p-7";
+  "group flex h-full min-h-40 flex-col rounded-xl border border-line bg-surface p-5 text-left transition-colors duration-150 sm:p-6";
 
-const titleClass =
-  "text-[1.05rem] font-semibold leading-snug tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-lg";
+const interactiveCardClass = "hover:border-line-strong hover:bg-raised";
 
-const descClass =
-  "mt-2.5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400";
-
-const quotaInfoClass =
-  "mt-2 text-xs font-medium text-zinc-500 dark:text-zinc-400";
-
-const quotaExhaustedClass =
-  "mt-2 text-xs font-medium text-red-600 dark:text-red-400";
-
+const titleClass = "text-base font-semibold tracking-tight text-ink";
+const descClass = "mt-1.5 text-sm leading-relaxed text-ink-2";
+const quotaInfoClass = "mt-2 text-sm text-ink-3";
+const quotaBlockedClass = "mt-2 text-sm font-medium text-danger";
 const footerClass =
-  "mt-auto flex items-center justify-end pt-2 text-zinc-500 transition-colors group-hover:text-zinc-800 dark:text-zinc-500 dark:group-hover:text-zinc-200";
-
-function CardChevron() {
-  return (
-    <svg
-      className="h-8 w-8 shrink-0 rounded-full border border-zinc-200/90 bg-zinc-50 p-2 text-zinc-500 transition-all duration-200 ease-out group-hover:translate-x-0.5 group-hover:border-zinc-300 group-hover:bg-zinc-100 group-hover:text-zinc-700 dark:border-white/15 dark:bg-white/[0.03] dark:text-zinc-400 dark:group-hover:border-white/25 dark:group-hover:bg-white/[0.07] dark:group-hover:text-zinc-200"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M5 12h14M13 6l6 6-6 6" />
-    </svg>
-  );
-}
+  "mt-auto pt-4 text-sm font-medium text-ink underline-offset-4 group-hover:underline";
 
 /**
  * Chooser for how to start a new plan (`/plan/new`). Options come from
@@ -101,7 +73,7 @@ export function PlanCreateStartScreen({
   }, []);
 
   return (
-    <ul className="grid grid-cols-1 gap-4 sm:auto-rows-fr sm:grid-cols-2 sm:gap-5">
+    <ul className="grid grid-cols-1 gap-3 sm:auto-rows-fr md:grid-cols-3">
       {PLAN_CREATE_START_OPTIONS.map((opt) => {
         const guidedDisabled =
           opt.id === "guided" && (guidedQuotaLoading || guidedBlockedReason !== null);
@@ -124,38 +96,37 @@ export function PlanCreateStartScreen({
                 : guidedBlockedReason === "QUOTA_EXHAUSTED"
                   ? "이번 달 AI 이용 횟수를 모두 사용했어요"
                   : null;
-        const disabledCardClass = guidedDisabled
-          ? " cursor-not-allowed border-zinc-200/80 bg-zinc-100/75 text-zinc-400 shadow-none hover:translate-y-0 hover:border-zinc-200/80 hover:bg-zinc-100/75 hover:shadow-none dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-500 dark:hover:border-white/10 dark:hover:bg-white/[0.03]"
-          : "";
 
         return (
           <li key={opt.id} className="h-full">
             {guidedDisabled ? (
               <div
-                className={`${cardClass}${disabledCardClass} block h-full touch-manipulation`}
-                aria-label={`${opt.title}. ${opt.description}. ${guidedDisabledLabel ?? "현재 사용할 수 없습니다."}`}
+                className={cardClass}
                 aria-disabled="true"
               >
                 <div className="flex min-h-0 flex-1 flex-col">
                   <h2 className={titleClass}>{opt.title}</h2>
                   <p className={descClass}>{opt.description}</p>
                   {guidedQuotaLoading ? (
-                    <div aria-hidden className="mt-2 flex flex-1 flex-col">
-                      <Skeleton className="h-4 w-48 max-w-full rounded-md" />
-                      <span className="mt-auto flex justify-end pt-2">
-                        <Skeleton className="size-8 rounded-full" />
+                    <div className="mt-2 flex flex-1 flex-col">
+                      <p className={quotaInfoClass}>{guidedDisabledLabel}</p>
+                      <span aria-hidden className="mt-auto pt-4">
+                        <Skeleton className="h-5 w-16 rounded-md" />
                       </span>
                     </div>
                   ) : guidedDisabledLabel ? (
-                    <p className={quotaExhaustedClass}>{guidedDisabledLabel}</p>
+                    <p className={quotaBlockedClass}>{guidedDisabledLabel}</p>
                   ) : null}
                 </div>
               </div>
             ) : (
               <Link
                 href={planCreateStepPath(opt.pathSegment, searchQueryString)}
-                className={`${cardClass} block h-full touch-manipulation`}
-                aria-label={`${opt.title}. ${opt.description}`}
+                onClick={() => {
+                  // Starting over by hand should not reopen an older AI draft.
+                  if (opt.id !== "guided") clearOdysseyAiPlanDraftFromSession();
+                }}
+                className={`${cardClass} ${interactiveCardClass}`}
               >
                 <div className="flex min-h-0 flex-1 flex-col">
                   <h2 className={titleClass}>{opt.title}</h2>
@@ -163,9 +134,7 @@ export function PlanCreateStartScreen({
                   {guidedRemainingLabel ? (
                     <p className={quotaInfoClass}>{guidedRemainingLabel}</p>
                   ) : null}
-                  <span className={footerClass}>
-                    <CardChevron />
-                  </span>
+                  <span className={footerClass}>시작하기</span>
                 </div>
               </Link>
             )}

@@ -32,6 +32,7 @@ erDiagram
     PLAN_YEAR {
         string id PK
         string planId FK
+        string pathId FK "nullable, 없으면 기존 단일 계획"
         int yearIndex
         string note
         int resourcesScore "nullable, null=미평가"
@@ -41,6 +42,32 @@ erDiagram
         string[] unverifiedScoreKeys "출처 미확인 점수"
         datetime createdAt
         datetime updatedAt
+    }
+
+    PLAN_PATH {
+        string id PK
+        string planId FK
+        enum kind "CONTINUE|ALTERNATIVE|UNBOUND"
+        string title
+        string overview
+        string appeal
+        string[] appealQuestionIds
+        string[] requirements
+        string[] openQuestions
+        string[] marks
+        int resourcesScore "nullable, 경로 전체 자기평가"
+        int interestScore "nullable"
+        int confidenceScore "nullable"
+        int coherenceScore "nullable"
+    }
+
+    PLAN_PATH_EXPERIMENT {
+        string id PK
+        string pathId FK
+        int position
+        string action
+        string learning
+        boolean nextUp
     }
 
     PLAN_YEAR_AI_GUIDANCE {

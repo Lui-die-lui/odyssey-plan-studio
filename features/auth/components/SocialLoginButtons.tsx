@@ -53,10 +53,8 @@ function KakaoMark({ className }: { className?: string }) {
   );
 }
 
-const circleBtn =
-  "flex size-14 shrink-0 cursor-pointer items-center justify-center rounded-full shadow-sm ring-1 ring-black/[0.06] transition-colors transition-transform active:scale-[0.97] " +
-  "dark:shadow-zinc-950/20 " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 dark:ring-white/10 dark:focus-visible:ring-zinc-500 dark:focus-visible:ring-offset-zinc-950";
+const loginButtonClass =
+  "flex min-h-12 w-full cursor-pointer items-center justify-center gap-2.5 rounded-lg border text-[15px] font-medium transition-colors duration-150";
 
 const SocialLoginButtons = ({
   className,
@@ -74,23 +72,23 @@ const SocialLoginButtons = ({
 
   return (
     <section className={className}>
-      <div className="flex flex-wrap items-center justify-center gap-5 sm:gap-6">
+      <div className="flex flex-col gap-2">
         <button
           type="button"
           onClick={handleGoogleClick}
-          aria-label="Google로 로그인"
-          className={`${circleBtn} bg-white hover:bg-zinc-50 dark:bg-zinc-100 dark:hover:bg-white`}
+          className={`${loginButtonClass} border-line-strong bg-raised text-ink hover:bg-surface`}
         >
-          <GoogleMark className="size-[26px]" />
+          <GoogleMark className="size-5" />
+          Google로 계속하기
         </button>
 
         <button
           type="button"
           onClick={handleKakaoClick}
-          aria-label="카카오로 로그인"
-          className={`${circleBtn} bg-[#FEE500] ring-black/10 hover:brightness-[0.97] dark:ring-black/20`}
+          className={`${loginButtonClass} border-transparent bg-[#FEE500] text-[#191600] hover:brightness-[0.97]`}
         >
-          <KakaoMark className="size-[26px]" />
+          <KakaoMark className="size-5" />
+          카카오로 계속하기
         </button>
       </div>
     </section>

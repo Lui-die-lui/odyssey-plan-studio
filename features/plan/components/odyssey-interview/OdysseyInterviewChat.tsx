@@ -1,48 +1,125 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion, useReducedMotion } from "framer-motion";
 
-import type {
-  OdysseyDraftSummary,
-  OdysseyGenerateSuccessBody,
-} from "@/features/plan/interview/odyssey-draft-summary.types";
-import type { OdysseyAiPlanFormDraft } from "@/features/plan/interview/odyssey-ai-plan-draft.types";
-import { useOdysseyInterview } from "@/features/plan/interview/useOdysseyInterview";
+import { Notice } from "@/components/common/Notice";
+import { buttonClass, helpTextClass, surfaceClass } from "@/components/common/ui";
+import { setFieldFill } from "@/features/field/future-field-store";
+import type { OdysseyGenerateSuccessBody } from "@/features/plan/interview/odyssey-draft-summary.types";
+import {
+  useOdysseyInterview,
+  type OdysseyAnsweredEntry,
+} from "@/features/plan/interview/useOdysseyInterview";
 
-import { InterviewChatThread } from "./InterviewChatThread";
 import { InterviewComposer } from "./InterviewComposer";
 import { OdysseyDraftSummaryView } from "./OdysseyDraftSummaryView";
 
 type OdysseyInterviewChatProps = {
   manualHref: string;
+  pathsHref: string;
 };
 
-type Phase = "chat" | "generating" | "summary";
+/** Share of the field colored once a typical interview is finished. */
+const INTERVIEW_FILL_PER_ANSWER = 0.05;
+const INTERVIEW_MAX_FILL = 0.7;
+
+const editButtonClass =
+  "min-h-11 shrink-0 cursor-pointer rounded-lg px-2.5 text-sm text-ink-3 underline-offset-4 transition-colors hover:text-ink hover:underline";
+
+function RailNode({ current }: { current?: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={
+        "relative z-10 mt-1.5 block size-3 rounded-full border-[1.5px] " +
+        (current ? "border-accent bg-accent" : "border-ink-3 bg-canvas")
+      }
+    />
+  );
+}
+
+function AnsweredList({
+  entries,
+  onEdit,
+}: {
+  entries: OdysseyAnsweredEntry[];
+  onEdit: (questionId: string) => void;
+}) {
+  return (
+    <details className="mt-8 border-t border-line pt-3">
+      <summary className="flex min-h-11 items-center text-sm font-medium text-ink-2">
+        지금까지 답한 내용 {entries.length}개
+      </summary>
+      <ol className="mt-1 divide-y divide-line">
+        {entries.map((entry) => (
+          <li key={entry.questionId} className="flex items-start justify-between gap-3 py-3">
+            <div className="min-w-0">
+              <p className="text-xs leading-relaxed text-ink-3">{entry.question}</p>
+              <p className="mt-0.5 text-sm text-ink">{entry.answerLine}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onEdit(entry.questionId)}
+              className={editButtonClass}
+              aria-label={`답변 수정: ${entry.question}`}
+            >
+              수정
+            </button>
+          </li>
+        ))}
+      </ol>
+    </details>
+  );
+}
 
 /**
- * 인터뷰 → POST /api/odyssey/generate → 요약 + planForm (클라이언트 상태·sessionStorage, DB 없음)
+ * 인터뷰 → POST /api/odyssey/generate → 초안 확인.
+ * 질문은 항상 같은 자리에 오고, 직전 답변이 레일로 이어져 선택과 다음 질문의 관계를 보여줍니다.
  */
-export function OdysseyInterviewChat({ manualHref }: OdysseyInterviewChatProps) {
+export function OdysseyInterviewChat({ manualHref, pathsHref }: OdysseyInterviewChatProps) {
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
   const {
-    messages,
     answers,
+    entries,
     currentQuestion,
-    awaitingAiFollowUp,
+    isEditing,
+    draft,
+    setDraft,
     submitAnswer,
+    editAnswer,
+    cancelEdit,
     reset,
     validationError,
     clearValidationError,
   } = useOdysseyInterview();
 
-  const [phase, setPhase] = useState<Phase>("chat");
-  const [draftSummary, setDraftSummary] = useState<OdysseyDraftSummary | null>(null);
-  const [draftPlanForm, setDraftPlanForm] = useState<OdysseyAiPlanFormDraft | null>(null);
-  const [generateDraftError, setGenerateDraftError] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const previousQuestionId = useRef(currentQuestion?.id);
 
   useEffect(() => {
-    if (phase !== "summary") return;
+    setFieldFill(
+      draft
+        ? INTERVIEW_MAX_FILL
+        : Math.min(INTERVIEW_MAX_FILL, entries.length * INTERVIEW_FILL_PER_ANSWER),
+    );
+  }, [draft, entries.length]);
+
+  // Keyboard and screen reader users continue from the new question.
+  useEffect(() => {
+    if (previousQuestionId.current === currentQuestion?.id) return;
+    previousQuestionId.current = currentQuestion?.id;
+    headingRef.current?.focus({ preventScroll: true });
+    if (window.scrollY > 0) window.scrollTo({ top: 0 });
+  }, [currentQuestion?.id]);
+
+  useEffect(() => {
+    if (!draft) return;
 
     const handlePopState = () => {
       router.replace("/plan/new");
@@ -54,11 +131,11 @@ export function OdysseyInterviewChat({ manualHref }: OdysseyInterviewChatProps) 
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, [phase, router]);
+  }, [draft, router]);
 
   const handleGenerateDraft = useCallback(async () => {
-    setGenerateDraftError(null);
-    setPhase("generating");
+    setGenerateError(null);
+    setGenerating(true);
     try {
       const res = await fetch("/api/odyssey/generate", {
         method: "POST",
@@ -70,96 +147,181 @@ export function OdysseyInterviewChat({ manualHref }: OdysseyInterviewChatProps) 
         await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        setGenerateDraftError(
+        setGenerateError(
           typeof data.error === "string" ? data.error : "초안을 만들지 못했습니다.",
         );
-        setPhase("chat");
         return;
       }
-
       if (!data.summary || !data.planForm) {
-        setGenerateDraftError("응답 형식이 올바르지 않습니다.");
-        setPhase("chat");
+        setGenerateError("응답 형식이 올바르지 않습니다. 다시 시도해 주세요.");
         return;
       }
-
-      setDraftSummary(data.summary);
-      setDraftPlanForm(data.planForm);
-      setPhase("summary");
+      setDraft({ summary: data.summary, planForm: data.planForm });
     } catch {
-      setGenerateDraftError("네트워크 오류가 발생했습니다.");
-      setPhase("chat");
+      setGenerateError("네트워크 연결을 확인한 뒤 다시 시도해 주세요.");
+    } finally {
+      setGenerating(false);
     }
-  }, [answers]);
+  }, [answers, setDraft]);
 
-  const exitSummaryAndRestart = useCallback(() => {
+  const restart = useCallback(() => {
     reset();
-    setDraftSummary(null);
-    setDraftPlanForm(null);
-    setGenerateDraftError(null);
-    setPhase("chat");
+    setGenerateError(null);
   }, [reset]);
 
-  if (phase === "summary" && draftSummary && draftPlanForm) {
+  if (draft) {
     return (
       <OdysseyDraftSummaryView
-        data={draftSummary}
-        planForm={draftPlanForm}
-        manualHref={manualHref}
-        onRestartInterview={exitSummaryAndRestart}
+        data={draft.summary}
+        planForm={draft.planForm}
+        pathsHref={pathsHref}
+        onRestartInterview={restart}
+        onEditAnswers={() => {
+          setDraft(null);
+        }}
       />
     );
   }
 
-  if (phase === "generating") {
+  if (generating) {
     return (
-      <div className="flex min-h-[min(320px,50dvh)] flex-1 flex-col items-center justify-center rounded-2xl border border-zinc-200/80 bg-white/50 px-4 py-12 text-center dark:border-white/10 dark:bg-zinc-950/40">
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">초안을 정리하는 중…</p>
-        <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-500">
-          잠시만 기다려 주세요.
+      <div className={`${surfaceClass} px-5 py-10 sm:px-8`} role="status">
+        <p className="text-base font-semibold text-ink">
+          답변 {entries.length}개를 바탕으로 세 경로 초안을 만들고 있어요
         </p>
+        <p className={`${helpTextClass} mt-1.5`}>
+          1분 이상 걸릴 수 있어요. 이 화면을 그대로 두면 완료되는 대로 보여드릴게요.
+        </p>
+        <div aria-hidden className="mt-6 h-px w-full overflow-hidden bg-line">
+          <div className="odyssey-working-bar h-px w-1/4 bg-accent" />
+        </div>
       </div>
     );
   }
 
-  const isCompleteMode = currentQuestion?.type === "complete";
-  const chatViewportHeightClass = isCompleteMode
-    ? "h-[clamp(14.5rem,38dvh,22rem)] sm:h-[clamp(16rem,40dvh,24rem)]"
-    : "h-[clamp(15rem,40dvh,23rem)] sm:h-[clamp(16.5rem,42dvh,25rem)]";
-  const responseShellClass = isCompleteMode
-    ? "flex shrink-0 flex-col overflow-visible border-t border-zinc-200/45 bg-zinc-50/35 px-3 pt-2 pb-[max(0.35rem,env(safe-area-inset-bottom))] transition-[padding] duration-300 ease-out dark:border-white/[0.07] dark:bg-zinc-950/35 sm:px-4"
-    : "flex shrink-0 flex-col overflow-visible border-t border-zinc-200/45 bg-zinc-50/35 px-3 pt-2 pb-[max(0.35rem,env(safe-area-inset-bottom))] transition-[padding] duration-300 ease-out dark:border-white/[0.07] dark:bg-zinc-950/35 sm:px-4";
+  if (!currentQuestion) return null;
+
+  const lastEntry = isEditing ? undefined : entries[entries.length - 1];
+  const isComplete = currentQuestion.type === "complete";
+  const enter = reduceMotion ? false : { opacity: 0, y: 10 };
 
   return (
-    <div className="flex w-full flex-col overflow-visible rounded-2xl border border-zinc-200/80 bg-white/50 dark:border-white/10 dark:bg-zinc-950/40">
-      <section
-        aria-label="인터뷰 대화"
-        className={`flex min-h-0 shrink-0 flex-col overflow-hidden pb-1 ${chatViewportHeightClass}`}
-      >
-        <InterviewChatThread
-          messages={messages}
-          showAwaitingFollowUp={awaitingAiFollowUp}
+    <div className="flex w-full flex-col">
+      {isEditing ? (
+        <Notice
+          className="mb-6"
+          action={
+            <button type="button" onClick={cancelEdit} className={buttonClass("secondary")}>
+              수정 취소
+            </button>
+          }
+        >
+          이전 답변을 수정 중이에요. 다른 답변은 유지되고, 달라진 질문만 다시 물어볼게요.
+        </Notice>
+      ) : null}
+
+      <div className="relative grid grid-cols-[0.75rem_minmax(0,1fr)] gap-x-4">
+        <span
+          aria-hidden
+          className="absolute bottom-0 left-[0.3125rem] top-3 border-l-[1.5px] border-dashed border-line-strong"
         />
-      </section>
-      <section
-        aria-label="답변 선택"
-        className={`${responseShellClass} flex flex-col items-stretch`}
-      >
-        <div className="mx-auto w-full max-w-xl min-w-0 overflow-visible pb-1 pt-0.5 sm:pb-1.5 sm:pt-1">
-          <InterviewComposer
-            question={currentQuestion}
-            answers={answers}
-            awaitingAiFollowUp={awaitingAiFollowUp}
-            onSubmit={submitAnswer}
-            validationError={validationError}
-            onDismissError={clearValidationError}
-            manualHref={manualHref}
-            onRestart={reset}
-            onGenerateDraft={handleGenerateDraft}
-            generateDraftError={generateDraftError}
-          />
-        </div>
-      </section>
+
+        {lastEntry ? (
+          <>
+            <RailNode />
+            <motion.div
+              key={lastEntry.questionId}
+              initial={reduceMotion ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.15 }}
+              className="mb-6 flex min-w-0 items-start justify-between gap-3"
+            >
+              <div className="min-w-0">
+                <p className="text-xs text-ink-3">방금 답한 내용</p>
+                <p className="mt-0.5 text-sm font-medium text-ink">{lastEntry.answerLine}</p>
+                {lastEntry.reaction.trim() ? (
+                  <p className="mt-1 text-xs leading-relaxed text-ink-3">{lastEntry.reaction}</p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => editAnswer(lastEntry.questionId)}
+                className={editButtonClass}
+                aria-label={`방금 답한 내용 수정: ${lastEntry.question}`}
+              >
+                수정
+              </button>
+            </motion.div>
+          </>
+        ) : null}
+
+        <RailNode current />
+        <motion.div
+          key={currentQuestion.id}
+          initial={enter}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          className="min-w-0"
+        >
+          <h2
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-lg font-semibold leading-snug tracking-tight text-ink outline-none sm:text-xl"
+          >
+            {isComplete ? "답변을 모두 받았어요" : currentQuestion.prompt}
+          </h2>
+
+          {!entries.length ? (
+            <p className={`${helpTextClass} mt-2`}>
+              답변에 따라 이어지는 질문이 달라져요. 언제든 이전 답변을 고칠 수 있습니다.
+            </p>
+          ) : null}
+
+          <div className="mt-5">
+            {isComplete ? (
+              <div className="flex flex-col gap-4">
+                <p className={helpTextClass}>
+                  초안을 만들면 세 경로를 비교할 수 있어요. 만든 뒤에도 직접 고칠 수 있고,
+                  저장하기 전까지 내 플랜에 반영되지 않습니다.
+                </p>
+                {generateError ? (
+                  <Notice tone="error">
+                    {generateError} 답변은 그대로 있습니다. 생성에 실패하면 이용 횟수도
+                    차감되지 않아요.
+                  </Notice>
+                ) : null}
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => void handleGenerateDraft()}
+                    className={buttonClass("primary")}
+                  >
+                    {generateError ? "다시 시도" : "초안 만들기"}
+                  </button>
+                  <Link href={manualHref} className={buttonClass("secondary")}>
+                    직접 작성하기
+                  </Link>
+                  <button type="button" onClick={restart} className={buttonClass("quiet")}>
+                    처음부터 다시
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <InterviewComposer
+                key={currentQuestion.id}
+                question={currentQuestion}
+                answers={answers}
+                previousAnswer={answers[currentQuestion.id]}
+                onSubmit={submitAnswer}
+                validationError={validationError}
+                onDismissError={clearValidationError}
+              />
+            )}
+          </div>
+        </motion.div>
+      </div>
+
+      {entries.length > 0 ? <AnsweredList entries={entries} onEdit={editAnswer} /> : null}
     </div>
   );
 }

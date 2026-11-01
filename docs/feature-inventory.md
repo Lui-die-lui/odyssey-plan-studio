@@ -12,6 +12,13 @@
 
 ---
 
+# 세 경로 구조
+- 세 경로는 `PlanPath`(A 지금 이어가는 삶, B 다른 길의 삶, C 제약을 잠시 내려놓은 삶)로 저장하고, 경로마다 `PlanYear` 5개를 가진다.
+- `pathId`가 없는 `PlanYear`는 기존 단일 계획이다. 경로로 임의 변환하지 않고 함께 보관한다.
+- `POST /api/my-plan`은 본문에 있는 `years`, `paths`만 교체한다. 없는 쪽은 그대로 둔다.
+- 경로 전체 자기평가는 `PlanPath`의 점수이며 연도별 점수와 별개다.
+- AI는 한 번의 요청으로 세 경로를 만들고 quota는 1회 차감한다.
+
 # 기능 상세
 
 ## 인증/사용자 관리
@@ -73,7 +80,7 @@
 - 설명: 메인 `/`에서 CREATE CTA를 제공하고, 기존 플랜이 있으면 확인 모달을 띄운다.
 - 사용자 역할: 새 플랜 시작 전 기존 데이터 덮어쓰기 여부를 명확히 선택.
 - 관련 파일:
-  - `app/page.tsx`: CTA 분기/관리자 리다이렉트/모달 트리거.
+  - `app/page.tsx`: CTA 분기/모달 트리거.
   - `features/plan/components/ExistingPlanConfirmModal.tsx`: 덮어쓰기 확인 모달.
   - `features/plan/constants/plan.constants.ts`: replace query 상수.
   - `features/plan/hooks/useMyPlan.ts`: 기존 플랜 존재 여부 조회.
@@ -115,7 +122,6 @@
   - `features/plan/components/PlanForm.tsx`: 폼 조합 엔트리.
   - `features/plan/components/PlanYearGoalsField.tsx`: 목표 리스트 편집 + DnD 재정렬.
   - `features/plan/components/PlanDistanceScale.tsx`: 1~5 자기평가 UI(미평가·지우기 지원).
-  - `features/plan/components/editor/PlanEditorYearTabs.tsx`: 연차 탭.
   - `features/plan/components/editor/PlanEditorActions.tsx`: 저장/초기화 액션.
   - `features/plan/components/editor/PlanEditorPageHeader.tsx`: 헤더/설명.
   - `features/plan/components/editor/PlanEditorLayout.tsx`: 레이아웃 셸.
@@ -162,18 +168,16 @@
   - `features/plan/interview/odyssey-interview.flow.ts`: 질문 플로우 정의.
   - `features/plan/interview/odyssey-interview.logic.ts`: 다음 질문/답변 파싱/검증.
   - `features/plan/interview/odyssey-interview.types.ts`: 타입 계약.
-  - `features/plan/interview/odyssey-interview.timing.ts`: 타이밍 상수.
 - 데이터 흐름: 답변 제출 -> 로직에서 next question 계산 -> 메시지 큐 업데이트.
 - 연관 기능: 인터뷰 채팅 UI, AI 초안 생성 API.
 - 구현 상태: 부분 구현
-- 비고: q_goal~q_limits로 목표·경험·시간·제약을 보완한다. 분기에서 벗어난 답변은 `collectActiveOdysseyAnswers`가 제외한다.
+- 비고: q_goal~q_limits로 목표·경험·시간·제약을 보완한다. 답변을 고치면 `findOdysseyFrontierQuestionId`가 달라진 분기부터 다시 묻고, 진행 상태와 생성된 초안은 sessionStorage에 유지된다.
 
 ### 인터뷰 채팅 UI 및 생성/요약 전환
 - 설명: 채팅 화면, 생성중 상태, 생성 완료 요약 뷰를 단일 컴포넌트에서 phase로 제어한다.
 - 사용자 역할: 입력 -> 초안 생성 -> 요약 확인 -> 수동편집 이동을 한 흐름으로 경험.
 - 관련 파일:
   - `features/plan/components/odyssey-interview/OdysseyInterviewChat.tsx`: phase 전환/생성 호출/뒤로가기 가드.
-  - `features/plan/components/odyssey-interview/InterviewChatThread.tsx`: 메시지 스레드 표시.
   - `features/plan/components/odyssey-interview/InterviewComposer.tsx`: 답변 선택/제출/생성 버튼.
   - `features/plan/components/odyssey-interview/OdysseyDraftSummaryView.tsx`: 초안 요약 표시.
   - `app/plan/new/ai/page.tsx`: 페이지 진입점.
@@ -366,14 +370,12 @@
 ## 공통 UI/레이아웃/상태 관리
 
 ### 앱 셸/네비게이션/페이지 배경 레이어
-- 설명: 공통 navbar와 서브페이지 배경 레이어를 제공하고 경로별 셸 적용을 분기한다.
+- 설명: 공통 navbar를 제공하고 경로별 셸 적용을 분기한다. 색·간격·컨트롤 규칙은 `app/globals.css`의 토큰과 `components/common/ui.ts`에 있다.
 - 사용자 역할: 일관된 네비게이션과 화면 톤 유지.
 - 관련 파일:
   - `components/layout/AppShell.tsx`: navbar 포함 공통 셸.
   - `components/layout/AppNavbar.tsx`: 로그인 상태별 메뉴/로그아웃.
   - `components/layout/ConditionalAppShell.tsx`: PDF 경로 예외 처리.
-  - `components/layout/SubpageGlassVeil.tsx`: 서브페이지 비주얼 레이어.
-  - `features/landing/components/LandingConfetti.tsx`: 배경 confetti.
 - 데이터 흐름: route -> shell 분기 -> navbar session 상태 분기.
 - 연관 기능: 전체 페이지, PDF 출력.
 - 구현 상태: 완료

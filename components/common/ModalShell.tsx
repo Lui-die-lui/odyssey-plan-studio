@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 type ModalShellProps = {
   open: boolean;
   onClose?: () => void;
   titleId: string;
-  /** When false, no ✕ control is rendered (blocking dialogs). */
+  /** When false, no close control is rendered (blocking dialogs). */
   showCloseButton?: boolean;
   children: ReactNode;
 };
 
+/**
+ * Native `<dialog>`: the browser handles the focus trap, Esc, inert background
+ * and returning focus to the control that opened it.
+ */
 export function ModalShell({
   open,
   onClose,
@@ -18,45 +22,42 @@ export function ModalShell({
   showCloseButton = true,
   children,
 }: ModalShellProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
   useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
   }, [open]);
 
-  if (!open) return null;
-
-  const handleBackdropClick = () => {
-    onClose?.();
-  };
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={dialogRef}
       aria-labelledby={titleId}
-      onClick={handleBackdropClick}
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose?.();
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose?.();
+      }}
+      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-xl border border-line bg-raised p-0 text-ink backdrop:bg-black/50"
     >
-      <div
-        className="relative w-full max-w-md rounded-lg border border-black/10 bg-white p-6 shadow-lg dark:border-white/10 dark:bg-zinc-950"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {showCloseButton && onClose ? (
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute right-3 top-3 rounded-md p-1 text-sm text-zinc-500 transition-colors hover:bg-black/[.04] hover:text-black dark:hover:bg-white/10 dark:hover:text-zinc-200"
-            aria-label="Close"
-          >
-            ✕
-          </button>
-        ) : null}
-        {children}
-      </div>
-    </div>
+      {open ? (
+        <div className="relative p-6">
+          {showCloseButton && onClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute right-3 top-3 min-h-10 cursor-pointer rounded-lg px-2.5 text-sm text-ink-3 transition-colors hover:bg-line/50 hover:text-ink"
+            >
+              닫기
+            </button>
+          ) : null}
+          {children}
+        </div>
+      ) : null}
+    </dialog>
   );
 }

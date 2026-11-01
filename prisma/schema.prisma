@@ -47,7 +47,64 @@ model Plan {
   updatedAt DateTime @updatedAt
 
   user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Years with no path are an existing single plan and stay as they are.
   years PlanYear[]
+  paths PlanPath[]
+}
+
+enum PlanPathKind {
+  CONTINUE
+  ALTERNATIVE
+  UNBOUND
+}
+
+/// One of three futures explored side by side; a path owns its own five `PlanYear` rows.
+model PlanPath {
+  id     String       @id @default(cuid())
+  planId String
+  plan   Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  kind   PlanPathKind
+
+  title             String
+  overview          String   @default("")
+  appeal            String   @default("")
+  appealQuestionIds String[] @default([])
+  requirements      String[] @default([])
+  openQuestions     String[] @default([])
+  /// User's comparison notes such as "attracted"; several paths may carry the same one.
+  marks             String[] @default([])
+
+  /// Self-ratings of the whole path; separate from yearly scores, null means not rated yet.
+  resourcesScore  Int?
+  interestScore   Int?
+  confidenceScore Int?
+  coherenceScore  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  years       PlanYear[]
+  experiments PlanPathExperiment[]
+
+  @@unique([planId, kind])
+  @@index([planId])
+}
+
+/// A small action that tries part of a path before any big decision.
+model PlanPathExperiment {
+  id     String   @id @default(cuid())
+  pathId String
+  path   PlanPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+
+  position Int
+  action   String
+  learning String
+  nextUp   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([pathId, position])
 }
 
 /// Single tab/year slot: odyssey year index 1–5 (not calendar year).
@@ -55,6 +112,8 @@ model PlanYear {
   id        String @id @default(cuid())
   planId    String
   plan      Plan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  pathId    String?
+  path      PlanPath? @relation(fields: [pathId], references: [id], onDelete: Cascade)
 
   yearIndex Int
 
@@ -78,8 +137,9 @@ model PlanYear {
   keywords   PlanYearKeyword[]
   aiGuidance PlanYearAiGuidance?
 
-  @@unique([planId, yearIndex])
+  @@unique([planId, pathId, yearIndex])
   @@index([planId])
+  @@index([pathId])
 }
 
 /// Ordered goal line items for a plan year (max length enforced in app layer).

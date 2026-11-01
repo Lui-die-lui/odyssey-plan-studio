@@ -21,12 +21,10 @@ const Q6_UNDECIDED = "q6_undecided";
 const Q8_EXTEND = "q8_extend";
 const Q8_SKIP = "q8_skip";
 
-/** 이 길이 이상 적었다면 q7 답변을 구체적인 목표로 보고 q_goal을 건너뜁니다. */
-const SPECIFIC_DIRECTION_MIN_CHARS = 12;
-
 /**
  * 문구·선택지·분기를 데이터로 정의합니다 (UI는 config 소비).
- * q_goal~q_limits는 "아직 모름"류 선택지로 넘어갈 수 있고, 예산 같은 세부 정보는 묻지 않습니다.
+ * 공통 질문은 한 번만 묻고, q_path_a~c는 세 경로에 필요한 차이만 묻습니다.
+ * 모두 "잘 모르겠어요"로 넘어갈 수 있고, 예산 같은 세부 정보는 묻지 않습니다.
  */
 export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
   {
@@ -49,7 +47,7 @@ export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
     id: "q2",
     type: "single",
     prompt:
-      "지금 하고 있는 전공이나 일은 앞으로도 계속 이어가고 싶은가요?",
+      "지금 가장 많은 시간을 쓰는 그 활동을 앞으로도 이어가고 싶은가요?",
     reaction: "유지할지 전환할지, 스스로의 감각이 정리되고 있어요.",
     choices: [
       { id: Q2_CONTINUE, label: "네, 이 방향으로 계속 가고 싶어요" },
@@ -137,7 +135,7 @@ export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
     resolveNextId: (_answers, payload) => {
       const v = payload.choiceIds[0];
       if (v === Q6_YES) return "q7";
-      return "q_goal";
+      return "q_assets";
     },
   },
   {
@@ -145,29 +143,13 @@ export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
     type: "text",
     prompt: "있다면 어떤 방향인지 간단히 적어주세요.",
     reaction: "",
-    nextId: "q_goal",
-    resolveNextId: (_answers, payload) =>
-      (payload.text?.trim().length ?? 0) >= SPECIFIC_DIRECTION_MIN_CHARS
-        ? "q_assets"
-        : "q_goal",
-  },
-  {
-    id: "q_goal",
-    type: "single_with_other",
-    prompt: "앞으로 구체적으로 탐색하거나 이루고 싶은 것이 있나요?",
-    reaction: "",
-    choices: [
-      { id: "q_goal_compare", label: "몇 가지 방향을 비교해 보고 싶어요" },
-      { id: "q_goal_unknown", label: "아직 모르겠어요" },
-      otherOption,
-    ],
     nextId: "q_assets",
   },
   {
     id: "q_assets",
     type: "multi_with_other",
     prompt:
-      "이미 해본 일이나 활용할 수 있는 경험·자원이 있나요? (복수 선택 가능)",
+      "해본 일이나 활용할 수 있는 경험·자원이 있나요? (복수 선택 가능)",
     reaction: "",
     choices: [
       { id: "q_assets_work", label: "관련된 일이나 공부를 해봤어요" },
@@ -252,8 +234,8 @@ export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
   {
     id: "q11",
     type: "single_with_other",
-    prompt: "당신이 바라는 삶의 모습은 어떤 쪽에 가까운가요?",
-    reaction: "",
+    prompt: "삶에서 가장 중요하게 여기는 것은 어떤 쪽에 가까운가요?",
+    reaction: "이제 세 가지 삶을 하나씩 떠올려 볼게요.",
     choices: [
       { id: "q11_calm", label: "여유 있고 안정적인 삶" },
       { id: "q11_challenge", label: "도전이 있는 삶" },
@@ -262,13 +244,56 @@ export const ODYSSEY_INTERVIEW_QUESTIONS: OdysseyInterviewQuestionDef[] = [
       { id: "q11_happy", label: "스스로 행복하다고 느끼는 삶" },
       otherOption,
     ],
+    nextId: "q_path_a",
+  },
+  {
+    id: "q_path_a",
+    type: "single_with_other",
+    prompt: "지금의 방향을 앞으로 5년 이어간다면, 무엇을 유지하거나 키우고 싶나요?",
+    reaction: "",
+    choices: [
+      { id: "q_path_a_deepen", label: "지금 하는 것을 더 깊게 하고 싶어요" },
+      { id: "q_path_a_widen", label: "지금 하는 것의 범위를 넓히고 싶어요" },
+      { id: "q_path_a_sustain", label: "무리 없이 오래 지속하고 싶어요" },
+      { id: "q_path_a_unknown", label: "잘 모르겠어요" },
+      otherOption,
+    ],
+    nextId: "q_path_b",
+  },
+  {
+    id: "q_path_b",
+    type: "single_with_other",
+    prompt: "지금의 주요 활동을 더 이상 선택할 수 없다면, 어떤 대안에 관심이 가나요?",
+    reaction: "",
+    choices: [
+      { id: "q_path_b_transfer", label: "지금까지의 경험을 다른 분야에 써 보기" },
+      { id: "q_path_b_postponed", label: "미뤄 둔 관심사를 시작하기" },
+      { id: "q_path_b_people", label: "사람들과 함께하는 다른 활동 찾기" },
+      { id: "q_path_b_unknown", label: "잘 모르겠어요" },
+      otherOption,
+    ],
+    nextId: "q_path_c",
+  },
+  {
+    id: "q_path_c",
+    type: "single_with_other",
+    prompt: "돈이나 타인의 평가를 잠시 내려놓고 상상한다면, 어떤 삶을 해보고 싶나요?",
+    reaction: "",
+    choices: [
+      { id: "q_path_c_create", label: "만들고 표현하는 삶" },
+      { id: "q_path_c_explore", label: "배우고 탐구하는 삶" },
+      { id: "q_path_c_care", label: "누군가를 돕고 돌보는 삶" },
+      { id: "q_path_c_place", label: "다른 곳에서 살아 보는 삶" },
+      { id: "q_path_c_unknown", label: "잘 모르겠어요" },
+      otherOption,
+    ],
     nextId: "q12",
   },
   {
     id: "q12",
     type: "complete",
     prompt:
-      "지금까지의 답변을 바탕으로 오디세이 플랜 초안을 정리하겠습니다. 다음 단계에서 연차별 목표를 함께 다듬을 수 있어요.",
+      "지금까지의 답변을 바탕으로 세 가지 경로의 초안을 만들 수 있어요. 다음 단계에서 비교하고 다듬을 수 있습니다.",
     reaction: "",
   },
 ];

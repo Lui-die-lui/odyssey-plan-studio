@@ -1,5 +1,7 @@
+import type { PlanPathKind } from "../constants/plan-path.constants";
+
 /**
- * OpenAI가 반환하는 5년 플랜 초안 (create 폼 매핑 전).
+ * OpenAI가 반환하는 세 경로 초안 (폼 매핑 전).
  * 점수는 사용자가 직접 평가하므로 여기에 포함하지 않습니다.
  */
 export type OdysseyAiPlanEvidence = {
@@ -21,7 +23,29 @@ export type OdysseyAiPlanYearDraft = {
   keywords: string[];
 };
 
+export type OdysseyAiPathExperiment = {
+  action: string;
+  learning: string;
+};
+
+export type OdysseyAiPathDraft = {
+  kind: PlanPathKind;
+  title: string;
+  overview: string;
+  appeal: { text: string; questionIds: string[] };
+  requirements: string[];
+  openQuestions: string[];
+  experiments: OdysseyAiPathExperiment[];
+  years: OdysseyAiPlanYearDraft[];
+};
+
 export type OdysseyAiPlanFormDraft = {
+  title: string;
+  paths: OdysseyAiPathDraft[];
+};
+
+/** sessionStorage v2 시절의 단일 경로 초안 */
+export type OdysseyAiSinglePlanDraft = {
   title: string;
   years: OdysseyAiPlanYearDraft[];
 };

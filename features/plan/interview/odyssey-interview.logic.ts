@@ -11,12 +11,6 @@ import type {
 } from "./odyssey-interview.types";
 import { ODYSSEY_OTHER_CHOICE_ID } from "./odyssey-interview.types";
 
-let idSeq = 0;
-export function nextOdysseyChatMessageId(): string {
-  idSeq += 1;
-  return `m_${Date.now()}_${idSeq}`;
-}
-
 export function buildChoiceLabelMap(
   q: OdysseyInterviewQuestionDef,
   answers: OdysseyInterviewAnswers,
@@ -98,12 +92,6 @@ export function validateOdysseyPayload(
   return { ok: false, message: "선택해 주세요." };
 }
 
-export function serializeOdysseyAnswersForApi(
-  answers: OdysseyInterviewAnswers,
-): { version: 1; answers: OdysseyInterviewAnswers } {
-  return { version: 1, answers };
-}
-
 export function resolveOdysseyNextQuestionId(
   q: OdysseyInterviewQuestionDef,
   nextAnswers: OdysseyInterviewAnswers,
@@ -150,4 +138,31 @@ export function collectActiveOdysseyAnswers(
   }
 
   return active;
+}
+
+/**
+ * 지금 답해야 할 질문을 찾습니다. 이전 답변을 고쳐도 경로가 같은 답변은 그대로 두고,
+ * 새 분기에서 답이 없거나 더 이상 맞지 않는 질문부터 묻습니다.
+ */
+export function findOdysseyFrontierQuestionId(
+  answers: OdysseyInterviewAnswers,
+): string {
+  const first = ODYSSEY_INTERVIEW_QUESTIONS[0]!.id;
+  const active: OdysseyInterviewAnswers = {};
+  const visited = new Set<string>();
+  let questionId: string | null = first;
+
+  while (questionId && !visited.has(questionId)) {
+    visited.add(questionId);
+    const q = getOdysseyQuestionById(questionId);
+    if (!q || q.type === "complete") return questionId;
+
+    const answer = answers[q.id];
+    if (!answer || !isAnswerValidForQuestion(q, answer, active)) return q.id;
+
+    active[q.id] = answer;
+    questionId = resolveOdysseyNextQuestionId(q, active, answer);
+  }
+
+  return questionId ?? first;
 }

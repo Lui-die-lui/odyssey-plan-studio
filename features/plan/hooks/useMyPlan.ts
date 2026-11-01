@@ -14,7 +14,8 @@ export const useMyPlan = (opts?: UseMyPlanOptions) => {
   const userId = session?.user?.id;
 
   const [plan, setPlan] = useState<SavedPlanResponse | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+  // Start as loading, or screens would flash their content before the first fetch.
+  const [loading, setLoading] = useState<boolean>(autoLoad);
   const [error, setError] = useState<string | null>(null);
 
   const fetchPlan = useCallback(async () => {

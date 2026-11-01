@@ -1,4 +1,5 @@
 import type { PlanOdysseyYearIndex } from "../constants/plan.constants";
+import type { PlanPathKind, PlanPathMark } from "../constants/plan-path.constants";
 import type { PlanScoreKey } from "../constants/plan-score.constants";
 
 /** 1–5 self-rating; higher is more positive (RESOURCES, INTEREST, …). */
@@ -44,10 +45,39 @@ export type PlanYearDto = {
   aiGuidance?: PlanYearAiGuidance;
 };
 
+export type PlanPathExperiment = {
+  action: string;
+  learning: string;
+  /** The user chose this as something to try first. */
+  nextUp: boolean;
+};
+
+/** Everything about a path except its years. */
+export type PlanPathContent = {
+  kind: PlanPathKind;
+  title: string;
+  overview: string;
+  appeal: string;
+  appealQuestionIds: string[];
+  requirements: string[];
+  openQuestions: string[];
+  experiments: PlanPathExperiment[];
+  /** How the whole path feels now; never copied from yearly scores. */
+  scores: PlanYearScores;
+  marks: PlanPathMark[];
+};
+
+export type PlanPathDto = PlanPathContent & {
+  id: string;
+  years: PlanYearDto[];
+};
+
 export type SavedPlanResponse = {
   planId: string;
   title?: string;
+  /** An existing single plan; empty once a plan only has paths. */
   years: PlanYearDto[];
+  paths: PlanPathDto[];
   userId?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -74,10 +104,24 @@ export type PlanFormValues = {
   years: PlanYearForm[];
 };
 
-/** Upsert body for POST /api/my-plan */
-export type SavePlanRequestPayload = {
+/** Single plan body for POST /api/my-plan. */
+export type SingleSavePlanPayload = {
   title?: string;
   years: PlanYearSavePayload[];
+};
+
+export type PlanPathSavePayload = PlanPathContent & {
+  years: PlanYearSavePayload[];
+};
+
+/**
+ * Upsert body for POST /api/my-plan. Whichever of `years` and `paths` is left
+ * out stays untouched, so saving paths never overwrites a single plan.
+ */
+export type SavePlanRequestPayload = {
+  title?: string;
+  years?: PlanYearSavePayload[];
+  paths?: PlanPathSavePayload[];
 };
 
 export type PlanYearSavePayload = {

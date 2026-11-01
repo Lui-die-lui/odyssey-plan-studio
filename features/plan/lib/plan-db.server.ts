@@ -2,7 +2,14 @@ import {
   PLAN_SCORE_KEYS,
   type PlanScoreKey,
 } from "../constants/plan-score.constants";
+import {
+  PLAN_PATH_KINDS,
+  PLAN_PATH_MARKS,
+  type PlanPathKind,
+} from "../constants/plan-path.constants";
 import type {
+  PlanPathDto,
+  PlanPathSavePayload,
   PlanYearAiGuidance,
   PlanYearDto,
   PlanYearSavePayload,
@@ -11,16 +18,39 @@ import type {
 } from "../types/plan.types";
 import { prisma } from "@/lib/prisma";
 
+const yearInclude = {
+  goals: { orderBy: { position: "asc" as const } },
+  keywords: { orderBy: { position: "asc" as const } },
+  aiGuidance: true,
+} as const;
+
 export const planInclude = {
   years: {
+    where: { pathId: null },
     orderBy: { yearIndex: "asc" as const },
+    include: yearInclude,
+  },
+  paths: {
     include: {
-      goals: { orderBy: { position: "asc" as const } },
-      keywords: { orderBy: { position: "asc" as const } },
-      aiGuidance: true,
+      experiments: { orderBy: { position: "asc" as const } },
+      years: {
+        orderBy: { yearIndex: "asc" as const },
+        include: yearInclude,
+      },
     },
   },
 } as const;
+
+const DB_PATH_KINDS = {
+  continue: "CONTINUE",
+  alternative: "ALTERNATIVE",
+  unbound: "UNBOUND",
+} as const satisfies Record<PlanPathKind, string>;
+
+type DbPathKind = (typeof DB_PATH_KINDS)[PlanPathKind];
+
+const pathKindFromDb = (kind: DbPathKind): PlanPathKind =>
+  PLAN_PATH_KINDS.find((k) => DB_PATH_KINDS[k] === kind) as PlanPathKind;
 
 export function mapYearToDto(y: {
   id: string;
@@ -86,6 +116,69 @@ export function mapYearPayloadToCreateData(y: PlanYearSavePayload) {
   };
 }
 
+type DbPath = {
+  id: string;
+  kind: DbPathKind;
+  title: string;
+  overview: string;
+  appeal: string;
+  appealQuestionIds: string[];
+  requirements: string[];
+  openQuestions: string[];
+  marks: string[];
+  resourcesScore: number | null;
+  interestScore: number | null;
+  confidenceScore: number | null;
+  coherenceScore: number | null;
+  experiments: { action: string; learning: string; nextUp: boolean; position: number }[];
+  years: Array<Parameters<typeof mapYearToDto>[0]>;
+};
+
+export function mapPathToDto(path: DbPath): PlanPathDto {
+  return {
+    id: path.id,
+    kind: pathKindFromDb(path.kind),
+    title: path.title,
+    overview: path.overview,
+    appeal: path.appeal,
+    appealQuestionIds: path.appealQuestionIds,
+    requirements: path.requirements,
+    openQuestions: path.openQuestions,
+    marks: PLAN_PATH_MARKS.filter((mark) => path.marks.includes(mark)),
+    scores: {
+      resources: path.resourcesScore as PlanYearScores["resources"],
+      interest: path.interestScore as PlanYearScores["interest"],
+      confidence: path.confidenceScore as PlanYearScores["confidence"],
+      coherence: path.coherenceScore as PlanYearScores["coherence"],
+    },
+    experiments: [...path.experiments]
+      .sort((a, b) => a.position - b.position)
+      .map(({ action, learning, nextUp }) => ({ action, learning, nextUp })),
+    years: [...path.years].sort((a, b) => a.yearIndex - b.yearIndex).map(mapYearToDto),
+  };
+}
+
+/** Column values for one path, shared by first save and full replacement saves. */
+export function mapPathPayloadToCreateData(path: PlanPathSavePayload) {
+  return {
+    kind: DB_PATH_KINDS[path.kind],
+    title: path.title,
+    overview: path.overview,
+    appeal: path.appeal,
+    appealQuestionIds: path.appealQuestionIds,
+    requirements: path.requirements,
+    openQuestions: path.openQuestions,
+    marks: path.marks,
+    resourcesScore: path.scores.resources,
+    interestScore: path.scores.interest,
+    confidenceScore: path.scores.confidence,
+    coherenceScore: path.scores.coherence,
+    experiments: {
+      create: path.experiments.map((experiment, position) => ({ ...experiment, position })),
+    },
+  };
+}
+
 export function mapPlanToResponse(plan: {
   id: string;
   userId: string;
@@ -93,6 +186,7 @@ export function mapPlanToResponse(plan: {
   createdAt: Date;
   updatedAt: Date;
   years: Array<Parameters<typeof mapYearToDto>[0]>;
+  paths: DbPath[];
 }): SavedPlanResponse {
   return {
     planId: plan.id,
@@ -101,6 +195,9 @@ export function mapPlanToResponse(plan: {
     years: [...plan.years]
       .sort((a, b) => a.yearIndex - b.yearIndex)
       .map(mapYearToDto),
+    paths: [...plan.paths]
+      .map(mapPathToDto)
+      .sort((a, b) => PLAN_PATH_KINDS.indexOf(a.kind) - PLAN_PATH_KINDS.indexOf(b.kind)),
     createdAt: plan.createdAt.toISOString(),
     updatedAt: plan.updatedAt.toISOString(),
   };

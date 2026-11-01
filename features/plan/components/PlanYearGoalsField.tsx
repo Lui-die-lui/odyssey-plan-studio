@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -19,29 +19,27 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
+import { buttonClass, fieldClass } from "@/components/common/ui";
+
 import type { PlanGoalLineForm } from "../types/plan.types";
 import type { PlanOdysseyYearIndex } from "../constants/plan.constants";
+import { AI_SUGGESTION_LABEL } from "../lib/plan-ai-guidance";
 import type { StringListItemError } from "../lib/plan.validation";
+
+const rowInputClass =
+  "w-full resize-none rounded-md bg-transparent px-1.5 py-1.5 text-[15px] leading-relaxed text-ink outline-none [field-sizing:content] placeholder:text-ink-3";
 
 function GripHandle(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       type="button"
-      className="flex w-8 shrink-0 cursor-grab touch-none items-center justify-center self-stretch rounded-md border-0 bg-transparent p-0 text-zinc-300 hover:text-zinc-500 active:cursor-grabbing dark:text-zinc-500 dark:hover:text-zinc-400"
-      aria-label="순서 변경"
+      className="flex min-h-11 w-8 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-ink-3 hover:text-ink active:cursor-grabbing"
       {...props}
     >
-      <span className="inline-flex gap-0.5" aria-hidden>
-        <span className="flex flex-col gap-0.5">
-          {[0, 1, 2].map((i) => (
-            <span key={i} className="h-1 w-1 rounded-full bg-current" />
-          ))}
-        </span>
-        <span className="flex flex-col gap-0.5">
-          {[0, 1, 2].map((i) => (
-            <span key={`b${i}`} className="h-1 w-1 rounded-full bg-current" />
-          ))}
-        </span>
+      <span className="grid grid-cols-2 gap-0.5" aria-hidden>
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <span key={i} className="size-1 rounded-full bg-current" />
+        ))}
       </span>
     </button>
   );
@@ -50,32 +48,28 @@ function GripHandle(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
 type SortableGoalRowProps = {
   goal: PlanGoalLineForm;
   index: number;
-  isEditing: boolean;
-  onRequestEdit: () => void;
+  isAiLine: boolean;
+  /** The plan came from AI, so every line shows whose words it is. */
+  showOrigin: boolean;
   onChangeText: (text: string) => void;
-  onBlurCommit: () => void;
   onRemove: () => void;
   maxLen: number;
+  error?: string;
 };
 
 function SortableGoalRow({
   goal,
   index,
-  isEditing,
-  onRequestEdit,
+  isAiLine,
+  showOrigin,
   onChangeText,
-  onBlurCommit,
   onRemove,
   maxLen,
+  error,
 }: SortableGoalRowProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: goal.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: goal.id });
+  const textBeforeEdit = useRef(goal.text);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -83,70 +77,59 @@ function SortableGoalRow({
     zIndex: isDragging ? 1 : undefined,
   };
 
-  const areaRef = useRef<HTMLTextAreaElement | null>(null);
-
-  useEffect(() => {
-    if (!isEditing) return;
-    const el = areaRef.current;
-    if (!el) return;
-    el.focus();
-    const len = el.value.length;
-    el.setSelectionRange(len, len);
-  }, [isEditing]);
-
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={
-        "relative flex items-center gap-2 rounded-xl border border-zinc-200/90 bg-white px-2 py-2 dark:border-white/10 dark:bg-zinc-950 " +
-        (isDragging ? "opacity-90 shadow-md" : "")
+        "relative rounded-lg border-l-2 bg-raised py-1 pl-1 pr-1.5 transition-colors duration-200 focus-within:bg-raised " +
+        (showOrigin
+          ? isAiLine
+            ? "border-l-line-strong"
+            : "border-l-accent"
+          : "border-l-line") +
+        (isDragging ? " opacity-90" : "")
       }
     >
-      <GripHandle {...attributes} {...listeners} />
-      <div className="min-w-0 flex-1 pr-8">
-        {isEditing ? (
-          <textarea
-            ref={areaRef}
-            value={goal.text}
-            onChange={(e) => onChangeText(e.target.value)}
-            onBlur={onBlurCommit}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                e.preventDefault();
-                (e.target as HTMLTextAreaElement).blur();
-              }
-            }}
-            rows={2}
-            maxLength={maxLen}
-            className="min-h-14 w-full resize-none rounded-lg border border-zinc-200/90 bg-zinc-50/50 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-300 focus:bg-white dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-50"
-            aria-label={`목표 ${index + 1} 편집`}
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={onRequestEdit}
-            className="w-full rounded-lg px-1 py-1.5 text-left text-sm leading-snug text-zinc-800 transition-colors hover:bg-zinc-50 dark:text-zinc-100 dark:hover:bg-white/[.06]"
-          >
-            {goal.text || (
-              <span className="text-zinc-400 dark:text-zinc-500">
-                클릭하여 입력
-              </span>
-            )}
-          </button>
-        )}
+      <div className="flex items-start gap-1">
+        <GripHandle
+          {...attributes}
+          {...listeners}
+          aria-label={`${index + 1}번째 줄 순서 변경`}
+        />
+        <textarea
+          value={goal.text}
+          rows={1}
+          maxLength={maxLen}
+          aria-label={`${index + 1}번째 줄 편집`}
+          onFocus={() => {
+            textBeforeEdit.current = goal.text;
+          }}
+          onChange={(e) => onChangeText(e.target.value)}
+          onBlur={() => {
+            if (!goal.text.trim()) onChangeText(textBeforeEdit.current);
+          }}
+          className={rowInputClass}
+        />
+        <button
+          type="button"
+          onClick={onRemove}
+          className="min-h-11 shrink-0 cursor-pointer rounded-md px-2 text-sm text-ink-3 transition-colors hover:text-danger"
+          aria-label={`${index + 1}번째 줄 삭제`}
+        >
+          삭제
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onRemove();
-        }}
-        className="absolute right-2 top-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base leading-none text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-white/[.08] dark:hover:text-zinc-200"
-        aria-label={`목표 ${index + 1} 삭제`}
-      >
-        ×
-      </button>
+      {showOrigin ? (
+        <p className="pb-1 pl-10 text-xs text-ink-3">
+          {isAiLine ? (
+            AI_SUGGESTION_LABEL
+          ) : (
+            <span className="font-medium text-accent">내가 쓴 문장</span>
+          )}
+        </p>
+      ) : null}
+      {error ? <p className="pb-1 pl-10 text-sm text-danger">{error}</p> : null}
     </div>
   );
 }
@@ -158,8 +141,8 @@ export type PlanYearGoalsFieldProps = {
   maxGoalLength: number;
   goalLinesErrors?: StringListItemError[];
   goalsListError?: string;
-  /** When false, parent supplies the section title (card layout). */
-  showSectionHeader?: boolean;
+  /** Generated lines; when present, each row shows if it is still the AI's wording. */
+  aiSourceTexts?: string[];
   onGoalTextChange: (index: number, text: string) => void;
   onCommitGoal: (text: string) => void;
   onRemoveGoal: (index: number) => void;
@@ -173,14 +156,12 @@ const PlanYearGoalsField = ({
   maxGoalLength,
   goalLinesErrors,
   goalsListError,
-  showSectionHeader = true,
+  aiSourceTexts,
   onGoalTextChange,
   onCommitGoal,
   onRemoveGoal,
   onReorderGoals,
 }: PlanYearGoalsFieldProps) => {
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [backupText, setBackupText] = useState("");
   const [newGoalDraft, setNewGoalDraft] = useState("");
 
   const sensors = useSensors(
@@ -192,9 +173,6 @@ const PlanYearGoalsField = ({
     }),
   );
 
-  const effectiveEditingIndex =
-    editingIndex != null && editingIndex < goals.length ? editingIndex : null;
-
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -202,7 +180,6 @@ const PlanYearGoalsField = ({
     const newIndex = goals.findIndex((g) => g.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
     onReorderGoals(arrayMove(goals, oldIndex, newIndex));
-    setEditingIndex(null);
   };
 
   const tryCommitNew = () => {
@@ -215,20 +192,10 @@ const PlanYearGoalsField = ({
   };
 
   const canAddMore = goals.length < maxGoals;
+  const newGoalId = `plan-new-goal-y${activeYear}`;
 
   return (
-    <div className="flex flex-col gap-3">
-      {showSectionHeader ? (
-        <div className="flex flex-col gap-0.5">
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-            {activeYear}년차 목표
-          </h3>
-          <p className="text-xs text-zinc-400 dark:text-zinc-500">
-            (최대 {maxGoals}개) · 드래그하여 순서 변경
-          </p>
-        </div>
-      ) : null}
-
+    <div className="flex flex-col gap-2">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -244,48 +211,27 @@ const PlanYearGoalsField = ({
                 key={goal.id}
                 goal={goal}
                 index={gIdx}
-                isEditing={effectiveEditingIndex === gIdx}
+                showOrigin={aiSourceTexts != null}
+                isAiLine={aiSourceTexts?.includes(goal.text.trim()) ?? false}
                 maxLen={maxGoalLength}
-                onRequestEdit={() => {
-                  setBackupText(goal.text);
-                  setEditingIndex(gIdx);
-                }}
+                error={goalLinesErrors?.find((e) => e.index === gIdx)?.message}
                 onChangeText={(text) => onGoalTextChange(gIdx, text)}
-                onBlurCommit={() => {
-                  setEditingIndex(null);
-                  const trimmed = goal.text.trim();
-                  if (!trimmed) {
-                    onGoalTextChange(gIdx, backupText);
-                  }
-                }}
-                onRemove={() => {
-                  onRemoveGoal(gIdx);
-                  setEditingIndex((prev) =>
-                    prev === gIdx ? null : prev !== null && prev > gIdx ? prev - 1 : prev,
-                  );
-                }}
+                onRemove={() => onRemoveGoal(gIdx)}
               />
             ))}
           </div>
         </SortableContext>
       </DndContext>
 
-      {goalLinesErrors?.length ? (
-        <div className="text-sm text-red-600">
-          {goalLinesErrors.map((e) => (
-            <p key={e.index}>
-              Goal line {e.index + 1}: {e.message}
-            </p>
-          ))}
-        </div>
-      ) : null}
-      {goalsListError ? (
-        <p className="text-sm text-red-600">{goalsListError}</p>
-      ) : null}
+      {goalsListError ? <p className="text-sm text-danger">{goalsListError}</p> : null}
 
       {canAddMore ? (
-        <div className="flex gap-2 rounded-xl border border-dashed border-zinc-200/90 bg-zinc-50/80 px-2 py-2 dark:border-white/10 dark:bg-zinc-900/40">
+        <div>
+          <label htmlFor={newGoalId} className="sr-only">
+            새 목표나 행동 추가
+          </label>
           <textarea
+            id={newGoalId}
             value={newGoalDraft}
             onChange={(e) => setNewGoalDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -296,23 +242,32 @@ const PlanYearGoalsField = ({
             }}
             rows={2}
             maxLength={maxGoalLength}
-            placeholder={`새로운 플랜 추가 (최대 ${maxGoals}개)`}
-            className="min-h-14 min-w-0 flex-1 resize-none rounded-md border-0 bg-transparent px-1 py-1.5 text-sm text-black outline-none placeholder:text-zinc-400 dark:text-zinc-50 dark:placeholder:text-zinc-500"
-          />
-          <button
-            type="button"
-            onClick={tryCommitNew}
-            disabled={
-              !newGoalDraft.trim() ||
-              newGoalDraft.trim().length > maxGoalLength
+            placeholder={
+              goals.length
+                ? "목표나 행동을 더 적어 보세요"
+                : "이 해에 달라져 있을 모습이나 해볼 일을 적어 보세요"
             }
-            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-lg font-light text-zinc-500 shadow-sm transition-colors hover:text-zinc-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
-            aria-label="목표 추가"
-          >
-            +
-          </button>
+            className={`${fieldClass} resize-none [field-sizing:content]`}
+          />
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <p className="text-xs text-ink-3">
+              {goals.length}/{maxGoals}줄 · Enter로 추가
+            </p>
+            <button
+              type="button"
+              onClick={tryCommitNew}
+              disabled={!newGoalDraft.trim()}
+              className={buttonClass("secondary")}
+            >
+              추가
+            </button>
+          </div>
         </div>
-      ) : null}
+      ) : (
+        <p className="text-xs text-ink-3">
+          {maxGoals}줄을 모두 채웠어요. 추가하려면 한 줄을 지워 주세요.
+        </p>
+      )}
     </div>
   );
 };
