@@ -55,9 +55,16 @@ function getDbUrlDiagnostics(raw: string) {
   }
 }
 
-const adapter = new PrismaPg({
-  connectionString,
-});
+function getDbSchema(raw: string): string | undefined {
+  try {
+    return new URL(raw).searchParams.get("schema") ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// The driver adapter ignores `?schema=` in the URL, so pass it explicitly.
+const adapter = new PrismaPg({ connectionString }, { schema: getDbSchema(connectionString) });
 
 const dbDiagnostics = getDbUrlDiagnostics(connectionString);
 if (!globalForPrisma.prismaDbUrlLogged) {

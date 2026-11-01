@@ -12,29 +12,17 @@ async function main() {
   const client = new Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();
 
-  const enumCheck = await client.query(
-    `SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'UserRole') AS exists;`,
-  );
-
-  const exists = enumCheck.rows?.[0]?.exists;
-  if (!exists) {
-    await client.query(`CREATE TYPE "UserRole" AS ENUM ('USER','ADMIN');`);
-  }
+  // Qualify explicitly: this project's DB may be shared with another app's "User" table.
+  const schema = new URL(process.env.DATABASE_URL).searchParams.get("schema") ?? "public";
+  const userTable = `${client.escapeIdentifier(schema)}."User"`;
 
   await client.query(
-    `ALTER TABLE "User"
-     ADD COLUMN IF NOT EXISTS "role" "UserRole" NOT NULL DEFAULT 'USER',
-     ADD COLUMN IF NOT EXISTS "aiBlocked" BOOLEAN NOT NULL DEFAULT false,
-     ADD COLUMN IF NOT EXISTS "lastLoginAt" TIMESTAMP(3);`,
-  );
-
-  await client.query(
-    `UPDATE "User" SET role = $1 WHERE email = $2;`,
+    `UPDATE ${userTable} SET role = $1 WHERE email = $2;`,
     ["ADMIN", EMAIL],
   );
 
   await client.query(
-    `SELECT id, email, role, "aiBlocked" FROM "User" WHERE email = $1;`,
+    `SELECT id, email, role, "aiBlocked" FROM ${userTable} WHERE email = $1;`,
     [EMAIL],
   );
 
